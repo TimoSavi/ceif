@@ -62,7 +62,7 @@ Note that parameters like -R and -O are saved to forest file and need not be giv
 ####  Read forest data from data.f and add more samples from data2.csv 
 Note that -w must given in order to save enhanced forest data.
 
-    ceif -r data.f -l data.csv -w data.f
+    ceif -r data.f -l data2.csv -w data.f
 
 #### learn and write forest data with category
 Use field number 5 as category field
