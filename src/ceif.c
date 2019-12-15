@@ -38,6 +38,9 @@ int dims_ignore[DIM_MAX];       // Which dimensions are not processed, bit map t
 int dims_category[DIM_MAX];     // Which dimensions are used as category label, bit map type of tabe
 int label_dim = -1;             // which dimension is the label dimension
 
+char *cat_filter[FILTER_MAX];  // Category filters
+int cat_filter_count = 0;      // Category filter count
+
 char *print_string="%s %v";     // How to print outlier data
 int tree_count = 100;             // trees / forest
 int samples_max = 256;            // max samples / tree
@@ -57,7 +60,7 @@ struct forest *forest = NULL;    // forest table
 
 
 
-static char short_opts[] = "o:hVDI:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:";
+static char short_opts[] = "o:hVDI:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -85,6 +88,7 @@ static struct option long_opts[] =
   {"read-forest", 1, 0, 'r'},
   {"prange-factor", 1, 0, 'R'},
   {"categorize", 1, 0, 'c'},
+  {"category-filter", 1, 0, 'F'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -117,6 +121,7 @@ Options:\n\
   -H, --header                input data files have header\n\
   -S, --set-locale            locale information is read from environment\n\
   -R, --prange-factor FLOAT   prange selection adjustment factor\n\
+  -F, --category-filter REGEXP Regular expression to filter categories\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -272,6 +277,9 @@ main (int argc, char **argv)
             case 'R':
                 prange_extension_factor = atof(optarg);
                 if(prange_extension_factor < 0) panic("Give P-range extension factor equal or larger than zero",NULL,NULL);
+                break;
+            case 'F':
+                add_category_filter(optarg);
                 break;
             case 'V':
                 print_version();

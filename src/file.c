@@ -28,6 +28,29 @@
 
 #define VALUES_MAX (2*DIM_MAX)             // Max values for parsing a csv line
 
+/* make a csv line from strings 
+   return pointer to string
+ */
+char *
+make_csv_line(char *values[],int value_count,char separator)
+{
+    static char line[INPUT_LEN_MAX];
+    char s[2];
+    int i;
+
+    line[0] = '\000';
+    s[0] = separator;
+    s[1] = '\000';
+
+    for(i = 0;i < value_count;i++)
+    {
+        strcat(line,values[i]);
+        if(i < value_count - 1) strcat(line,s);
+    }
+
+    return line;
+}
+
 /* parse a csv line.
    return number of values
    pointers to each value will be written to values

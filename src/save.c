@@ -26,7 +26,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d\n";
+static char *W_global = "G;%d;%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d\n";
 static char *W_sample = "S;%s\n";
 
@@ -50,8 +50,12 @@ int valid_forest(struct forest *f)
 static
 void write_global_data(FILE *w,int f_count)
 {
+    char *filter_string;
+
+    filter_string = make_csv_line(cat_filter,cat_filter_count,';');
+
     if(fprintf(w,W_global,dimensions,label_dim,print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count) < 0)
+                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string) < 0)
     {
         write_error();
     }
@@ -129,12 +133,13 @@ write_forest_file(FILE *data_file)
 static 
 void parse_G(char *l)
 {
-    int value_count;
+    int value_count,i,c;
     char *v[100];
+    char *f[FILTER_MAX];
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 14) // change this too if parameter count changes
+    if(value_count == 15) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
         label_dim = atoi(v[2]);
@@ -152,6 +157,9 @@ void parse_G(char *l)
         include_dims = xstrdup(v[12]);
         parse_dims(v[12],0,dims_ignore);
         forest_count = atoi(v[13]);
+
+        c = parse_csv_line(f,FILTER_MAX,v[14],';');
+        for(i = 0;i < c;i++) add_category_filter(f[i]);
 
         samples_total = tree_count * samples_max;
     }

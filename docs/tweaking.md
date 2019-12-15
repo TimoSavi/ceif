@@ -56,6 +56,8 @@ Following effects are seen:
 
 It is also noticeable that circle like maps are quite difficult to get right. In above examples only '-R' value 75 (or little less) is usable if the middle of the circle should be seen as outlier area using score 0.5. This due to the nature of the algorithm, it creates sub spaces spanning over inlier and outlier areas causing bias. 
 
+Low -R values can be beneficial when categorizing data. Lower score values are then concentrated to the center of data map. This can yield better results when different forests (categories) are
+overlapping.
 
 #### Tricky data maps
 Here is an example of a difficult data map. Two nested circles causes problems because there are adjacent inlier and outlier areas and subareas of the algorithm tend to span over both areas. 

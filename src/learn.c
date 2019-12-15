@@ -23,6 +23,7 @@
  */
 #include "ceif.h"
 #include <math.h>
+#include <regex.h>
 
 
 static char input_line[INPUT_LEN_MAX];
@@ -95,6 +96,7 @@ int select_forest(int value_count,char **values)
     }
 
    forest[forest_count].category = xstrdup(category_string);
+   forest[forest_count].filter = 0;
    forest[forest_count].X_count = 0;
    forest[forest_count].X_current = 0;
    forest[forest_count].X_cap = 0;   
@@ -142,7 +144,6 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
     {
         sample_idx = ri(0,sample_number);
         if(sample_idx >= samples_total) return;     // check if old sample should be replaced with this or not
-        printf("%d %d\n",sample_number,sample_idx);
     }
 
     j = 0;
@@ -439,6 +440,41 @@ void train_one_forest(int forest_idx)
     free(s);
 }
 
+/* Add a regular expression to category filter list
+ */
+void add_category_filter(char *regexp)
+{
+    if(cat_filter_count < FILTER_MAX)
+    {
+        cat_filter[cat_filter_count] = xstrdup(regexp);
+        cat_filter_count++;
+    }
+}
+
+/*  mark forests filtered using
+    regular expressions in cat_filter 
+*/
+static
+void filter_forests()
+{
+    int i,j;
+    regex_t reg;
+
+    for(i = 0;i < cat_filter_count;i++)
+    {
+        if(regcomp(&reg,cat_filter[i],REG_EXTENDED | REG_NOSUB))
+        {
+            panic("Error in regular expression",cat_filter[i],NULL);
+        }
+
+        for(j = 0;j < forest_count;j++)
+        {
+            if(forest[j].category[0] != '\000' && regexec(&reg,forest[j].category,0,NULL,0) == 0) forest[j].filter = 1;
+        }
+    }
+}
+
+
 
 /* build a new forest structure (new=1) or add new samples to existing forest (new=0)
    */
@@ -483,4 +519,6 @@ train_forest(FILE *in_stream,int new)
     {
         train_one_forest(i);
     }
+
+    filter_forests();
 }

@@ -45,7 +45,7 @@ int find_forest(int value_count,char **values)
 
     for(i = 0;i < forest_count;i++)
     {
-        if (strcmp(category_string,forest[i].category) == 0) return i;
+        if (!forest[i].filter && strcmp(category_string,forest[i].category) == 0) return i;
     }
 
     return -1;
@@ -307,23 +307,40 @@ categorize(FILE *in_stream, FILE *outs)
             first = 0;
         }
 
+        best_forest_idx = -1;
+
         if(value_count)
         { 
              populate_dimension(dimension,values,value_count);
 
-             min_score = calculate_score(0,dimension);
-             best_forest_idx = 0;
-
-             for(forest_idx = 1;forest_idx < forest_count;forest_idx++)
+             for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
              {
-                  score = calculate_score(forest_idx,dimension);
-                  if(score < min_score)
-                  {
-                      min_score = score;
-                      best_forest_idx = forest_idx;
-                  }
+                 if(!forest[forest_idx].filter)
+                 {
+                     min_score = calculate_score(forest_idx,dimension);
+                     best_forest_idx = forest_idx;
+                     forest_idx = forest_count;
+                 }
              }
-             print_outlier(outs,min_score,lines,best_forest_idx,value_count,values,dimension);
+
+             if(best_forest_idx >= 0)
+             {
+                 forest_idx = best_forest_idx + 1;
+                 for(;forest_idx < forest_count;forest_idx++)
+                 {
+                     if(!forest[forest_idx].filter)
+                     {
+                         score = calculate_score(forest_idx,dimension);
+                         if(score < min_score)
+                         {
+                             min_score = score;
+                             best_forest_idx = forest_idx;
+                         }
+                     }
+                 }
+             }
+
+             if(best_forest_idx >= 0) print_outlier(outs,min_score,lines,best_forest_idx,value_count,values,dimension);
         }
     }
     if(dimension != NULL) free(dimension);

@@ -26,6 +26,7 @@
 #define INPUT_LEN_MAX 1048576
 #define SAMPLES_MIN 32            // minimun number of samples for a forest
 #define TREE_UPDATE_PERCENT 50    // Percentage of tree to rebuild when updating a forest
+#define FILTER_MAX 100            // maximun number of category filters
 
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
@@ -57,6 +58,7 @@ struct tree
 struct forest
 {
     char *category;         // Category string, all data having this category string in input data will behandled by this
+    int filter;             // true if this forest should not be used in analysis or categorize
     int X_count;	        // Number of dimensions
     int X_current;          // whis smaple should be taken next to tree 
     int X_cap;              // Memory allocated for X, in terms of units of struct sample
@@ -76,6 +78,9 @@ extern int dim_idx[];
 extern int category_idx[];
 extern int dims_ignore[];       // Which dimensions are not processed
 extern int dims_category[];       // dimensions to be used as category
+
+extern char *cat_filter[];
+extern int cat_filter_count;
 
 extern int tree_count;                // trees / forest
 extern int samples_max;              // max samples / tree
@@ -111,6 +116,7 @@ FILE * xfopen(char *, char *, char);
 FILE * xfopen_test(char *, char *, char);
 
 /* file.c prototypes */
+char *make_csv_line(char **,int,char);
 int parse_csv_line(char **,int,char *,char);
 
 /* learn.c prototypes */
@@ -120,6 +126,7 @@ double dot(double *, double *);
 double c(int);
 int dim_ok(int,int);
 void add_to_X(struct forest *,char **, int ,int ,int);
+void add_category_filter(char *);
 
 
 /* analyze.c prototypes */
