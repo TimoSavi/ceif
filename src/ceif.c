@@ -31,12 +31,18 @@
 /* Global data */
 int dim_idx[DIM_MAX];           // final table of dimension indices to be used. Index refers to input line field index
 int dimensions = 0;             // dimensions in current setup
-int category_idx[DIM_MAX];           // final table of category indices to be used. Index refers to input line field index
-int categories = 0;             // number of category fields
 
-int dims_ignore[DIM_MAX];       // Which dimensions are not processed, bit map type of table
-int dims_category[DIM_MAX];     // Which dimensions are used as category label, bit map type of tabe
-int label_dim = -1;             // which dimension is the label dimension
+int ignore_idx[DIM_MAX];
+int ignore_idx_count = 0;
+
+int include_idx[DIM_MAX];
+int include_idx_count = 0;
+
+int category_idx[DIM_MAX];      // final table of category indices to be used. Index refers to input line field index
+int category_idx_count  = 0;             // number of category fields
+
+int label_idx[DIM_MAX];         // final table of label indices to be used. Index refers to input line field index
+int label_idx_count = 0;                 // number of labels fields
 
 char *cat_filter[FILTER_MAX];  // Category filters
 int cat_filter_count = 0;      // Category filter count
@@ -49,9 +55,12 @@ char input_separator = ',';       // input separator for csv data
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
+
+/* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
 char *include_dims = NULL;           // which input values are included, user given string
 char *category_dims = NULL;           // list of dimensions to be used as category label, user given string
+char *label_dims = NULL;           // list of dimensions to be used as category label, user given string
 
 int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
@@ -79,7 +88,6 @@ static struct option long_opts[] =
   {"print", 1, 0, 'p'},
   {"write-forest", 1, 0, 'w'},
   {"outlier-score", 1, 0, 'O'},
-  {"load-forest", 1, 0, 'L'},
   {"category-dim", 1, 0, 'C'},
   {"header", 0, 0, 'H'},
   {"set-locale", 0, 0, 'S'},
@@ -170,7 +178,7 @@ print_version()
 int
 main (int argc, char **argv)
 {
-    int opt,i;
+    int opt;
     int set_locale = 0;
     char *learn_file = NULL;
     char *analyze_file = NULL;
@@ -185,12 +193,6 @@ main (int argc, char **argv)
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
 
-    for(i = 0;i < DIM_MAX;i++)   // reset dim "bit map" tables 
-    {
-        dims_ignore[i] = 0;
-        dims_category[i] = 0;
-    }
-
     #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)
     #else
@@ -201,11 +203,11 @@ main (int argc, char **argv)
         {
             case 'I':
                 ignore_dims = xstrdup(optarg);
-                parse_dims(optarg,1,dims_ignore);
+                ignore_idx_count = parse_dims(optarg,ignore_idx);
                 break;
             case 'U':
                 include_dims = xstrdup(optarg);
-                parse_dims(optarg,0,dims_ignore);
+                include_idx_count = parse_dims(optarg,include_idx);
                 break;
             case 't':
                 tree_count = atoi(optarg);
@@ -243,20 +245,18 @@ main (int argc, char **argv)
                 if(load_file !=  NULL && forest_count == 0)
                 {
                     setlocale(LC_ALL,"C");
-                    loads = xfopen_test(load_file,"r",'a');
-                    if(loads) 
-                    {
-                        if(!read_forest_file(loads)) panic("Cannot load forest data",load_file,NULL);
-                        fclose(loads);
-                    }
+                    loads = xfopen(load_file,"r",'a');
+                    if(!read_forest_file(loads)) panic("Cannot load forest data",load_file,NULL);
+                    fclose(loads);
                 }
                 break;
             case 'C':
                 category_dims = xstrdup(optarg);
-                parse_dims(optarg,1,dims_category);
+                category_idx_count = parse_dims(optarg,category_idx);
                 break;
             case 'L':
-                label_dim = atoi(optarg) - 1;
+                label_dims = xstrdup(optarg);
+                label_idx_count = parse_dims(optarg,label_idx);
                 break;
             case 'H':
                 header = 1;

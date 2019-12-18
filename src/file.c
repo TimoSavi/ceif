@@ -115,15 +115,18 @@ check_dim_range(int index)
 
    1,2,10-15
 
+   returns the number if dims
+
    */
-void
-parse_dims(char *optarg, int val, int *array)
+int
+parse_dims(char *optarg, int *array)
 {
     char *value[DIM_MAX];
     char *range[2];
     int i,j;
     int ranges = 0;
     int values = 0;
+    int dims = 0;
 
     values = parse_csv_line(value,DIM_MAX,optarg,',');
 
@@ -135,13 +138,14 @@ parse_dims(char *optarg, int val, int *array)
             for(j = atoi(range[0]);j <= atoi(range[1]);j++)
             {
                 check_dim_range(j);
-                array[j - 1] = val;
+                array[dims++] = j - 1;
             }
         } else 
         {
                 j = atoi(value[i]);
                 check_dim_range(j);
-                array[j - 1] = val;
+                array[dims++] = j - 1;
         }
     }
+    return dims;
 }

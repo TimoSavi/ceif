@@ -75,9 +75,17 @@ struct forest
 
 /* Global data */
 extern int dim_idx[];
+extern int ignore_idx[];
+extern int include_idx[];
 extern int category_idx[];
-extern int dims_ignore[];       // Which dimensions are not processed
-extern int dims_category[];       // dimensions to be used as category
+extern int label_idx[];
+
+
+extern int dimensions;            // dimensions in current setup
+extern int ignore_idx_count;
+extern int include_idx_count;
+extern int category_idx_count;
+extern int label_idx_count;
 
 extern char *cat_filter[];
 extern int cat_filter_count;
@@ -85,17 +93,16 @@ extern int cat_filter_count;
 extern int tree_count;                // trees / forest
 extern int samples_max;              // max samples / tree
 extern int samples_total;              // max samples / forest
-extern int dimensions;            // dimensions in current setup
-extern int categories;
-extern int label_dim;             // which dimension is the lable dimension
 extern char *print_string;
 extern char input_separator;
 extern int header;
 extern double outlier_score;
 extern double prange_extension_factor;
+
 extern char *include_dims;
 extern char *ignore_dims;
 extern char *category_dims;
+extern char *label_dims;
 
 extern int forest_count;
 extern int forest_cap;
@@ -104,7 +111,7 @@ extern struct forest *forest;           // forest table
 
 /* ceif.c prototypes */
 void panic(char *,char *,char *);
-void parse_dims(char *,int,int *);
+int parse_dims(char *,int *);
 
 
 /* xmalloc.c prototypes */

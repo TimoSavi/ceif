@@ -23,8 +23,8 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
 | -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
-| -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category strig|
-| -L&nbsp;INTEGER | Field number to be used as a label field. Default is not to use label field|
+| -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
+| -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a category string|
 | -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given|
 | -H | Input data contains a header line which is ignored. Default is to read all lines|
 | -S | Set locale to local locale. Default is use locale "C"|

@@ -26,7 +26,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d\n";
 static char *W_sample = "S;%s\n";
 
@@ -36,12 +36,6 @@ static
 void write_error()
 {
      panic("Error while saving forest data to file",NULL,NULL);
-}
-
-static 
-int valid_forest(struct forest *f)
-{
-    return (f->X == NULL || f->X_count >= SAMPLES_MIN);  /*  dont save forests with no decent amount of samples, f->X is null if forest is read from file */
 }
 
 /*
@@ -54,7 +48,7 @@ void write_global_data(FILE *w,int f_count)
 
     filter_string = make_csv_line(cat_filter,cat_filter_count,';');
 
-    if(fprintf(w,W_global,dimensions,label_dim,print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
+    if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
                 input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string) < 0)
     {
         write_error();
@@ -108,22 +102,18 @@ save_forest(int forest_idx,FILE *w)
  * where ID:
  * G = global data
  * F = forest data 
- * T = tree data for last detected forest
- * N = node data for laste detected tree
+ * S = sample
  */
 void
 write_forest_file(FILE *data_file)
 {
     int i;
-    int forests_to_save = forest_count;
     
-    for(i = 0;i < forest_count;i++) if(!valid_forest(&forest[i])) forests_to_save--;
-
-    write_global_data(data_file,forests_to_save);
+    write_global_data(data_file,forest_count);
 
     for(i = 0;i < forest_count;i++)
     {
-        if(valid_forest(&forest[i])) save_forest(i,data_file);
+        save_forest(i,data_file);
     }
 }
 
@@ -142,20 +132,21 @@ void parse_G(char *l)
     if(value_count == 15) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
-        label_dim = atoi(v[2]);
+        label_dims = xstrdup(v[2]);
+        label_idx_count = parse_dims(v[2],label_idx);
         print_string = xstrdup(v[3]);
         tree_count = atoi(v[4]);
         samples_max = atoi(v[5]);
         category_dims = xstrdup(v[6]);
-        parse_dims(v[6],1,dims_category);
+        category_idx_count = parse_dims(v[6],category_idx);
         input_separator = v[7][0];
         header = atoi(v[8]);
         outlier_score = atof(v[9]);
         prange_extension_factor = atof(v[10]);
         ignore_dims = xstrdup(v[11]);
-        parse_dims(v[11],1,dims_ignore);
+        ignore_idx_count = parse_dims(v[11],ignore_idx);
         include_dims = xstrdup(v[12]);
-        parse_dims(v[12],0,dims_ignore);
+        include_idx_count = parse_dims(v[12],include_idx);
         forest_count = atoi(v[13]);
 
         c = parse_csv_line(f,FILTER_MAX,v[14],';');
@@ -183,8 +174,8 @@ int parse_F(int forest_idx,char *l)
         f->X_count = 0;
         f->X_cap = 0;
         f->t = xmalloc(tree_count * sizeof(struct tree));
-        f->min = xmalloc(dimensions * sizeof(double));
-        f->max = xmalloc(dimensions * sizeof(double));
+        f->min = NULL;
+        f->max = NULL;
         f->dim_density = xmalloc(dimensions * sizeof(double));
         return 1;
     }
@@ -217,7 +208,11 @@ read_forest_file(FILE *data_file)
     if(!dimensions || !tree_count) return 0;
 
     forest_cap = forest_count;
+
+    if(!forest_count) return 1;
+
     forest = xmalloc(forest_cap * sizeof(struct forest));
+
     f_count = 0;
         
     if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) return 0;
@@ -226,7 +221,7 @@ read_forest_file(FILE *data_file)
     {
         if(input_line[0] == 'F')
         {
-            if(input_line[0] != 'F' || !parse_F(f_count,input_line)) return 0;
+            if(!parse_F(f_count,input_line)) return 0;
             line = 0;
             do
             {
@@ -238,8 +233,11 @@ read_forest_file(FILE *data_file)
                     add_to_X(&forest[f_count],values,value_count,line,1);
                 }
             } while(input_line[0] == 'S');
+            f_count++;
+        } else
+        {
+            return 0;
         }
-        f_count++;
     } while(f_count < forest_count);
 
     return 1;

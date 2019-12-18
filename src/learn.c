@@ -1,4 +1,4 @@
-/*
+/*  
  *    ceif - categorized extended isolation forest
  *
  *    Copyright (C) 2019 Timo Savinen
@@ -40,16 +40,17 @@ char *make_category_string(int value_count,char **values)
 
     c[0] = '\000';
 
-    for(i = 0;i < categories;i++)
+    for(i = 0;i < category_idx_count;i++)
     {
         if(category_idx[i] < value_count)
         {
             strcat(c,values[category_idx[i]]);
-            if(i < categories - 1) strcat(c,":");
+            if(i < category_idx_count - 1) strcat(c,":");
         }
     }
     return c;
 }
+
 
 /* generate a random integer from range min...max
  */ 
@@ -102,8 +103,8 @@ int select_forest(int value_count,char **values)
    forest[forest_count].X_cap = 0;   
    forest[forest_count].X = NULL;   
    forest[forest_count].t = NULL;
-   forest[forest_count].min = xmalloc(dimensions * sizeof(double));
-   forest[forest_count].max = xmalloc(dimensions * sizeof(double));
+   forest[forest_count].min = NULL;
+   forest[forest_count].max = NULL;
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
 
    forest_count++;
@@ -129,6 +130,7 @@ double parse_dim_attribute(char *value)
 void add_to_X(struct forest *f,char **values, int value_count,int sample_number,int saved)
 {
     int i,j,sample_idx;
+    int first = 0;
 
     if(f->X_count >= f->X_cap) {
         f->X_cap += 25000;
@@ -146,6 +148,13 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
         if(sample_idx >= samples_total) return;     // check if old sample should be replaced with this or not
     }
 
+    if(f->min == NULL)
+    {
+        f->min = xmalloc(dimensions * sizeof(double));
+        f->max = xmalloc(dimensions * sizeof(double));
+        first = 1;
+    }
+
     j = 0;
 
     for(i = 0;i < dimensions;i++)
@@ -156,7 +165,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
                f->X[sample_idx].dimension[j] = parse_dim_attribute(values[saved ? i : dim_idx[i]]);
 
                // update min/max dimensions
-               if(f->X_count == 0)
+               if(first)
                {
                    f->min[j] = f->X[sample_idx].dimension[j];
                    f->max[j] = f->X[sample_idx].dimension[j];
@@ -323,7 +332,7 @@ double dot(double *a, double *b)
  *  */
 double c(int n)
 {
-    if(n <= 1) return 0;   
+    if(n <= 2) return 1;   
     return 2*(log(n - 1) + 0.5772156649) - (2*(n - 1)/n);
 }
 
@@ -419,14 +428,19 @@ void train_one_forest(int forest_idx)
 
     if(!tree_count) return;
 
-    if(f->X_count < SAMPLES_MIN) return;  /*  check the resonable amount of samples */
+    if(f->X_count < SAMPLES_MIN)  /*  check the resonable amount of samples */
+    {
+        f->filter = 1;
+        return; 
+    }
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
 
-    for(i = 0;i < dimensions;i++) f->dim_density[i] = (f->max[i] - f->min[i]) / (double) f->X_count;   // calculate avg dimension density
+    for(i = 0;i < dimensions;i++) f->dim_density[i] = (f->max[i] - f->min[i] + 0.1) / (double) f->X_count;   // calculate avg dimension density
 
     for(i = 0;i < tree_count;i++)
     {
+         f->X_current = ri(0,f->X_count - 1);           // start at random point
          sample_count = populate_sample(s,f);
          total_samples += sample_count;
 

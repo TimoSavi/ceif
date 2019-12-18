@@ -142,6 +142,30 @@ unsigned int score_to_rgb(double score)
     
     return (red << 16) + (green << 8) + blue;
 }                      
+
+/* make label sring using values from file and label_idx
+ *   values are concatenad with semicolon
+ *   return pointer to string
+ */
+static 
+char *make_label_string(int value_count,char **values)
+{
+    int i;
+    static char l[10240];
+
+    l[0] = '\000';
+
+    for(i = 0;i < label_idx_count;i++)
+    {
+        if(label_idx[i] < value_count)
+        {
+            strcat(l,values[label_idx[i]]);
+            if(i < label_idx_count - 1) strcat(l,":");
+        }
+    }
+    return l;
+}
+
         
 /* Print outlier info
  * printing is done using printf style string and %-directives
@@ -169,7 +193,7 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
                    fprintf(outs,"%s",make_category_string(value_count,values));
                    break;
                case 'l':
-                   if(label_dim >= 0 && label_dim < value_count) fprintf(outs,"%s",values[label_dim]);
+                   fprintf(outs,"%s",make_label_string(value_count,values));
                    break;
                case 'd':
                    for(i = 0;i < dimensions;i++) i < dimensions - 1 ? fprintf(outs,"%f,",dimension[i]) : fprintf(outs,"%f",dimension[i]);
@@ -189,11 +213,37 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
            }
        } else
        {
-           fprintf(outs,"%c",*c);
+           if(*c == '\\' && c[1] != '\000')
+           {
+               c++;
+               switch(*c)
+               {
+                   case 't':
+                       fprintf(outs,"%c",'\t');
+                       break;
+                   case 'n':
+                       fprintf(outs,"%c",'\n');
+                       break;
+               }
+           } else
+           {
+               fprintf(outs,"%c",*c);
+           }
        }
        c++;
     }
     if(*print_string) fprintf(outs,"%c",'\n');
+}
+
+/* check if index is in index table.
+ */
+int check_idx(int index,int index_count, int *idx_table)
+{
+    int i;
+
+    for(i = 0;i < index_count;i++) if(index == idx_table[i]) return 1;
+
+    return 0;
 }
 
 
@@ -206,22 +256,15 @@ init_dims(int value_count)
     int i;
 
     dimensions = 0;
-    categories = 0;
-
-    if(label_dim >= 0) dims_ignore[label_dim] = 1;            // do not read as normal dimemnsion
 
     for(i = 0;i < value_count;i++) 
     {
-        if(!dims_ignore[i] && !dims_category[i])
+        if((!check_idx(i,ignore_idx_count,ignore_idx) || check_idx(i,include_idx_count,include_idx)) &&
+            !check_idx(i,category_idx_count,category_idx) && 
+            !check_idx(i,label_idx_count,label_idx))
         {
             dim_idx[dimensions] = i;
             dimensions++;
-        }
-
-        if(dims_category[i]) 
-        {
-            category_idx[categories] = i;
-            categories++;
         }
     }
 }
@@ -307,40 +350,26 @@ categorize(FILE *in_stream, FILE *outs)
             first = 0;
         }
 
-        best_forest_idx = -1;
-
         if(value_count)
         { 
-             populate_dimension(dimension,values,value_count);
+            populate_dimension(dimension,values,value_count);
+        
+            best_forest_idx = -1;
 
-             for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
-             {
-                 if(!forest[forest_idx].filter)
-                 {
-                     min_score = calculate_score(forest_idx,dimension);
-                     best_forest_idx = forest_idx;
-                     forest_idx = forest_count;
-                 }
-             }
+            for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+            {
+                if(!forest[forest_idx].filter)
+                {
+                    score = calculate_score(forest_idx,dimension);
+                    if(best_forest_idx == -1 || score < min_score)
+                    {
+                        min_score = score;
+                        best_forest_idx = forest_idx;
+                    }
+                }
+            }
 
-             if(best_forest_idx >= 0)
-             {
-                 forest_idx = best_forest_idx + 1;
-                 for(;forest_idx < forest_count;forest_idx++)
-                 {
-                     if(!forest[forest_idx].filter)
-                     {
-                         score = calculate_score(forest_idx,dimension);
-                         if(score < min_score)
-                         {
-                             min_score = score;
-                             best_forest_idx = forest_idx;
-                         }
-                     }
-                 }
-             }
-
-             if(best_forest_idx >= 0) print_outlier(outs,min_score,lines,best_forest_idx,value_count,values,dimension);
+            if(best_forest_idx >= 0) print_outlier(outs,min_score,lines,best_forest_idx,value_count,values,dimension);
         }
     }
     if(dimension != NULL) free(dimension);
