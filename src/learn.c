@@ -113,6 +113,25 @@ int select_forest(int value_count,char **values)
 }
 
    
+/* copy a vector
+ */
+static
+void v_copy(double *t,double *s)
+{
+    memcpy(t,s,dimensions * sizeof(double));
+}
+
+/* duplicate a vector
+ */
+static
+double *v_dup(double *v)
+{
+    double *new = xmalloc(dimensions * sizeof(double));
+
+    v_copy(new,v);
+    
+    return new;
+}
 
 /* parse single sample attribute 
    Possible calculate hash for text attributes later
@@ -133,14 +152,21 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
     int first = 0;
 
     if(f->X_count >= f->X_cap) {
-        f->X_cap += 25000;
+        f->X_cap += 25600;
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
     }
 
     if(f->X_count < samples_total)    // check the samples table size
     {
-        sample_idx = f->X_count;
-        f->X[sample_idx].dimension = xmalloc(dimensions * sizeof(double));
+        if(f->X_count == 0)
+        {
+            sample_idx = f->X_count;
+            f->X[sample_idx].dimension = xmalloc(dimensions * sizeof(double));
+        } else
+        {
+            sample_idx = ri(0,f->X_count - 1);             // ceif does not work well with sorted samples, make sure that  samples are shuffled
+            f->X[f->X_count].dimension = v_dup(f->X[sample_idx].dimension);
+        }
         f->X_count++;
     } else
     {
@@ -259,26 +285,6 @@ void v_add(double *a, double *b)
     int i;
 
     for(i = 0;i < dimensions;i++) a[i] += b[i];
-}
-
-/* duplicate a vector
- */
-static
-double *v_dup(double *v)
-{
-    double *new = xmalloc(dimensions * sizeof(double));
-
-    memcpy(new,v,dimensions * sizeof(double));
-
-    return new;
-}
-
-/* copy a vector
- */
-static
-void v_copy(double *t,double *s)
-{
-    memcpy(t,s,dimensions * sizeof(double));
 }
 
 
@@ -436,11 +442,16 @@ void train_one_forest(int forest_idx)
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
 
-    for(i = 0;i < dimensions;i++) f->dim_density[i] = (f->max[i] - f->min[i] + 0.1) / (double) f->X_count;   // calculate avg dimension density
+    for(i = 0;i < dimensions;i++) 
+    {
+        f->dim_density[i] = (f->max[i] - f->min[i]) / (double) f->X_count;              // calculate avg dimension density
+        if(f->dim_density[i] == 0.0) f->dim_density[i] = 1.0 / (double) f->X_count;     // make sure that density is not zero
+    }
+
+    f->X_current = ri(0,f->X_count - 1);           // start at random point
 
     for(i = 0;i < tree_count;i++)
     {
-         f->X_current = ri(0,f->X_count - 1);           // start at random point
          sample_count = populate_sample(s,f);
          total_samples += sample_count;
 

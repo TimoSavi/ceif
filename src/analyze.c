@@ -196,7 +196,7 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
                    fprintf(outs,"%s",make_label_string(value_count,values));
                    break;
                case 'd':
-                   for(i = 0;i < dimensions;i++) i < dimensions - 1 ? fprintf(outs,"%f,",dimension[i]) : fprintf(outs,"%f",dimension[i]);
+                   for(i = 0;i < dimensions;i++) i < dimensions - 1 ? fprintf(outs,"%.*f,",decimals,dimension[i]) : fprintf(outs,"%.*f",decimals,dimension[i]);
                    break;
                case 'v':
                    for(i = 0;i < value_count;i++) i < value_count - 1 ? fprintf(outs,"%s%c",values[i],input_separator) : fprintf(outs,"%s",values[i]);

@@ -106,11 +106,12 @@ Tests have been run using Intel i5-650 Processor, 3.20 GHz and 8 GB ram.
 #### learn with category
 First 10 fields are used in analysis and field 55 is used as category field. Forest data is written to file.
 
-    time ceif -l /covtype.data -I1-200 -U1-10 -C55 -R50 -w covtype.f1
-    
-    real    0m1,189s
-    user    0m1,089s
-    sys     0m0,045s
+    time ceif -r covtype.f1 -c covtype.data  -p "%c %C %v" -o /dev/null
+
+    real    0m1,122s
+    user    0m1,077s
+    sys     0m0,044s
+
 
 #### Analyze using forest data from previous run
 Anomaly score 0.9 is used to disable printing.

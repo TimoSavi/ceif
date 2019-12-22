@@ -26,7 +26,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d\n";
 static char *W_forest = "F;\"%s\";%f;%d\n";
 static char *W_sample = "S;%s\n";
 
@@ -49,7 +49,7 @@ void write_global_data(FILE *w,int f_count)
     filter_string = make_csv_line(cat_filter,cat_filter_count,';');
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string) < 0)
+                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string,decimals) < 0)
     {
         write_error();
     }
@@ -68,7 +68,7 @@ char *dim_to_csv(int size,double *dim)
 
     for(i = 0;i < size;i++) 
     {
-        sprintf(f,"%f|",dim[i]);
+        sprintf(f,"%.*f|",decimals,dim[i]);
         strcat(csv,f);
     }
     if(size) csv[strlen(csv) - 1] = '\000';
@@ -129,7 +129,7 @@ void parse_G(char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 15) // change this too if parameter count changes
+    if(value_count == 16) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
         label_dims = xstrdup(v[2]);
@@ -151,6 +151,8 @@ void parse_G(char *l)
 
         c = parse_csv_line(f,FILTER_MAX,v[14],';');
         for(i = 0;i < c;i++) add_category_filter(f[i]);
+
+        decimals = atoi(v[15]);
 
         samples_total = tree_count * samples_max;
     }
@@ -202,6 +204,9 @@ read_forest_file(FILE *data_file)
             {
                 parse_G(input_line);
             }
+        } else
+        {
+            return 0;
         }
     } while(input_line[0] != 'G');
 

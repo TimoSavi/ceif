@@ -55,6 +55,7 @@ char input_separator = ',';       // input separator for csv data
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
+int decimals = 6;                 // Number of decimals when printing saving dimension data
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -69,7 +70,7 @@ struct forest *forest = NULL;    // forest table
 
 
 
-static char short_opts[] = "o:hVDI:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -77,7 +78,7 @@ static struct option long_opts[] =
   {"output", 1, 0, 'o'},
   {"help", 0, 0, 'h'},
   {"version", 0, 0, 'V'},
-  {"debug", 0, 0, 'D'},
+  {"decimals", 1, 0, 'd'},
   {"ignore-dims", 1, 0, 'I'},
   {"include-dims", 1, 0, 'U'},
   {"trees", 1, 0, 't'},
@@ -108,7 +109,7 @@ help (int status)
   printf ("Usage: %s [OPTION]... \n", PACKAGE_NAME);
   printf ("\
 Options:\n\
-  -d, --debug                 print debug info\n\
+  -d, --decimals INTEGER      Number of decimals when printing and saving dimension values\n\
   -h, --help                  display this help and exit\n\
   -V, --version               output version information and exit\n\
   -I, --ignore-dims LIST      comma separated list of dimensions not to be used, first is number 1. Ranges can be given using dash\n\
@@ -201,6 +202,9 @@ main (int argc, char **argv)
     {
         switch(opt)
         {
+            case 'd':
+                decimals = atoi(optarg);
+                break;
             case 'I':
                 ignore_dims = xstrdup(optarg);
                 ignore_idx_count = parse_dims(optarg,ignore_idx);

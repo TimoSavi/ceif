@@ -98,6 +98,7 @@ extern char input_separator;
 extern int header;
 extern double outlier_score;
 extern double prange_extension_factor;
+extern int decimals;
 
 extern char *include_dims;
 extern char *ignore_dims;

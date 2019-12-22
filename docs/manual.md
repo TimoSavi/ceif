@@ -9,6 +9,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | Option | Purpose  |
 |:----|----|
 | -h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Display help and exit|
+| -d&nbsp;INTEGER | Number of decimals when printing and saving dimension values. Default is 6|
 | -V | Display version and exit|
 | -I&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
 | -U&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This can be used with -I when there are lot of unused fields|
@@ -24,7 +25,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
-| -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a category string|
+| -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
 | -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given|
 | -H | Input data contains a header line which is ignored. Default is to read all lines|
 | -S | Set locale to local locale. Default is use locale "C"|
