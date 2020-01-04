@@ -67,6 +67,8 @@ int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
 struct forest *forest = NULL;    // forest table
 
+struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
+
 
 
 
@@ -176,6 +178,21 @@ print_version()
 }
 
 
+/* Init forest hash table
+ */
+static
+void init_forest_hash()
+{
+    int i;
+
+    for(i = 0;i < HASH_MAX;i++)
+    {
+        fhash[i].idx_count = 0;
+        fhash[i].idx_cap = 0;
+        fhash[i].idx = NULL;
+    }
+}
+
 int
 main (int argc, char **argv)
 {
@@ -193,6 +210,8 @@ main (int argc, char **argv)
     FILE *saves = NULL;             // file to save forest for reuse
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
+
+    init_forest_hash();
 
     #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)

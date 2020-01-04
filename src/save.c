@@ -27,7 +27,7 @@
  */
 
 static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d\n";
-static char *W_forest = "F;\"%s\";%f;%d\n";
+static char *W_forest = "F;\"%s\";%f;%d;%d\n";
 static char *W_sample = "S;%s\n";
 
 static char input_line[INPUT_LEN_MAX];
@@ -86,7 +86,7 @@ save_forest(int forest_idx,FILE *w)
     int i;
     struct forest *f = &forest[forest_idx];
 
-    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit) < 0) write_error();
+    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit,f->X_count) < 0) write_error();
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -167,7 +167,7 @@ int parse_F(int forest_idx,char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 4)
+    if(value_count == 5)
     {
         f->category = xstrdup(v[1]);
         f->c = atof(v[2]);
@@ -179,6 +179,12 @@ int parse_F(int forest_idx,char *l)
         f->min = NULL;
         f->max = NULL;
         f->dim_density = xmalloc(dimensions * sizeof(double));
+
+        f->X_cap = atoi(v[4]);
+        f->X = xmalloc(f->X_cap * sizeof(struct sample));
+
+        add_forest_hash(forest_idx,f->category);
+
         return 1;
     }
     return 0;

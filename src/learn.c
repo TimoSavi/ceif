@@ -28,6 +28,59 @@
 
 static char input_line[INPUT_LEN_MAX];
 
+/* hash function for hash table
+ * calculates hash for string s
+ */
+static 
+size_t hash(char *s)
+{
+    register unsigned long h = 5381;
+    int c;
+
+    while ((c = *s++) != 0)
+    {
+        h = ((h << 5) + h) + c;
+    }
+
+    return (size_t) (h % HASH_MAX);
+}
+
+/* search forest hash 
+ * return -1 if not found, else index to forest table
+ */
+int search_forest_hash(char *category_string)
+{
+    int i;
+    size_t h = hash(category_string);
+
+    for(i = 0;i < fhash[h].idx_count;i++)
+    {
+        if (strcmp(category_string,forest[fhash[h].idx[i]].category) == 0) return (int) fhash[h].idx[i];
+    }
+
+    return -1;
+}
+
+/*
+ * Add new entry to foretst hash 
+ * idx is index to forest table
+ */
+void add_forest_hash(int idx, char *category_string)
+{
+    size_t h = hash(category_string);
+
+    if(fhash[h].idx_count >= fhash[h].idx_cap)
+    {
+        fhash[h].idx_cap += 10;
+        fhash[h].idx = xrealloc(fhash[h].idx,fhash[h].idx_cap * sizeof(size_t));
+    }
+
+    fhash[h].idx[fhash[h].idx_count] = idx;
+
+    fhash[h].idx_count++;
+}
+
+
 
 /* make category sring using values from file and category_idx
  * values are concatenad with semicolon
@@ -80,19 +133,19 @@ inline double rd(double min, double max)
 static
 int select_forest(int value_count,char **values)
 {
-    register int i;
+    int i;
     char *category_string;
 
 
     category_string = make_category_string(value_count,values);
 
-    for(i = 0;i < forest_count;i++)
-    {
-        if (strcmp(category_string,forest[i].category) == 0) return i;
-    }
+    i = search_forest_hash(category_string);
+
+    if(i >= 0) return i;
 
     if(forest_count >= forest_cap) {
-       forest_cap += 100;
+       if(forest_cap == 0) forest_cap = 128;
+       forest_cap *= 2;
        forest = xrealloc(forest,forest_cap * sizeof(struct forest));
     }
 
@@ -106,6 +159,8 @@ int select_forest(int value_count,char **values)
    forest[forest_count].min = NULL;
    forest[forest_count].max = NULL;
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
+
+   add_forest_hash(forest_count,category_string);
 
    forest_count++;
 
@@ -152,7 +207,8 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
     int first = 0;
 
     if(f->X_count >= f->X_cap) {
-        f->X_cap += 25600;
+        if(f->X_cap == 0) f->X_cap = 32;
+        f->X_cap *= 2;
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
     }
 
@@ -363,7 +419,8 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
     rigth_samples = xmalloc(sample_count*sizeof(int));
 
     if(t->node_count >= t->node_cap) {
-        t->node_cap += 256;
+        if(t->node_cap == 0) t->node_cap = 32;
+        t->node_cap *= 2;
         t->n = xrealloc(t->n,t->node_cap*sizeof(struct node));
     }
 

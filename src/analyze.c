@@ -43,12 +43,11 @@ int find_forest(int value_count,char **values)
 
     category_string = make_category_string(value_count,values);
 
-    for(i = 0;i < forest_count;i++)
-    {
-        if (!forest[i].filter && strcmp(category_string,forest[i].category) == 0) return i;
-    }
+    i = search_forest_hash(category_string);
 
-    return -1;
+    if(i == -1 || forest[i].filter) return -1;
+
+    return i;
 } 
 
 /* Populates values from parsed input row
@@ -330,7 +329,7 @@ categorize(FILE *in_stream, FILE *outs)
     int forest_idx;
     int best_forest_idx;
     char *values[DIM_MAX];
-    double *dimension;
+    double *dimension = NULL;
     double score,min_score;
 
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));

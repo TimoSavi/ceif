@@ -1,4 +1,4 @@
-AC_INIT([ceif], [1.0b], [tjsa@iki.fi])
+AC_INIT([ceif], [1.0c], [tjsa@iki.fi])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AC_PROG_CC
 AC_HEADER_STDC
