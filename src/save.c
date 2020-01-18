@@ -26,7 +26,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\"\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d\n";
 static char *W_sample = "S;%s\n";
 
@@ -49,7 +49,8 @@ void write_global_data(FILE *w,int f_count)
     filter_string = make_csv_line(cat_filter,cat_filter_count,';');
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string,decimals) < 0)
+                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string,\
+                decimals,unique_samples,printf_format ? printf_format : "",list_separator) < 0)
     {
         write_error();
     }
@@ -129,7 +130,7 @@ void parse_G(char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 16) // change this too if parameter count changes
+    if(value_count == 19) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
         label_dims = xstrdup(v[2]);
@@ -153,6 +154,9 @@ void parse_G(char *l)
         for(i = 0;i < c;i++) add_category_filter(f[i]);
 
         decimals = atoi(v[15]);
+        unique_samples = atoi(v[16]);
+        printf_format = xstrdup(v[17]);
+        list_separator = v[18][0];
 
         samples_total = tree_count * samples_max;
     }
@@ -175,10 +179,11 @@ int parse_F(int forest_idx,char *l)
         f->X = NULL;
         f->X_count = 0;
         f->X_cap = 0;
-        f->t = xmalloc(tree_count * sizeof(struct tree));
+        f->t = NULL;
         f->min = NULL;
         f->max = NULL;
-        f->dim_density = xmalloc(dimensions * sizeof(double));
+        f->avg = NULL;
+        f->dim_density = NULL;
 
         f->X_cap = atoi(v[4]);
         f->X = xmalloc(f->X_cap * sizeof(struct sample));
@@ -236,7 +241,12 @@ read_forest_file(FILE *data_file)
             line = 0;
             do
             {
-                if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) return 1;
+                if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) 
+                {
+                    forest_count = f_count + 1;
+                    return 1;
+                }
+
                 if(input_line[0] == 'S')
                 {
                     line++;

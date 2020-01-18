@@ -158,6 +158,9 @@ int select_forest(int value_count,char **values)
    forest[forest_count].t = NULL;
    forest[forest_count].min = NULL;
    forest[forest_count].max = NULL;
+   forest[forest_count].c = 0;
+   forest[forest_count].heigth_limit = 0;
+   forest[forest_count].avg = xmalloc(dimensions * sizeof(double));
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
 
    add_forest_hash(forest_count,category_string);
@@ -188,6 +191,16 @@ double *v_dup(double *v)
     return new;
 }
 
+/* Compare vectors
+ * return 0 if vectors are equal
+ */
+static
+int v_cmp(double *t,double *s)
+{
+    return memcmp(t,s,dimensions * sizeof(double));
+}
+
+
 /* parse single sample attribute 
    Possible calculate hash for text attributes later
    now assume all data being float
@@ -197,14 +210,61 @@ double parse_dim_attribute(char *value)
     return atof(value);
 }
 
+/* parse ascii value table to dimension table of type double
+ */
+void parse_values(double *dim,char **values, int value_count, int saved)
+{
+    int i;
+
+    for(i = 0;i < dimensions;i++)
+    {
+        // silently ignore missing input row dimension values
+        if(dim_idx[i] < value_count || saved)
+        {
+            dim[i] = parse_dim_attribute(values[saved ? i : dim_idx[i]]);
+        } else
+        {
+            dim[i] = 0.0;   // use default value for missing dimension vlaue
+        }
+    }
+}
+
+/* check if dimension values are allready in sample table X
+ */
+static
+int duplicate_sample(struct forest *f,double *new_dim)
+{
+    int i;
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        if(v_cmp(new_dim,f->X[i].dimension) == 0) return 1;
+    }
+    return 0;
+}
+
+
 /* add one sample to X in selected forest.
   if X is full (== samples_total) implement  reservoir sampling 
  * and check min/max values
+ *
+ * saved == 1 means that values are from saved forest file and == 0 means that values are from user given data file.
+ * indices are different in those two cases
    */
 void add_to_X(struct forest *f,char **values, int value_count,int sample_number,int saved)
 {
-    int i,j,sample_idx;
+    int i,sample_idx;
     int first = 0;
+    double *s;
+    static double new[DIM_MAX];
+
+    parse_values(new,values,value_count,saved); 
+
+    // check if this is duplicate sample. Unique_samples is a value bweteen 0..100. 
+    // if value is .e.g 10 then 10 percent of samples are checked for uniqueness
+    // check is not done for saved values, only new values are checked
+
+    if(!saved && unique_samples > 0 && ri(0,100) <= unique_samples && duplicate_sample(f,new)) return;
 
     if(f->X_count >= f->X_cap) {
         if(f->X_cap == 0) f->X_cap = 32;
@@ -234,31 +294,30 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
     {
         f->min = xmalloc(dimensions * sizeof(double));
         f->max = xmalloc(dimensions * sizeof(double));
+        f->avg = xmalloc(dimensions * sizeof(double));
         first = 1;
     }
 
-    j = 0;
+    s = f->X[sample_idx].dimension;
+
+    v_copy(s,new);
 
     for(i = 0;i < dimensions;i++)
     {
-           // silently ignore missing input row dimensions 
-           if(dim_idx[i] < value_count || saved)
-           {
-               f->X[sample_idx].dimension[j] = parse_dim_attribute(values[saved ? i : dim_idx[i]]);
-
-               // update min/max dimensions
-               if(first)
-               {
-                   f->min[j] = f->X[sample_idx].dimension[j];
-                   f->max[j] = f->X[sample_idx].dimension[j];
-               } else
-               {
-                   if(f->X[sample_idx].dimension[j] < f->min[j]) f->min[j] = f->X[sample_idx].dimension[j];
-                   if(f->X[sample_idx].dimension[j] > f->max[j]) f->max[j] = f->X[sample_idx].dimension[j];
-               }
-               j++;
-           }
+        // update min/max dimensions and average
+        if(first)
+        {
+            f->min[i] = s[i];
+            f->max[i] = s[i];
+            f->avg[i] = s[i];
+        } else
+        {
+            if(s[i] < f->min[i]) f->min[i] = s[i];
+            if(s[i] > f->max[i]) f->max[i] = s[i];
+            f->avg[i] += s[i];
+        }
     }
+
 }
 
 
@@ -343,6 +402,17 @@ void v_add(double *a, double *b)
     for(i = 0;i < dimensions;i++) a[i] += b[i];
 }
 
+
+/* vector subtract
+   subtracts b from a
+   */
+static inline
+void v_subt(double *a, double *b)
+{
+    int i;
+
+    for(i = 0;i < dimensions;i++) a[i] -= b[i];
+}
 
 /* generate p from sample data.
  * returns pointer to p array.
@@ -450,7 +520,6 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
         }
     }
 
-
     if(left_count > 1) 
     {
         new = add_node(t,left_count,left_samples,X,heigth + 1,heigth_limit,dimension_density);
@@ -498,11 +567,15 @@ void train_one_forest(int forest_idx)
     }
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
+    if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
+    if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
 
     for(i = 0;i < dimensions;i++) 
     {
         f->dim_density[i] = (f->max[i] - f->min[i]) / (double) f->X_count;              // calculate avg dimension density
         if(f->dim_density[i] == 0.0) f->dim_density[i] = 1.0 / (double) f->X_count;     // make sure that density is not zero
+
+        f->avg[i] /= (double) f->X_count;              // turn to average
     }
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
@@ -515,9 +588,10 @@ void train_one_forest(int forest_idx)
          f->t[i].node_count = 0;
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
-         f->heigth_limit = ceil(log2(sample_count + 1) + log(prange_extension_factor + 1));
-         populate_tree(&f->t[i],sample_count,s,f->X,f->heigth_limit,f->dim_density);
+         populate_tree(&f->t[i],sample_count,s,f->X,ceil(log2(sample_count + 1) + log(prange_extension_factor + 1)),f->dim_density);
     }
+
+    f->heigth_limit = ceil(log2(total_samples / tree_count + 1) + log(prange_extension_factor + 1));
     f->c = c(total_samples / tree_count);    
     free(s);
 }
@@ -535,27 +609,40 @@ void add_category_filter(char *regexp)
 
 /*  mark forests filtered using
     regular expressions in cat_filter 
+
+    if regex starts with "-v ", then remove it and invert the result
 */
 static
 void filter_forests()
 {
-    int i,j;
+    int i,j,s;
     regex_t reg;
 
     for(i = 0;i < cat_filter_count;i++)
     {
-        if(regcomp(&reg,cat_filter[i],REG_EXTENDED | REG_NOSUB))
+        s = strncmp(cat_filter[i],"-v ",3) == 0 ? 3 : 0;
+         
+        if(regcomp(&reg,&cat_filter[i][s],REG_EXTENDED | REG_NOSUB))
         {
-            panic("Error in regular expression",cat_filter[i],NULL);
+            panic("Error in regular expression",&cat_filter[i][s],NULL);
         }
 
         for(j = 0;j < forest_count;j++)
         {
-            if(forest[j].category[0] != '\000' && regexec(&reg,forest[j].category,0,NULL,0) == 0) forest[j].filter = 1;
+            if(forest[j].category[0] != '\000')
+            {
+                if(regexec(&reg,forest[j].category,0,NULL,0) == 0)
+                {
+                    if(s == 0) forest[j].filter = 1;
+                } else
+                {
+                    if(s != 0) forest[j].filter = 1;
+                }
+            }
         }
+        regfree(&reg);
     }
 }
-
 
 
 /* build a new forest structure (new=1) or add new samples to existing forest (new=0)
@@ -596,7 +683,6 @@ train_forest(FILE *in_stream,int new)
 
     if(!forest_count || !forest[0].X_count) panic("Can't process data with given parameters",NULL,NULL);
     
-
     for(i = 0;i < forest_count;i++)
     {
         train_one_forest(i);
@@ -604,3 +690,80 @@ train_forest(FILE *in_stream,int new)
 
     filter_forests();
 }
+
+
+
+/* Make a test run through forests using points between each dimension min..max range
+ * Range is adjusted by test_extension_factor (larger value means larger space)
+ * and number of points between max--min is test_sample_interval
+ * values are printed as outlier values
+ *
+ * The sample points as they are are printed too, but with score 0. 
+ * So the samples can be plotted with black color (score 0 gives black)
+ *
+ */
+void
+test2(FILE *outs,double test_extension_factor,int test_sample_interval)
+{
+    int i;
+    int forest_idx;
+    int samples = 0;
+    double score;
+    double *test_dimension;
+    static double len[DIM_MAX];             // precalculated max - min value
+    static int sidx[DIM_MAX];               // contains sample number (between 0 - test_sample_interval) for each dimension value, all combinations are processed
+    struct forest *f;
+
+    test_dimension = xmalloc(dimensions * sizeof(double));
+
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        if(!forest[forest_idx].filter)
+        {
+            f = &forest[forest_idx];
+
+            for(i = 0;i < dimensions;i++) 
+            {
+                sidx[i] = 0;
+                len[i] = f->max[i] - f->min[i];
+            }
+
+            while(sidx[0] <= test_sample_interval)
+            {
+                for(i = 0;i < dimensions;i++) 
+                {
+                    test_dimension[i] = (1.0 + test_extension_factor) * ((double) sidx[i] / (double) test_sample_interval) * len[i] + (f->min[i] - (test_extension_factor * len[i]) / 2.0);
+                }
+
+                score = calculate_score(forest_idx,test_dimension);
+
+                if(score >= outlier_score) print_test(outs,score,forest_idx,test_dimension);
+
+                // next sample
+                for(i = dimensions - 1;i >= 0;i--)              
+                {
+                    if(sidx[i] == test_sample_interval)
+                    {
+                        if(i)
+                        {
+                            sidx[i] = 0;
+                            sidx[i - 1]++;
+                        }
+                    } else
+                    {
+                        if(i == dimensions - 1) sidx[i]++;
+                    }
+                }
+            }
+                           
+            for(samples = 0;samples < TEST_SAMPLES && samples < f->X_count;samples++)
+            {
+                 print_test(outs,0.0,forest_idx,f->X[ri(0,f->X_count - 1)].dimension);
+            }
+        }
+    }
+    free(test_dimension);
+}
+
+
+

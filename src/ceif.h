@@ -25,9 +25,9 @@
 #define DIM_MAX 1024
 #define INPUT_LEN_MAX 1048576
 #define SAMPLES_MIN 32            // minimun number of samples for a forest
-#define TREE_UPDATE_PERCENT 50    // Percentage of tree to rebuild when updating a forest
 #define FILTER_MAX 100            // maximun number of category filters
 #define HASH_MAX 32771            // max hash value
+#define TEST_SAMPLES 10240        // number of samples when making analysis test
 
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
@@ -68,6 +68,7 @@ struct forest
     struct sample *X;       // dimensions for this forest
     double *min;            // learn data min values dimension
     double *max;            // learn data max values dimension
+    double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
     struct tree *t;         // Tree table, NULL if not initialized
 };
@@ -105,7 +106,11 @@ extern char input_separator;
 extern int header;
 extern double outlier_score;
 extern double prange_extension_factor;
+extern double test_extension_factor;
 extern int decimals;
+extern int unique_samples;
+extern char *printf_format;
+extern char list_separator;
 
 extern char *include_dims;
 extern char *ignore_dims;
@@ -146,6 +151,8 @@ void add_to_X(struct forest *,char **, int ,int ,int);
 void add_category_filter(char *);
 int search_forest_hash(char *); 
 void add_forest_hash(int, char *);
+void test2(FILE *,double,int);
+
 
 
 /* analyze.c prototypes */
@@ -153,6 +160,8 @@ void analyze(FILE *, FILE *);
 void categorize(FILE *, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);
+void print_test(FILE *, double , int ,double *);
+double calculate_score(int ,double *);
 
 /* save.c prototypes */
 void write_forest_file(FILE *);

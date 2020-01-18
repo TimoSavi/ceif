@@ -28,7 +28,7 @@
 
 static char input_line[INPUT_LEN_MAX];
 static int first = 1;
-
+static char *float_format = "%.*f";
 
 /* find a forest for a data row
  * 
@@ -102,7 +102,6 @@ double calculate_path_length(struct tree *t,double *dimension)
 /* calculates score for a data row in given forest
  * returns score
  */
-static 
 double calculate_score(int forest_idx,double *dimension)
 {
     int i;
@@ -129,11 +128,14 @@ double calculate_score(int forest_idx,double *dimension)
  * 0.5: green
  * 0: blue
  * and colors between them
+ * if score == 0,return 0 (black)
  */
 static 
 unsigned int score_to_rgb(double score)
 {
     unsigned int red,blue,green;
+
+    if(score == 0.0) return 0;
 
     green = score < 0.5 ? (unsigned int) (2 * 0xff * score) : (unsigned int) (0xff * 2 * (1 - score)); 
     red = score > 0.5 ? (unsigned int) (2 * 0xff * (score - 0.5)) : 0; 
@@ -163,6 +165,72 @@ char *make_label_string(int value_count,char **values)
         }
     }
     return l;
+}
+
+/* Print test info
+ * printing is done using printf style string and %-directives
+ */
+void print_test(FILE *outs, double score, int forest_idx,double *dimension)
+{
+    int i;
+    char *c = print_string;
+
+    while(*c != '\000')
+    {
+       if(*c == '%' && c[1] != '\000')
+       {
+           c++;
+           switch(*c)
+           {
+               case 's':
+                   fprintf(outs,"%f",score);
+                   break;
+               case 'd':
+                   for(i = 0;i < dimensions;i++)
+                   {
+                       *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
+                       if(i < dimensions - 1) fputc(list_separator,outs);
+                   }
+                   break;
+               case 'a':
+                   for(i = 0;i < dimensions;i++)
+                   {
+                       *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
+                       if(i < dimensions - 1) fputc(list_separator,outs);
+                   }
+                   break;
+               case 'x':
+                   fprintf(outs,"%06X",score_to_rgb(score));
+                   break;
+               case 'C':
+                   fprintf(outs,"%s",forest[forest_idx].category);
+                   break;
+               case '%':
+                   fprintf(outs,"%c",'%');
+                   break;
+           }
+       } else
+       {
+           if(*c == '\\' && c[1] != '\000')
+           {
+               c++;
+               switch(*c)
+               {
+                   case 't':
+                       fprintf(outs,"%c",'\t');
+                       break;
+                   case 'n':
+                       fprintf(outs,"%c",'\n');
+                       break;
+               }
+           } else
+           {
+               fprintf(outs,"%c",*c);
+           }
+       }
+       c++;
+    }
+    if(*print_string) fprintf(outs,"%c",'\n');
 }
 
         
@@ -195,10 +263,21 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
                    fprintf(outs,"%s",make_label_string(value_count,values));
                    break;
                case 'd':
-                   for(i = 0;i < dimensions;i++) i < dimensions - 1 ? fprintf(outs,"%.*f,",decimals,dimension[i]) : fprintf(outs,"%.*f",decimals,dimension[i]);
+                   for(i = 0;i < dimensions;i++)
+                   {
+                       *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
+                       if(i < dimensions - 1) fputc(list_separator,outs);
+                   }
+                   break;
+               case 'a':
+                   for(i = 0;i < dimensions;i++)
+                   {
+                       *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
+                       if(i < dimensions - 1) fputc(list_separator,outs);
+                   }
                    break;
                case 'v':
-                   for(i = 0;i < value_count;i++) i < value_count - 1 ? fprintf(outs,"%s%c",values[i],input_separator) : fprintf(outs,"%s",values[i]);
+                   for(i = 0;i < value_count;i++) i < value_count - 1 ? fprintf(outs,"%s%c",values[i],list_separator) : fprintf(outs,"%s",values[i]);
                    break;
                case 'x':
                    fprintf(outs,"%06X",score_to_rgb(score));
@@ -373,5 +452,4 @@ categorize(FILE *in_stream, FILE *outs)
     }
     if(dimension != NULL) free(dimension);
 }
-
 

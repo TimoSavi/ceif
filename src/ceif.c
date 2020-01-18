@@ -56,6 +56,9 @@ int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
 int decimals = 6;                 // Number of decimals when printing saving dimension data
+int unique_samples = 0;           // accpet only unique samples, in some cases this yields better results
+char *printf_format = "";       // User given printf format for dimension and average values
+char list_separator = ',';         // seprator for dimension and average values in output
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -69,10 +72,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-
-
-
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -100,6 +100,11 @@ static struct option long_opts[] =
   {"prange-factor", 1, 0, 'R'},
   {"categorize", 1, 0, 'c'},
   {"category-filter", 1, 0, 'F'},
+  {"test", 2, 0, 'T'},
+  {"test-interval", 1, 0, 'i'},
+  {"unique-samples", 2, 0, 'u'},
+  {"printf-format", 1, 0, 'm'},
+  {"list-separator", 1, 0, 'e'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -117,7 +122,7 @@ Options:\n\
   -I, --ignore-dims LIST      comma separated list of dimensions not to be used, first is number 1. Ranges can be given using dash\n\
   -U, --use-dims LIST         comma separated list of dimensions to be used, first is number 1. Ranges can be given using dash. Overwrites entries from -I option\n\
   -t, --trees INTEGER         number of trees. default is 100\n\
-  -s, --samples INTEGER       number of samples. default is 256\n\
+  -s, --samples INTEGER       number of samples/tree. default is 256\n\
   -f, --input-separator CHAR  input file field separator. Default is comma\n\
   -l, --learn FILE            file to used for training \n\
   -a, --analyze FILE          file to analyze\n\
@@ -132,7 +137,12 @@ Options:\n\
   -H, --header                input data files have header\n\
   -S, --set-locale            locale information is read from environment\n\
   -R, --prange-factor FLOAT   prange selection adjustment factor\n\
+  -T, --test FLOAT            generate test data with adjustment factor FLOAT\n\
+  -i, --test-interval INTEGER number of test points for each dimension, default is 256\n\
   -F, --category-filter REGEXP Regular expression to filter categories\n\
+  -u, --unique-samples INTEGER accept INTEGER percent of samples as duplicates, default is take all samples.\n\
+  -m, --printf-format         printf format string for dimension and average value printing\n\
+  -e, --list-separator        value separator for dimension and average value printing\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -172,7 +182,7 @@ void
 print_version()
 {
     printf("%s version %s\n",PACKAGE_NAME,PACKAGE_VERSION);
-    printf("Copyright (c) 2019 Timo Savinen\n\n");
+    printf("Copyright (c) 2020 Timo Savinen\n\n");
     printf("This is free software; see the source for copying conditions.\n");
     printf("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
 }
@@ -198,6 +208,9 @@ main (int argc, char **argv)
 {
     int opt;
     int set_locale = 0;
+    int run_test = 0;
+    int test_range_interval = 256;
+    double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
     char *learn_file = NULL;
     char *analyze_file = NULL;
     char *categorize_file = NULL;
@@ -304,6 +317,24 @@ main (int argc, char **argv)
             case 'F':
                 add_category_filter(optarg);
                 break;
+            case 'T':
+                if(optarg != NULL) test_extension_factor = atof(optarg);
+                run_test = 1;
+                break;
+            case 'i':
+                test_range_interval = atoi(optarg);
+                break;
+            case 'u':
+                unique_samples = 10;
+                if(optarg != NULL) unique_samples = atol(optarg);
+                if(unique_samples < 0 || unique_samples > 100) panic("Give unique sample percent bweteen 0 and 100",NULL,NULL);
+                break;
+            case 'm':
+                printf_format = xstrdup(optarg);
+                break;
+            case 'e':
+                list_separator = optarg[0];
+                break;
             case 'V':
                 print_version();
                 exit(0);
@@ -347,6 +378,8 @@ main (int argc, char **argv)
     {
         outs = stdout;
     }
+
+    if(run_test) test2(outs,test_extension_factor,test_range_interval);
 
     if(analyze_file !=  NULL)
     {

@@ -30,7 +30,11 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -H | Input data contains a header line which is ignored. Default is to read all lines|
 | -S | Set locale to local locale. Default is use locale "C"|
 | -R&nbsp;FLOAT| Interception point ***p*** range extension factor. Higher value means that starting interception points are selected more away from sample data points and maximum tree height is larger|
-
+| -T&nbsp;FLOAT| Generate test data. Test data is generated using sample set min/max values and test data point interval given by option -i (default is 256). Test data range can be enlarged by FLOAT. E.g. value 1.0 doubles the test data range. After test data is printed max 10240 sample data points are printed with score 0|
+| -i&nbsp;INTEGER| Test data point interval. Larger value means more dense test data point set|
+| -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is value between 0..100 (default is 10). This is the percentage of input data rows to be checked for uniqueness. Value 100 can be used if every accepted sample data should be unique|
+| -m&nbsp;STRING| Printf format for printing float values for sample and sample average values. Default is "%.*f"|
+| -e&nbsp;CHAR| Value separator when printing sample, sample average and analysed data values. Default is comma|
 If FILE is "-" then standard input or output is read or written.
 
 #### Printing directives
@@ -41,11 +45,14 @@ If FILE is "-" then standard input or output is read or written.
 | %s | Anomaly score |
 | %c | Category values separated by colon from input data|
 | %l | Label value from input data|
-| %d | Comma separated list of dimension values|
-| %v | Current input row|
-| %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77)|
+| %d | Separated list of dimension values|
+| %a | Separated list of dimension average values|
+| %v | Current input row values|
+| %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Note that value zero is printed as black|
 | %C | Found category values separated by colon when categorizing data|
 | %% | Percent sign|
+
+Value separator for d,a and v can be given by option -e.
 
 ### Examples
 
@@ -68,7 +75,7 @@ Note that -w must given in order to save enhanced forest data.
 
     ceif -r data.f -l data2.csv -w data.f
 
-#### learn and write forest data with category
+#### Learn and write forest data with category
 Use field number 5 as category field
 
     ceif -l data.csv -w data.f -R30 -I4-100 -O0.6 -C 5
@@ -77,3 +84,9 @@ Use field number 5 as category field
 Print analyzed category value (%C) and select fields as comma separated list (%v) for each input row from data.csv.
 
     ceif -r data.f -c data.csv -p "%C %d"
+
+#### Generate test data set using forest data file
+Generate data set around sample data points by enlarging the area with factor 1. Every dimension value range consists of 512 test values. 
+Test data sample values and outlier score value in RGB value separated by semicolon are printed to file plot_data.csv.
+
+    ceif -r data.f -T1 -i512 -e";" -p"%d;0x%x" -o plot_data.csv
