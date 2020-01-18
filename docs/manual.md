@@ -26,7 +26,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
-| -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given|
+| -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given. If REGEXP is preceded by "-v " then matching is inverted|
 | -H | Input data contains a header line which is ignored. Default is to read all lines|
 | -S | Set locale to local locale. Default is use locale "C"|
 | -R&nbsp;FLOAT| Interception point ***p*** range extension factor. Higher value means that starting interception points are selected more away from sample data points and maximum tree height is larger|
@@ -35,6 +35,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is value between 0..100 (default is 10). This is the percentage of input data rows to be checked for uniqueness. Value 100 can be used if every accepted sample data should be unique|
 | -m&nbsp;STRING| Printf format for printing float values for sample and sample average values. Default is "%.*f"|
 | -e&nbsp;CHAR| Value separator when printing sample, sample average and analysed data values. Default is comma|
+
 If FILE is "-" then standard input or output is read or written.
 
 #### Printing directives
