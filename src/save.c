@@ -26,7 +26,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d\n";
 static char *W_sample = "S;%s\n";
 
@@ -50,7 +50,7 @@ void write_global_data(FILE *w,int f_count)
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
                 input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string,\
-                decimals,unique_samples,printf_format ? printf_format : "",list_separator) < 0)
+                decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust) < 0)
     {
         write_error();
     }
@@ -130,7 +130,7 @@ void parse_G(char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 19) // change this too if parameter count changes
+    if(value_count == 20) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
         label_dims = xstrdup(v[2]);
@@ -157,6 +157,7 @@ void parse_G(char *l)
         unique_samples = atoi(v[16]);
         printf_format = xstrdup(v[17]);
         list_separator = v[18][0];
+        n_vector_adjust = atoi(v[19]);
 
         samples_total = tree_count * samples_max;
     }

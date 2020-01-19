@@ -32,3 +32,5 @@ This has following effects:
 2. Most ***p***s tend to accumulated where the data is already at beginning of the building of trees
 
 The ***p*** selection area is effectively an enlarged sample point area and not rectangular area which can cause anomalies.
+
+Also the ***n*** selection can be adjusted, see the [tweaking document](docs/tweaking.md) for details.

@@ -468,7 +468,44 @@ double c(int n)
     return 2*(log(n - 1) + 0.5772156649) - (2*(n - 1)/n);
 }
 
-        
+/* make an n vector, If n_vector_adjust is set then try to find n
+   which is perpendicular to vector adjust.
+
+   Adjust should be parallel to main data set.
+
+   Adjustment can be used if dimension value ranges have big difference compared to each other
+*/
+
+static
+double *make_n_vector(double *adjust)
+{
+    int i;
+    double d,min_dot;
+    double *n;
+    static double best[DIM_MAX];
+    
+    n = calculate_n();
+
+    if(adjust == NULL) return n;
+
+    v_copy(best,n);
+    min_dot = fabs(dot(best,adjust));
+
+    for(i = 1;i < N_ADJUST_COUNT;i++)
+    {
+        n = calculate_n();
+        d = fabs(dot(n,adjust));
+
+        if(d < min_dot)
+        {
+            min_dot = d;
+            v_copy(best,n);
+        }
+    }
+
+    return best;
+}
+
 
 /* add nodes to tree
  * returns the index of this node, -1 if end of tree
@@ -477,7 +514,7 @@ static
 int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int heigth, int heigth_limit, double *dimension_density)
 {
     struct node *this;
-    double *p;
+    double *p,*adjust = NULL;
     int i,node_index;
     int left_count = 0, rigth_count = 0,new;
     int *left_samples;
@@ -501,7 +538,17 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
 
     this->level = heigth;
     this->sample_count = sample_count;
-    this->n = v_dup(calculate_n());
+
+    if(n_vector_adjust)
+    {
+        adjust = v_dup(generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
+        v_subt(adjust,generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
+    }
+
+    this->n = v_dup(make_n_vector(adjust));
+
+    if(adjust != NULL) free(adjust);
+
     this->left = -1;
     this->rigth = -1;
     p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density);

@@ -28,6 +28,7 @@
 #define FILTER_MAX 100            // maximun number of category filters
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
+#define N_ADJUST_COUNT 12         // How many N vectors are tested for the best n adjust result
 
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
@@ -111,6 +112,7 @@ extern int decimals;
 extern int unique_samples;
 extern char *printf_format;
 extern char list_separator;
+extern int n_vector_adjust;
 
 extern char *include_dims;
 extern char *ignore_dims;

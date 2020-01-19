@@ -106,7 +106,7 @@ Tests have been run using Intel i5-650 Processor, 3.20 GHz and 8 GB ram.
 #### learn with category
 First 10 fields are used in analysis and field 55 is used as category field. Forest data is written to file.
 
-    time ceif -r covtype.f1 -c covtype.data  -p "%c %C %v" -o /dev/null
+    time ceif -w covtype.f1 -l covtype.data -I1-100 -U1-10 -C55
 
     real    0m1,122s
     user    0m1,077s
@@ -122,7 +122,7 @@ Anomaly score 0.9 is used to disable printing.
     user    0m16,442s
     sys     0m0,048s
 
-#### categorizing data
+#### Categorizing data
 Categorizing takes lot of time because each analyzed row must be run through each forest.
 
     time ceif -r covtype.f1 -c covtype.data  -p "%c %C %v" -o /dev/null
@@ -131,3 +131,57 @@ Categorizing takes lot of time because each analyzed row must be run through eac
     user    1m52,340s
     sys     0m0,240s
 
+### Generating test data set with option -T
+Option -T can be used to generate a test data set around data sample points. The wideness and sample point density can be adjusted. Default is to generate test data having the same range as 
+sample data and each dimension attribute having 256 sample points.
+
+In this example the file 2blob.csv is used for training and the testdata is generated with range adjust value one (app. double size compared to sample point area). And for each 
+dimension attribute 512 test values are generated (in this example to total number of test data points is 512*512 = 263169). Only those test data points are written to file
+plot_data.csv which have anomaly score value 0.6 or larger.
+
+    ceif -l 2blob.csv -T1 -i 512 -R 250 -O 0.6  -p "%d,0x%x" -o plot_data.csv
+
+File plot_data.csv will have lines like:
+    
+    -8.655000,-7.965000,0x8B7300
+    10.031602,-7.485508,0x807E00
+    14.003633,37.394961,0x768800
+
+The output file can be plotted e.g. with gnuplot. Note that data points having score value smaller than 0.6 do not have any color. Also the training set sample points (max 10240 of them)
+are printed with black color.
+
+![](pics/2blob_testdata.png)
+
+### Adjust ***n*** vector for data having significant difference between dimension attribute ranges
+If training dataset has dimension attribute value ranges with significant differences then the extended isolation forest method causes the attributes having smaller range values
+to yield poor results. This is due to the method of selecting the ***n*** vector. The dataset values are divided by a vector which is perpendicular to ***n*** vector. If the data value range is narrow
+then there are much less data set divisions during training phase among narrow data attributes compared to wider attribute values.
+
+This causes the narrower data set attributes to be seen much wider as they should because they are no divided in the same manner as wider attributes.
+
+In this example a data set having long line shape is used. Data set has two attributes having ranges 0..2000 and 10..16.7. The second attribute is much narrower that the first. 
+If a test data set is generated without ***n*** vector adjust the results show that there is no clear border around second attribute test values:
+
+    ceif -l linedata.csv -T3 -R 250 -i512 -p "%d,0x%x" -o plot_data.csv -O0.5
+
+The data points having score value 0.5 or larger are printed, note the scale of datapoints.
+
+![](pics/n_adjust1.png)
+
+Almost the whole Y range is considered to have score less than 0.5. This probably not the result which was expected.
+
+Running again with option -n:
+
+    ceif -l linedata.csv -T3 -R 250 -i512 -p "%d,0x%x" -o plot_data.csv -O0.5 -n
+
+Result is now better, there is clear 0.5 score range around the data line.
+
+![](pics/n_adjust2.png)
+    
+The method of ***n*** vector adjust is:
+
+1. Select two random points (a1 and a2) near sample points (the ***p*** vector selection method is used here).
+2. Make the vector between a1 and a2 a adjustment vector. This vector should now probably follow the narrower attribute values. E.g. it should have almost same direction as the black sample line in example above.
+3. Try to find a ***n*** vector which is perpendicular to vector selected in previous step. This is done by generating 12 random ***n*** vectors and selecting the best of them.
+
+Now the selected ***n*** vector should be somehow perpendicular to narrower data attribute.

@@ -59,6 +59,7 @@ int decimals = 6;                 // Number of decimals when printing saving dim
 int unique_samples = 0;           // accpet only unique samples, in some cases this yields better results
 char *printf_format = "";       // User given printf format for dimension and average values
 char list_separator = ',';         // seprator for dimension and average values in output
+int n_vector_adjust = 0;        // should n vector to be adjust among data set
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -72,7 +73,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:n";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -105,6 +106,7 @@ static struct option long_opts[] =
   {"unique-samples", 2, 0, 'u'},
   {"printf-format", 1, 0, 'm'},
   {"list-separator", 1, 0, 'e'},
+  {"n-adjust", 0, 0, 'n'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -143,6 +145,7 @@ Options:\n\
   -u, --unique-samples INTEGER accept INTEGER percent of samples as duplicates, default is take all samples.\n\
   -m, --printf-format         printf format string for dimension and average value printing\n\
   -e, --list-separator        value separator for dimension and average value printing\n\
+  -n, --n-adjust              adjust n-vector to be perpendicular to dimension attribute having largest value range\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -334,6 +337,9 @@ main (int argc, char **argv)
                 break;
             case 'e':
                 list_separator = optarg[0];
+                break;
+            case 'n':
+                n_vector_adjust = 1;
                 break;
             case 'V':
                 print_version();
