@@ -23,6 +23,7 @@
  */
 #include "ceif.h"
 #include <math.h>
+#include <time.h>
 
 #define INPUT_LEN_MAX 1048576
 
@@ -47,6 +48,8 @@ int find_forest(int value_count,char **values)
 
     if(i == -1 || forest[i].filter) return -1;
 
+    if(!forest[i].analyzed) forest[i].analyzed = 1;
+
     return i;
 } 
 
@@ -59,7 +62,7 @@ void populate_dimension(double *d,char **values,int value_count)
 
     for(i = 0;i < dimensions;i++)
     {
-	    if(dim_idx[i] < value_count) d[i] = parse_dim_attribute(values[dim_idx[i]]);
+        if(dim_idx[i] < value_count) d[i] = parse_dim_attribute(values[dim_idx[i]]);
     }
 }
 
@@ -161,91 +164,26 @@ char *make_label_string(int value_count,char **values)
         if(label_idx[i] < value_count)
         {
             strcat(l,values[label_idx[i]]);
-            if(i < label_idx_count - 1) strcat(l,":");
+            if(i < label_idx_count - 1) strcat(l,LABEL_SEPARATOR);
         }
     }
     return l;
 }
 
-/* Print test info
+
+/* Print something
  * printing is done using printf style string and %-directives
  */
-void print_test(FILE *outs, double score, int forest_idx,double *dimension)
+void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,char **values,double *dimension,char *format,char *directives)
 {
     int i;
-    char *c = print_string;
+    char *c = format;
+    char outstr[100];
+    struct tm *tmp;
 
     while(*c != '\000')
     {
-       if(*c == '%' && c[1] != '\000')
-       {
-           c++;
-           switch(*c)
-           {
-               case 's':
-                   fprintf(outs,"%f",score);
-                   break;
-               case 'd':
-                   for(i = 0;i < dimensions;i++)
-                   {
-                       *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
-                       if(i < dimensions - 1) fputc(list_separator,outs);
-                   }
-                   break;
-               case 'a':
-                   for(i = 0;i < dimensions;i++)
-                   {
-                       *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
-                       if(i < dimensions - 1) fputc(list_separator,outs);
-                   }
-                   break;
-               case 'x':
-                   fprintf(outs,"%06X",score_to_rgb(score));
-                   break;
-               case 'C':
-                   fprintf(outs,"%s",forest[forest_idx].category);
-                   break;
-               case '%':
-                   fprintf(outs,"%c",'%');
-                   break;
-           }
-       } else
-       {
-           if(*c == '\\' && c[1] != '\000')
-           {
-               c++;
-               switch(*c)
-               {
-                   case 't':
-                       fprintf(outs,"%c",'\t');
-                       break;
-                   case 'n':
-                       fprintf(outs,"%c",'\n');
-                       break;
-               }
-           } else
-           {
-               fprintf(outs,"%c",*c);
-           }
-       }
-       c++;
-    }
-    if(*print_string) fprintf(outs,"%c",'\n');
-}
-
-        
-/* Print outlier info
- * printing is done using printf style string and %-directives
- */
-static 
-void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_count,char **values,double *dimension)
-{
-    int i;
-    char *c = print_string;
-
-    while(*c != '\000')
-    {
-       if(*c == '%' && c[1] != '\000')
+       if(*c == '%' && c[1] != '\000' && (strchr(directives,c[1]) != NULL || strchr(":.%",c[1]) != NULL))
        {
            c++;
            switch(*c)
@@ -285,6 +223,22 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
                case 'C':
                    fprintf(outs,"%s",forest[forest_idx].category);
                    break;
+               case 't':
+                   tmp = localtime(&forest[forest_idx].last_updated);
+
+                   if(tmp != NULL)
+                   {
+                       outstr[0] = '\000';
+                       strftime(outstr, sizeof(outstr), "%c", tmp);
+                       fprintf(outs,"%s",outstr);
+                   }
+                   break;
+               case ':':
+                   fprintf(outs,"%s",CATEGORY_SEPARATOR);
+                   break;
+               case '.':
+                   fprintf(outs,"%s",LABEL_SEPARATOR);
+                   break;
                case '%':
                    fprintf(outs,"%c",'%');
                    break;
@@ -302,6 +256,15 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
                    case 'n':
                        fprintf(outs,"%c",'\n');
                        break;
+                   case '\\':
+                       fprintf(outs,"%c",'\\');
+                       break;
+                   case '"':
+                       fprintf(outs,"%c",'"');
+                       break;
+                   case '\'':
+                       fprintf(outs,"%c",'\'');
+                       break;
                }
            } else
            {
@@ -310,8 +273,9 @@ void print_outlier(FILE *outs, double score, int lines,int forest_idx,int value_
        }
        c++;
     }
-    if(*print_string) fprintf(outs,"%c",'\n');
+    if(*format) fprintf(outs,"%c",'\n');
 }
+
 
 /* check if index is in index table.
  */
@@ -387,7 +351,7 @@ analyze(FILE *in_stream, FILE *outs)
                   score = calculate_score(forest_idx,dimension);
                   if(score >= outlier_score) 
                   {
-                      print_outlier(outs,score,lines,forest_idx,value_count,values,dimension);
+                      print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
                   }
              }
         }
@@ -447,9 +411,24 @@ categorize(FILE *in_stream, FILE *outs)
                 }
             }
 
-            if(best_forest_idx >= 0) print_outlier(outs,min_score,lines,best_forest_idx,value_count,values,dimension);
+            if(best_forest_idx >= 0) print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
         }
     }
     if(dimension != NULL) free(dimension);
 }
 
+
+/* print category label of thos forests which are not
+ * filtered and which ar enot used in analysis
+ *
+ * This can be used to indicate which probably expected data is missing from analyzed file
+ */
+void print_missing_categories(FILE *outs,char *format)
+{
+    int i;
+
+    for(i = 0;i < forest_count;i++)
+    {
+        if(!forest[i].filter && !forest[i].analyzed) print_(outs,0.0,0,i,0,NULL,NULL,format,"Cat");
+    }
+}

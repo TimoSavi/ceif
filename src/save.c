@@ -22,12 +22,13 @@
  *
  */
 #include "ceif.h"
+#include <time.h>
 
 /* formats for write and reading data
  */
 
 static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d\n";
-static char *W_forest = "F;\"%s\";%f;%d;%d\n";
+static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
 static char *W_sample = "S;%s\n";
 
 static char input_line[INPUT_LEN_MAX];
@@ -87,7 +88,7 @@ save_forest(int forest_idx,FILE *w)
     int i;
     struct forest *f = &forest[forest_idx];
 
-    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit,f->X_count) < 0) write_error();
+    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit,f->X_count,(long int) f->last_updated) < 0) write_error();
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -106,15 +107,16 @@ save_forest(int forest_idx,FILE *w)
  * S = sample
  */
 void
-write_forest_file(FILE *data_file)
+write_forest_file(FILE *data_file,time_t delete_interval)
 {
     int i;
+    time_t now = time(NULL);
     
     write_global_data(data_file,forest_count);
 
     for(i = 0;i < forest_count;i++)
     {
-        save_forest(i,data_file);
+        if(delete_interval == (time_t) 0 || (delete_interval > (time_t) 0 && forest[i].last_updated >= now - delete_interval)) save_forest(i,data_file);
     }
 }
 
@@ -172,7 +174,7 @@ int parse_F(int forest_idx,char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 5)
+    if(value_count == 6)
     {
         f->category = xstrdup(v[1]);
         f->c = atof(v[2]);
@@ -185,11 +187,14 @@ int parse_F(int forest_idx,char *l)
         f->max = NULL;
         f->avg = NULL;
         f->dim_density = NULL;
+        f->analyzed = 0;
 
-        f->X_cap = atoi(v[4]);
+        f->X_cap = atoi(v[4]) + 1;
         f->X = xmalloc(f->X_cap * sizeof(struct sample));
 
         add_forest_hash(forest_idx,f->category);
+
+        f->last_updated = (time_t) atol(v[5]);
 
         return 1;
     }
@@ -222,18 +227,19 @@ read_forest_file(FILE *data_file)
         }
     } while(input_line[0] != 'G');
 
-    if(!dimensions || !tree_count) return 0;
+    if(!tree_count) return 0;
+
+    if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL || !forest_count) {
+        forest_count = 0;
+        return 1;
+    }
 
     forest_cap = forest_count;
-
-    if(!forest_count) return 1;
 
     forest = xmalloc(forest_cap * sizeof(struct forest));
 
     f_count = 0;
         
-    if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) return 0;
-
     do
     {
         if(input_line[0] == 'F')

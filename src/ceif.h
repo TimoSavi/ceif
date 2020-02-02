@@ -29,6 +29,8 @@
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define N_ADJUST_COUNT 12         // How many N vectors are tested for the best n adjust result
+#define CATEGORY_SEPARATOR ":"    // separator string for category values
+#define LABEL_SEPARATOR ":"       // separator string for label values
 
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
@@ -61,16 +63,18 @@ struct forest
 {
     char *category;         // Category string, all data having this category string in input data will behandled by this
     int filter;             // true if this forest should not be used in analysis or categorize
-    int X_count;	        // Number of dimensions
+    int X_count;	    // Number of samples
     int X_current;          // whis smaple should be taken next to tree 
     int X_cap;              // Memory allocated for X, in terms of units of struct sample
     double c;               // Average path length for the forest
     int heigth_limit;       // max tree depth
-    struct sample *X;       // dimensions for this forest
+    struct sample *X;       // samples for this forest
     double *min;            // learn data min values dimension
     double *max;            // learn data max values dimension
     double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
+    int analyzed;           // Is this forest used in analysis 
+    time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     struct tree *t;         // Tree table, NULL if not initialized
 };
 
@@ -162,11 +166,13 @@ void analyze(FILE *, FILE *);
 void categorize(FILE *, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);
-void print_test(FILE *, double , int ,double *);
 double calculate_score(int ,double *);
+void print_missing_categories(FILE *,char *);
+void print_(FILE *, double, int,int,int,char **,double *,char *,char *);
+
 
 /* save.c prototypes */
-void write_forest_file(FILE *);
+void write_forest_file(FILE *,time_t);
 int read_forest_file(FILE *);
 
 

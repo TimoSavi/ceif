@@ -36,6 +36,8 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -m&nbsp;STRING| Printf format for printing float values for sample and sample average values. Default is "%.*f"|
 | -e&nbsp;CHAR| Value separator when printing sample, sample average and analysed data values. Default is comma|
 | -n | adjust n-vector to be perpendicular to dimension attribute having largest value range|
+| -M&nbsp;STRING | Print category value, average values or last update time of forests which have not used in analysis. Optional printf format STRING is used in printing|
+| -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
 
 If FILE is "-" then standard input or output is read or written.
 
@@ -52,6 +54,9 @@ If FILE is "-" then standard input or output is read or written.
 | %v | Current input row values|
 | %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Note that value zero is printed as black|
 | %C | Found category values separated by colon when categorizing data|
+| %t | Time when category has been last updated. In human readable form using current locale|
+| %: | Category value separator|
+| %. | Label value separator|
 | %% | Percent sign|
 
 Value separator for d,a and v can be given by option -e.

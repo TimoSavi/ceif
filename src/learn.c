@@ -24,9 +24,11 @@
 #include "ceif.h"
 #include <math.h>
 #include <regex.h>
+#include <time.h>
 
 
 static char input_line[INPUT_LEN_MAX];
+static time_t now;
 
 /* hash function for hash table
  * calculates hash for string s
@@ -98,7 +100,7 @@ char *make_category_string(int value_count,char **values)
         if(category_idx[i] < value_count)
         {
             strcat(c,values[category_idx[i]]);
-            if(i < category_idx_count - 1) strcat(c,":");
+            if(i < category_idx_count - 1) strcat(c,CATEGORY_SEPARATOR);
         }
     }
     return c;
@@ -140,8 +142,11 @@ int select_forest(int value_count,char **values)
     category_string = make_category_string(value_count,values);
 
     i = search_forest_hash(category_string);
-
-    if(i >= 0) return i;
+   
+    if(i >= 0) {
+        if(forest[i].last_updated != now) forest[i].last_updated = now;
+        return i;
+    }
 
     if(forest_count >= forest_cap) {
        if(forest_cap == 0) forest_cap = 128;
@@ -160,6 +165,8 @@ int select_forest(int value_count,char **values)
    forest[forest_count].max = NULL;
    forest[forest_count].c = 0;
    forest[forest_count].heigth_limit = 0;
+   forest[forest_count].analyzed = 0;
+   forest[forest_count].last_updated = now;
    forest[forest_count].avg = xmalloc(dimensions * sizeof(double));
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
 
@@ -704,6 +711,7 @@ train_forest(FILE *in_stream,int new)
     char *values[DIM_MAX];
 
     first = 1;
+    now = time(NULL);
 
     if(in_stream != NULL)
     {
@@ -729,10 +737,14 @@ train_forest(FILE *in_stream,int new)
     }
 
     if(!forest_count || !forest[0].X_count) panic("Can't process data with given parameters",NULL,NULL);
-    
-    for(i = 0;i < forest_count;i++)
+
+    // train only once, if new data is added no training is run only new samples are collected
+    if(new)  
     {
-        train_one_forest(i);
+        for(i = 0;i < forest_count;i++)
+        {
+            train_one_forest(i);
+        }
     }
 
     filter_forests();
@@ -784,7 +796,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
 
                 score = calculate_score(forest_idx,test_dimension);
 
-                if(score >= outlier_score) print_test(outs,score,forest_idx,test_dimension);
+                if(score >= outlier_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
 
                 // next sample
                 for(i = dimensions - 1;i >= 0;i--)              
@@ -805,7 +817,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                            
             for(samples = 0;samples < TEST_SAMPLES && samples < f->X_count;samples++)
             {
-                 print_test(outs,0.0,forest_idx,f->X[ri(0,f->X_count - 1)].dimension);
+                 print_(outs,0.0,0,forest_idx,0,NULL,f->X[ri(0,f->X_count - 1)].dimension,print_string,"sdaxC");
             }
         }
     }

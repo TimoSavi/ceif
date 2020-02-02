@@ -73,7 +73,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:n";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -107,6 +107,8 @@ static struct option long_opts[] =
   {"printf-format", 1, 0, 'm'},
   {"list-separator", 1, 0, 'e'},
   {"n-adjust", 0, 0, 'n'},
+  {"missing", 2, 0, 'M'},
+  {"Delete", 1, 0, 'D'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -118,7 +120,7 @@ help (int status)
   printf ("Usage: %s [OPTION]... \n", PACKAGE_NAME);
   printf ("\
 Options:\n\
-  -d, --decimals INTEGER      Number of decimals when printing and saving dimension values\n\
+  -d, --decimals INTEGER      number of decimals when printing and saving dimension values\n\
   -h, --help                  display this help and exit\n\
   -V, --version               output version information and exit\n\
   -I, --ignore-dims LIST      comma separated list of dimensions not to be used, first is number 1. Ranges can be given using dash\n\
@@ -141,15 +143,51 @@ Options:\n\
   -R, --prange-factor FLOAT   prange selection adjustment factor\n\
   -T, --test FLOAT            generate test data with adjustment factor FLOAT\n\
   -i, --test-interval INTEGER number of test points for each dimension, default is 256\n\
-  -F, --category-filter REGEXP Regular expression to filter categories\n\
+  -F, --category-filter REGEXP regular expression to filter categories\n\
   -u, --unique-samples INTEGER accept INTEGER percent of samples as duplicates, default is take all samples.\n\
-  -m, --printf-format         printf format string for dimension and average value printing\n\
-  -e, --list-separator        value separator for dimension and average value printing\n\
+  -m, --printf-format STRING  printf format string for dimension and average value printing\n\
+  -e, --list-separator CHAR   value separator for dimension and average value printing\n\
   -n, --n-adjust              adjust n-vector to be perpendicular to dimension attribute having largest value range\n\
+  -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used in printing\n\
+  -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
 }
+
+static
+time_t parse_delete_interval(char *s)
+{
+    int len = strlen(s);
+    time_t value = (time_t) atol(s);
+
+    if(value == (time_t) 0) panic("Unknown time format for option -M",s,NULL);
+
+    switch(s[len - 1])
+    {
+        case 'Y':
+        case 'y':
+            value *= 31556926;
+            break;
+        case 'M':
+            value *= 2629743;
+            break;
+        case 'D':
+        case 'd':
+            value *= 86400;
+            break;
+        case 'm':
+            value *= 60;
+            break;
+        case 's':
+            break;
+        default:
+            if(s[len - 1] < '0' || s[len - 1] > '9') panic("Unknown time format for old forest data deletion",s,NULL);
+            break;
+    }
+    return value;
+}
+
 
 static
 void usage(int opt)
@@ -213,6 +251,9 @@ main (int argc, char **argv)
     int set_locale = 0;
     int run_test = 0;
     int test_range_interval = 256;
+    int print_missing = 0;
+    time_t delete_interval = (time_t) 0;
+    char *missing_format = "%C";
     double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
     char *learn_file = NULL;
     char *analyze_file = NULL;
@@ -345,6 +386,13 @@ main (int argc, char **argv)
                 print_version();
                 exit(0);
                 break;
+            case 'M':
+                print_missing = 1;
+                if(optarg != NULL) missing_format = xstrdup(optarg);
+                break;
+            case 'D':
+                delete_interval = parse_delete_interval(optarg);
+                break;
             default:
                 usage(opt);
                 break;
@@ -357,25 +405,6 @@ main (int argc, char **argv)
 
     samples_total = tree_count * samples_max;
 
-    if(learn_file != NULL) 
-    {
-        learns = xfopen(learn_file,"r",'a');
-        train_forest(learns,forest_count ? 0 : 1); 
-        fclose(learns);
-    } else
-    {
-        if(forest_count) train_forest(NULL,1); // samples read allready from saved file, run training based on that
-    }
-
-    if(save_file != NULL)
-    {
-        if(set_locale) setlocale(LC_ALL,"C");
-        saves = xfopen(save_file,"w",'a');
-        write_forest_file(saves);
-        fclose(saves);
-        if(set_locale) setlocale(LC_ALL,"");
-    }
-
     if(output_file != NULL)
     {
         outs = xfopen(output_file,"w",'a');
@@ -385,13 +414,27 @@ main (int argc, char **argv)
         outs = stdout;
     }
 
-    if(run_test) test2(outs,test_extension_factor,test_range_interval);
-
+    if(forest_count) 
+    {
+        train_forest(NULL,1); // samples read allready from saved file, run training based on that
+    } else
+    {
+        if(learn_file != NULL) 
+        {
+            learns = xfopen(learn_file,"r",'a');
+            train_forest(learns,1); 
+            fclose(learns);
+            free(learn_file);
+            learn_file = NULL;
+        } 
+    }
+    
     if(analyze_file !=  NULL)
     {
         analyzes = xfopen(analyze_file,"r",'a');
         analyze(analyzes,outs);
         fclose(analyzes);
+        if(print_missing) print_missing_categories(outs,missing_format);
     }
 
     if(categorize_file !=  NULL)
@@ -400,6 +443,24 @@ main (int argc, char **argv)
         categorize(categorizes,outs);
         fclose(categorizes);
     }
+
+    if(learn_file != NULL) 
+    {
+        learns = xfopen(learn_file,"r",'a');
+        train_forest(learns,forest_count ? 0 : 1); 
+        fclose(learns);
+    } 
+
+    if(save_file != NULL)
+    {
+        if(set_locale) setlocale(LC_ALL,"C");
+        saves = xfopen(save_file,"w",'a');
+        write_forest_file(saves,delete_interval);
+        fclose(saves);
+        if(set_locale) setlocale(LC_ALL,"");
+    }
+
+    if(run_test) test2(outs,test_extension_factor,test_range_interval);
 
     fclose(outs);
 
