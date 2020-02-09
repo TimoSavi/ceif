@@ -24,7 +24,7 @@
 
 #define DIM_MAX 1024
 #define INPUT_LEN_MAX 1048576
-#define SAMPLES_MIN 32            // minimun number of samples for a forest
+#define SAMPLES_MIN 24            // minimun number of samples for a forest
 #define FILTER_MAX 100            // maximun number of category filters
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
@@ -148,7 +148,7 @@ char *make_csv_line(char **,int,char);
 int parse_csv_line(char **,int,char *,char);
 
 /* learn.c prototypes */
-void train_forest(FILE *,int);
+void train_forest(FILE *,int,int);
 double parse_dim_attribute(char *);
 double dot(double *, double *);
 double c(int);
@@ -162,7 +162,7 @@ void test2(FILE *,double,int);
 
 
 /* analyze.c prototypes */
-void analyze(FILE *, FILE *);
+void analyze(FILE *, FILE *,char *);
 void categorize(FILE *, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);

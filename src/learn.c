@@ -614,11 +614,9 @@ void train_one_forest(int forest_idx)
 
     if(!tree_count) return;
 
-    if(f->X_count < SAMPLES_MIN)  /*  check the resonable amount of samples */
-    {
-        f->filter = 1;
-        return; 
-    }
+    if(f->X_count < SAMPLES_MIN) f->filter = 1;  /*  check the resonable amount of samples */
+
+    if(f->filter) return;
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
     if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
@@ -700,9 +698,10 @@ void filter_forests()
 
 
 /* build a new forest structure (new=1) or add new samples to existing forest (new=0)
+ * make tree acorrding make_tree. Tree is need only if analysing/categorizing or making test data
    */
 void
-train_forest(FILE *in_stream,int new)
+train_forest(FILE *in_stream,int new,int make_tree)
 {
     int i,first;
     int value_count;
@@ -738,16 +737,16 @@ train_forest(FILE *in_stream,int new)
 
     if(!forest_count || !forest[0].X_count) panic("Can't process data with given parameters",NULL,NULL);
 
+    filter_forests();
+
     // train only once, if new data is added no training is run only new samples are collected
-    if(new)  
+    if(new && make_tree)  
     {
         for(i = 0;i < forest_count;i++)
         {
             train_one_forest(i);
         }
     }
-
-    filter_forests();
 }
 
 

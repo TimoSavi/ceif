@@ -32,11 +32,13 @@ static int first = 1;
 static char *float_format = "%.*f";
 
 /* find a forest for a data row
+ *
+ * check filter and update analyzed only if filter_on is set
  * 
  * returns index to forest table, -1 if not found
  */
 static 
-int find_forest(int value_count,char **values)
+int find_forest(int value_count,char **values, int filter_on)
 {
     int i;
     char *category_string;
@@ -46,12 +48,16 @@ int find_forest(int value_count,char **values)
 
     i = search_forest_hash(category_string);
 
-    if(i == -1 || forest[i].filter) return -1;
+    if(filter_on)
+    {
+        if(i == -1 || forest[i].filter) return -1;
 
-    if(!forest[i].analyzed) forest[i].analyzed = 1;
+        if(!forest[i].analyzed) forest[i].analyzed = 1;
+    }
 
     return i;
 } 
+
 
 /* Populates values from parsed input row
  */
@@ -316,7 +322,7 @@ init_dims(int value_count)
  * and anomalies (having score > outlier_score) using printing mask
  */
 void
-analyze(FILE *in_stream, FILE *outs)
+analyze(FILE *in_stream, FILE *outs,char *not_found_format)
 {
     int value_count;
     int lines = 0;
@@ -344,7 +350,7 @@ analyze(FILE *in_stream, FILE *outs)
 
         if(value_count)
         { 
-             forest_idx = find_forest(value_count,values);
+             forest_idx = find_forest(value_count,values,1);
              if(forest_idx >= 0)
              {
                   populate_dimension(dimension,values,value_count);
@@ -353,7 +359,11 @@ analyze(FILE *in_stream, FILE *outs)
                   {
                       print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
                   }
+             } else
+             {
+                 if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,NULL,not_found_format,"vcl");
              }
+
         }
     }
     if(dimension != NULL) free(dimension);

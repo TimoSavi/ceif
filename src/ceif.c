@@ -73,7 +73,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -108,7 +108,8 @@ static struct option long_opts[] =
   {"list-separator", 1, 0, 'e'},
   {"n-adjust", 0, 0, 'n'},
   {"missing", 2, 0, 'M'},
-  {"Delete", 1, 0, 'D'},
+  {"delete", 1, 0, 'D'},
+  {"new", 2, 0, 'N'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -148,8 +149,9 @@ Options:\n\
   -m, --printf-format STRING  printf format string for dimension and average value printing\n\
   -e, --list-separator CHAR   value separator for dimension and average value printing\n\
   -n, --n-adjust              adjust n-vector to be perpendicular to dimension attribute having largest value range\n\
-  -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used in printing\n\
+  -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used for printing\n\
   -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
+  -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -161,7 +163,7 @@ time_t parse_delete_interval(char *s)
     int len = strlen(s);
     time_t value = (time_t) atol(s);
 
-    if(value == (time_t) 0) panic("Unknown time format for option -M",s,NULL);
+    if(value == (time_t) 0) panic("Invalid time format for option -M",s,NULL);
 
     switch(s[len - 1])
     {
@@ -182,7 +184,7 @@ time_t parse_delete_interval(char *s)
         case 's':
             break;
         default:
-            if(s[len - 1] < '0' || s[len - 1] > '9') panic("Unknown time format for old forest data deletion",s,NULL);
+            if(s[len - 1] < '0' || s[len - 1] > '9') panic("Invalid time format for old forest data deletion",s,NULL);
             break;
     }
     return value;
@@ -250,10 +252,12 @@ main (int argc, char **argv)
     int opt;
     int set_locale = 0;
     int run_test = 0;
+    int make_tree = 0;
     int test_range_interval = 256;
     int print_missing = 0;
     time_t delete_interval = (time_t) 0;
     char *missing_format = "%C";
+    char *not_found_format = NULL;
     double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
     char *learn_file = NULL;
     char *analyze_file = NULL;
@@ -393,6 +397,15 @@ main (int argc, char **argv)
             case 'D':
                 delete_interval = parse_delete_interval(optarg);
                 break;
+            case 'N':
+                if(optarg != NULL) 
+                {
+                    not_found_format = xstrdup(optarg);
+                } else
+                {
+                    not_found_format = "%v";
+                }
+                break;
             default:
                 usage(opt);
                 break;
@@ -404,6 +417,8 @@ main (int argc, char **argv)
     set_locale ? setlocale(LC_ALL,"") : setlocale(LC_ALL,"C");
 
     samples_total = tree_count * samples_max;
+        
+    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test) make_tree = 1;  // we need tree info
 
     if(output_file != NULL)
     {
@@ -416,13 +431,13 @@ main (int argc, char **argv)
 
     if(forest_count) 
     {
-        train_forest(NULL,1); // samples read allready from saved file, run training based on that
+         train_forest(NULL,1,make_tree); // samples read allready from saved file, run training based on that
     } else
     {
         if(learn_file != NULL) 
         {
             learns = xfopen(learn_file,"r",'a');
-            train_forest(learns,1); 
+            train_forest(learns,1,make_tree); 
             fclose(learns);
             free(learn_file);
             learn_file = NULL;
@@ -432,7 +447,7 @@ main (int argc, char **argv)
     if(analyze_file !=  NULL)
     {
         analyzes = xfopen(analyze_file,"r",'a');
-        analyze(analyzes,outs);
+        analyze(analyzes,outs,not_found_format);
         fclose(analyzes);
         if(print_missing) print_missing_categories(outs,missing_format);
     }
@@ -447,7 +462,7 @@ main (int argc, char **argv)
     if(learn_file != NULL) 
     {
         learns = xfopen(learn_file,"r",'a');
-        train_forest(learns,forest_count ? 0 : 1); 
+        train_forest(learns,forest_count ? 0 : 1,0); 
         fclose(learns);
     } 
 
