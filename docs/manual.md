@@ -38,6 +38,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -n | adjust n-vector to be perpendicular to dimension attribute having largest value range|
 | -M&nbsp;STRING | Print category value, average values or last update time of forests which have not used in analysis. Optional printf format STRING is used in printing|
 | -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
+| -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
 
 If FILE is "-" then standard input or output is read or written.
 
