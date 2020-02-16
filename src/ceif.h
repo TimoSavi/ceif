@@ -32,6 +32,10 @@
 #define CATEGORY_SEPARATOR ":"    // separator string for category values
 #define LABEL_SEPARATOR ":"       // separator string for label values
 
+/* should normal distributed values be written to cache for faster execution */
+#define FAST_N 1
+#define FAST_N_SAMPLES 4096
+
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
  */
@@ -158,6 +162,7 @@ void add_category_filter(char *);
 int search_forest_hash(char *); 
 void add_forest_hash(int, char *);
 void test2(FILE *,double,int);
+void init_fast_n_cache();
 
 
 

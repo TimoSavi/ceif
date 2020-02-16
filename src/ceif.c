@@ -47,7 +47,7 @@ int label_idx_count = 0;                 // number of labels fields
 char *cat_filter[FILTER_MAX];  // Category filters
 int cat_filter_count = 0;      // Category filter count
 
-char *print_string="%s %v";     // How to print outlier data
+char *print_string = NULL;     // How to print outlier data
 int tree_count = 100;             // trees / forest
 int samples_max = 256;            // max samples / tree
 int samples_total;                // max samples / forest
@@ -314,6 +314,7 @@ main (int argc, char **argv)
                 categorize_file = xstrdup(optarg);
                 break;
             case 'p':
+                if(print_string != NULL) free(print_string);
                 print_string = xstrdup(optarg);
                 break;
             case 'w':
@@ -414,9 +415,13 @@ main (int argc, char **argv)
 
     srand(time(NULL));
 
+    init_fast_n_cache();
+
     set_locale ? setlocale(LC_ALL,"") : setlocale(LC_ALL,"C");
 
     samples_total = tree_count * samples_max;
+
+    if(print_string == NULL) print_string = "%s %v";
         
     if(analyze_file !=  NULL || categorize_file !=  NULL || run_test) make_tree = 1;  // we need tree info
 

@@ -26,6 +26,7 @@
 #include <regex.h>
 #include <time.h>
 
+double fast_n_cache[FAST_N_SAMPLES];
 
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
@@ -301,7 +302,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
     {
         f->min = xmalloc(dimensions * sizeof(double));
         f->max = xmalloc(dimensions * sizeof(double));
-        f->avg = xmalloc(dimensions * sizeof(double));
+        if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
         first = 1;
     }
 
@@ -373,11 +374,26 @@ double gaussrand()
     return Z;
 }
 
-/* calcula random normal distributed number from [0,1]
+/* Init N cache  */
+void init_fast_n_cache()
+{
+    int i;
+
+    if(FAST_N) for(i = 0;i < FAST_N_SAMPLES;i++) fast_n_cache[i] = gaussrand();
+}
+
+/* calculate random normal distributed number from [0,1]
  */
 static inline
 double N()
 {
+    static int next_n=0;
+
+    if(FAST_N)
+    {
+        if(next_n == FAST_N_SAMPLES) next_n = 0;
+        return fast_n_cache[next_n++];
+    }
     return(gaussrand());
 }
 
@@ -619,7 +635,6 @@ void train_one_forest(int forest_idx)
     if(f->filter) return;
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
-    if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
 
     for(i = 0;i < dimensions;i++) 
@@ -768,11 +783,13 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
     int samples = 0;
     double score;
     double *test_dimension;
+    double *prev_dimension;
     static double len[DIM_MAX];             // precalculated max - min value
     static int sidx[DIM_MAX];               // contains sample number (between 0 - test_sample_interval) for each dimension value, all combinations are processed
     struct forest *f;
 
     test_dimension = xmalloc(dimensions * sizeof(double));
+    prev_dimension = xmalloc(dimensions * sizeof(double));
 
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
     {
@@ -783,6 +800,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
             for(i = 0;i < dimensions;i++) 
             {
                 sidx[i] = 0;
+                prev_dimension[i] = 0;
                 len[i] = f->max[i] - f->min[i];
             }
 
@@ -793,9 +811,14 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                     test_dimension[i] = (1.0 + test_extension_factor) * ((double) sidx[i] / (double) test_sample_interval) * len[i] + (f->min[i] - (test_extension_factor * len[i]) / 2.0);
                 }
 
-                score = calculate_score(forest_idx,test_dimension);
+                if(v_cmp(test_dimension,prev_dimension) != 0)
+                {
+                    score = calculate_score(forest_idx,test_dimension);
 
-                if(score >= outlier_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+                    if(score >= outlier_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+
+                    v_copy(prev_dimension, test_dimension);
+                }
 
                 // next sample
                 for(i = dimensions - 1;i >= 0;i--)              
@@ -821,6 +844,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
         }
     }
     free(test_dimension);
+    free(prev_dimension);
 }
 
 

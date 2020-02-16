@@ -188,6 +188,7 @@ int parse_F(int forest_idx,char *l)
         f->avg = NULL;
         f->dim_density = NULL;
         f->analyzed = 0;
+        f->filter = 0;
 
         f->X_cap = atoi(v[4]) + 1;
         f->X = xmalloc(f->X_cap * sizeof(struct sample));
