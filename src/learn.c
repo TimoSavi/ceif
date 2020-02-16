@@ -27,6 +27,7 @@
 #include <time.h>
 
 double fast_n_cache[FAST_N_SAMPLES];
+double fast_c_cache[FAST_C_SAMPLES];
 
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
@@ -482,13 +483,28 @@ double dot(double *a, double *b)
     return d;
 } 
 
-
 /* calculate average tree height for given sample size n
+ *  */
+double _c(int n)
+{
+    if(n <= 2) return 1.0;   
+    return 2.0 * (log(n - 1) + 0.5772156649) - (2 * (double) (n - 1) / (double) n);
+}
+
+/* get the average tree height for given sample size n
  *  */
 double c(int n)
 {
-    if(n <= 2) return 1;   
-    return 2*(log(n - 1) + 0.5772156649) - (2*(n - 1)/n);
+    if(n < FAST_C_SAMPLES) return fast_c_cache[n];
+    return _c(n);
+}
+
+/*  Init the fast_c_cache table */
+void init_fast_c_cache()
+{
+    int i;
+
+    for(i = 0;i < FAST_C_SAMPLES;i++) fast_c_cache[i] = _c(i);
 }
 
 /* make an n vector, If n_vector_adjust is set then try to find n

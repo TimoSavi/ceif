@@ -36,6 +36,9 @@
 #define FAST_N 1
 #define FAST_N_SAMPLES 4096
 
+/* cache size for c values (the average depth in an unsuccessful search in a Binary Search Tree) */
+#define FAST_C_SAMPLES 2048
+
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
  */
@@ -163,6 +166,7 @@ int search_forest_hash(char *);
 void add_forest_hash(int, char *);
 void test2(FILE *,double,int);
 void init_fast_n_cache();
+void init_fast_c_cache();
 
 
 

@@ -416,6 +416,7 @@ main (int argc, char **argv)
     srand(time(NULL));
 
     init_fast_n_cache();
+    init_fast_c_cache();
 
     set_locale ? setlocale(LC_ALL,"") : setlocale(LC_ALL,"C");
 
