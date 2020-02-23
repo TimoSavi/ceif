@@ -60,6 +60,7 @@ int unique_samples = 0;           // accpet only unique samples, in some cases t
 char *printf_format = "";       // User given printf format for dimension and average values
 char list_separator = ',';         // seprator for dimension and average values in output
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
+int aggregate = 0;              // should data values to be aggregated when adding new data to forest
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -73,7 +74,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::A";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -110,6 +111,7 @@ static struct option long_opts[] =
   {"missing", 2, 0, 'M'},
   {"delete", 1, 0, 'D'},
   {"new", 2, 0, 'N'},
+  {"aggregate", 0, 0, 'A'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -152,6 +154,7 @@ Options:\n\
   -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used for printing\n\
   -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
   -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
+  -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -406,6 +409,9 @@ main (int argc, char **argv)
                 {
                     not_found_format = "%v";
                 }
+                break;
+            case 'A':
+                aggregate = 1;
                 break;
             default:
                 usage(opt);

@@ -317,6 +317,25 @@ init_dims(int value_count)
     }
 }
 
+/* aggregate values to forest summary
+ */
+static 
+void aggregate_values(int forest_idx,double *sample)
+{
+    int i;
+    struct forest *f = &forest[forest_idx];
+
+    if(f->summary == NULL)
+    {
+        f->summary = xmalloc(dimensions * sizeof(double));
+        for(i = 0;i < dimensions;i++) f->summary[i] = sample[i];
+    } else
+    {
+        for(i = 0;i < dimensions;i++) f->summary[i] += sample[i];
+    }
+}
+
+
 /* analyze data from file. 
  * All lines are analyzed against loaded forest/tree data
  * and anomalies (having score > outlier_score) using printing mask
@@ -324,6 +343,7 @@ init_dims(int value_count)
 void
 analyze(FILE *in_stream, FILE *outs,char *not_found_format)
 {
+    int i;
     int value_count;
     int lines = 0;
     int forest_idx;
@@ -350,22 +370,46 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
 
         if(value_count)
         { 
-             forest_idx = find_forest(value_count,values,1);
-             if(forest_idx >= 0)
-             {
-                  populate_dimension(dimension,values,value_count);
-                  score = calculate_score(forest_idx,dimension);
-                  if(score >= outlier_score) 
-                  {
-                      print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
-                  }
+            populate_dimension(dimension,values,value_count);
+
+            forest_idx = find_forest(value_count,values,1);
+
+            if(forest_idx >= 0)
+            {
+                if(aggregate)
+                {
+                    aggregate_values(forest_idx,dimension);
+                } else
+                {
+                    score = calculate_score(forest_idx,dimension);
+                    if(score >= outlier_score) 
+                    {
+                        print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+                    }
+                }
              } else
              {
-                 if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,NULL,not_found_format,"vcl");
+                 if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,dimension,not_found_format,"dvcl");
              }
 
         }
     }
+
+    if(aggregate)
+    {
+        for(i = 0;i < forest_count;i++)
+        {
+            if(forest[i].summary != NULL && !forest[i].filter)
+            {
+                score = calculate_score(i,forest[i].summary);
+                if(score >= outlier_score) 
+                {
+                    print_(outs,score,0,i,0,NULL,forest[i].summary,print_string,"rsdaxCt");
+                }
+            }
+        }
+    }
+
     if(dimension != NULL) free(dimension);
 }
 
@@ -377,6 +421,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
 void
 categorize(FILE *in_stream, FILE *outs)
 {
+    int i,j;
     int value_count;
     int lines = 0;
     int forest_idx;
@@ -405,25 +450,57 @@ categorize(FILE *in_stream, FILE *outs)
         if(value_count)
         { 
             populate_dimension(dimension,values,value_count);
-        
-            best_forest_idx = -1;
 
-            for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+            if(aggregate)
             {
-                if(!forest[forest_idx].filter)
+                forest_idx = find_forest(value_count,values,0);
+                if(forest_idx > -1) aggregate_values(forest_idx,dimension);
+            } else
+            {
+                best_forest_idx = -1;
+
+                for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
                 {
-                    score = calculate_score(forest_idx,dimension);
-                    if(best_forest_idx == -1 || score < min_score)
+                    if(!forest[forest_idx].filter)
                     {
-                        min_score = score;
-                        best_forest_idx = forest_idx;
+                            score = calculate_score(forest_idx,dimension);
+                            if(best_forest_idx == -1 || score < min_score)
+                            {
+                                min_score = score;
+                                best_forest_idx = forest_idx;
+                            }
+                    }
+                }
+
+                if(best_forest_idx >= 0) print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+            }
+        }
+    }
+
+    if(aggregate)
+    {
+        for(i = 0;i < forest_count;i++)
+        {
+            best_forest_idx = -1;
+            if(forest[i].summary != NULL)
+            {
+                for(j = 0;j < forest_count;j++)
+                {
+                    if(!forest[j].filter)
+                    {
+                        score = calculate_score(j,forest[i].summary);
+                        if(best_forest_idx == -1 || score < min_score)
+                        {
+                            min_score = score;
+                            best_forest_idx = j;
+                        }
                     }
                 }
             }
-
-            if(best_forest_idx >= 0) print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+            if(best_forest_idx >= 0) print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCt");
         }
     }
+
     if(dimension != NULL) free(dimension);
 }
 

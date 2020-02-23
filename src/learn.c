@@ -161,10 +161,12 @@ int select_forest(int value_count,char **values)
    forest[forest_count].X_count = 0;
    forest[forest_count].X_current = 0;
    forest[forest_count].X_cap = 0;   
+   forest[forest_count].X_summary = -1;   
    forest[forest_count].X = NULL;   
    forest[forest_count].t = NULL;
    forest[forest_count].min = NULL;
    forest[forest_count].max = NULL;
+   forest[forest_count].summary = NULL;
    forest[forest_count].c = 0;
    forest[forest_count].heigth_limit = 0;
    forest[forest_count].analyzed = 0;
@@ -299,7 +301,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
         if(sample_idx >= samples_total) return;     // check if old sample should be replaced with this or not
     }
 
-    if(f->min == NULL)
+    if(f->min == NULL && !aggregate)
     {
         f->min = xmalloc(dimensions * sizeof(double));
         f->max = xmalloc(dimensions * sizeof(double));
@@ -311,24 +313,109 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
 
     v_copy(s,new);
 
-    for(i = 0;i < dimensions;i++)
+    if(!aggregate)  // if dealing with aggregated data, stats are done after aggregation is done
     {
-        // update min/max dimensions and average
-        if(first)
+        for(i = 0;i < dimensions;i++)
         {
-            f->min[i] = s[i];
-            f->max[i] = s[i];
-            f->avg[i] = s[i];
-        } else
-        {
-            if(s[i] < f->min[i]) f->min[i] = s[i];
-            if(s[i] > f->max[i]) f->max[i] = s[i];
-            f->avg[i] += s[i];
+            // update min/max dimensions and average
+            if(first)
+            {
+                f->min[i] = s[i];
+                f->max[i] = s[i];
+                f->avg[i] = s[i];
+            } else
+            {
+                if(s[i] < f->min[i]) f->min[i] = s[i];
+                if(s[i] > f->max[i]) f->max[i] = s[i];
+                f->avg[i] += s[i];
+            }
         }
     }
-
 }
 
+/* Aggregate new values for a certain sample item in a forest.
+ * if forest -> X_summary == -1, this is the first data to be aggregated
+ * if forest -> X_summary > -1, this is the index to X where data is aggregated
+ * in case we have max number of samples, a new data is allways added, no reservoir sampling is implemented
+ */
+static void
+add_aggregate(struct forest *f,char **values, int value_count)
+{
+    int i,sample_idx;
+    double *s;
+    static double new[DIM_MAX];
+
+    parse_values(new,values,value_count,0); 
+
+    if(f->X_count >= f->X_cap) {
+        if(f->X_cap == 0) f->X_cap = 32;
+        f->X_cap *= 2;
+        f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
+    }
+
+    if(f->X_summary > -1)
+    {
+        sample_idx = f->X_summary;
+    } else
+    {
+        if(f->X_count < samples_total)    // check the samples table size
+        {
+            sample_idx = f->X_count;
+            f->X[sample_idx].dimension = xmalloc(dimensions * sizeof(double));
+            f->X_count++;
+        } else                                          // max number of samples in X
+        {
+            sample_idx = ri(0,f->X_count - 1);          // replace a random sample with this new one
+        }
+
+        f->X_summary = sample_idx;
+
+        for(i = 0;i < dimensions;i++) f->X[sample_idx].dimension[i] = 0.0; // init summary
+    }
+    
+    s = f->X[sample_idx].dimension;
+
+    for(i = 0;i < dimensions;i++) s[i] += new[i];
+}
+
+/* calculate min,max and avg values after aggregated data is added
+ */
+static
+void recalculate_stats(struct forest *f)
+{
+    int i,j;
+    double *s;
+
+    if(f->min == NULL)
+    {
+        f->min = xmalloc(dimensions * sizeof(double));
+        f->max = xmalloc(dimensions * sizeof(double));
+        if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
+    }
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        s = f->X[i].dimension;
+
+        if(i == 0)
+        {
+            for(j = 0;j < dimensions;j++)
+            {
+                f->min[j] = s[j];
+                f->max[j] = s[j];
+                f->avg[j] = s[j];
+            }
+        } else
+        {
+            for(j = 0;j < dimensions;j++)
+            {
+                if(s[j] < f->min[j]) f->min[j] = s[j];
+                if(s[j] > f->max[j]) f->max[j] = s[j];
+                f->avg[j] += s[j];
+            }
+        }
+    }
+}
 
 /* Populate sample table with indices to X table
  * If X_sixe is less than samples, take all
@@ -762,7 +849,13 @@ train_forest(FILE *in_stream,int new,int make_tree)
             forest_idx = select_forest(value_count,values);
 
             // If we are adding lines to allready loded samples then adjust the line count accordingly
-            add_to_X(&forest[forest_idx],values,value_count,(header ? (lines - 1) : lines) + (new ? 0 : forest[forest_idx].X_count),0);
+            if(aggregate)
+            {
+                add_aggregate(&forest[forest_idx],values,value_count);
+            } else
+            {
+                add_to_X(&forest[forest_idx],values,value_count,(header ? (lines - 1) : lines) + (new ? 0 : forest[forest_idx].X_count),0);
+            }
         }
     }
 
@@ -770,11 +863,12 @@ train_forest(FILE *in_stream,int new,int make_tree)
 
     filter_forests();
 
-    // train only once, if new data is added no training is run only new samples are collected
+    // train only once, if new data is only added (!make_tree) no training is run and only new samples are collected
     if(new && make_tree)  
     {
         for(i = 0;i < forest_count;i++)
         {
+            if(aggregate) recalculate_stats(&forest[i]);
             train_one_forest(i);
         }
     }

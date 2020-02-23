@@ -39,6 +39,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -M&nbsp;STRING | Print category value, average values or last update time of forests which have not used in analysis. Optional printf format STRING is used in printing|
 | -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
 | -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
+| -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
 
 If FILE is "-" then standard input or output is read or written.
 
@@ -98,3 +99,51 @@ Generate data set around sample data points by enlarging the area with factor 1.
 Test data sample values and outlier score value in RGB value separated by semicolon are printed to file plot_data.csv.
 
     ceif -r data.f -T1 -i512 -e";" -p"%d;0x%x" -o plot_data.csv
+
+#### Data value aggregation
+If e.g. daily or hourly summaries should be analyzed then ceif should be called with -A option and each forest should have a daily or hourly aggregation key. 
+Example file of hourly samples of internet traffic:
+
+    $ cat traffic.csv
+    Hour,Type,Inbytes,Outbutes
+    12,In,123,1444
+    12,Out,423,1644
+    13,In,123,1444
+    13,In,823,44
+    14,In,13,1414
+    14,In,9123,1444
+    14,In,123,1443
+    15,Out,12423,1644
+    16,Out,423,16
+    16,Out,493,1044
+    17,Out,433,1644
+    18,Out,493,1644
+
+Making Hourly and traffic direction summaries, first two fields are category keys (-C1-2):
+
+    ceif -l traffic.csv -C1-2 -H -A -R10 -n -d0 -w traffic.ceif
+
+Forest file contents below, for each hour and traffic type the number of bytes are summarized:
+
+    $ cat traffic.ceif
+    G;2;"";"%s %v";100;256;"1-2";",";1;0.750000;10.000000;"";"";8;"";0;0;"";",";1;1
+    F;"12:In";0.000000;0;1;1582453164
+    S;123|1444
+    F;"12:Out";0.000000;0;1;1582453164
+    S;423|1644
+    F;"13:In";0.000000;0;1;1582453164
+    S;946|1488
+    F;"14:In";0.000000;0;1;1582453164
+    S;9259|4301
+    F;"15:Out";0.000000;0;1;1582453164
+    S;12423|1644
+    F;"16:Out";0.000000;0;1;1582453164
+    S;916|1060
+    F;"17:Out";0.000000;0;1;1582453164
+    S;433|1644
+    F;"18:Out";0.000000;0;1;1582453164
+    S;493|1644
+
+And when the same is done next day and so on, a new sample is added for each forest (Hour and traffic direction combination).
+After enough samples are collected a daily traffic can be analyzed for anomalies using -a option.
+

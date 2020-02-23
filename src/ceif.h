@@ -73,6 +73,7 @@ struct forest
     int X_count;	    // Number of samples
     int X_current;          // whis smaple should be taken next to tree 
     int X_cap;              // Memory allocated for X, in terms of units of struct sample
+    int X_summary;          // Which sample is used for data summary
     double c;               // Average path length for the forest
     int heigth_limit;       // max tree depth
     struct sample *X;       // samples for this forest
@@ -80,6 +81,7 @@ struct forest
     double *max;            // learn data max values dimension
     double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
+    double *summary;        // aggregated values when analysing or categorizing
     int analyzed;           // Is this forest used in analysis 
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     struct tree *t;         // Tree table, NULL if not initialized
@@ -124,6 +126,7 @@ extern int unique_samples;
 extern char *printf_format;
 extern char list_separator;
 extern int n_vector_adjust;
+extern int aggregate;
 
 extern char *include_dims;
 extern char *ignore_dims;
