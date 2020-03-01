@@ -68,7 +68,16 @@ void populate_dimension(double *d,char **values,int value_count)
 
     for(i = 0;i < dimensions;i++)
     {
-        if(dim_idx[i] < value_count) d[i] = parse_dim_attribute(values[dim_idx[i]]);
+        if(dim_idx[i] < value_count)
+        {
+            if(check_idx(dim_idx[i],text_idx_count,text_idx))
+            {
+                d[i] = parse_dim_hash_attribute(values[dim_idx[i]]);
+            } else
+            {
+                d[i] = parse_dim_attribute(values[dim_idx[i]]);
+            }
+        }
     }
 }
 
@@ -189,29 +198,35 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
 
     while(*c != '\000')
     {
-       if(*c == '%' && c[1] != '\000' && (strchr(directives,c[1]) != NULL || strchr(":.%",c[1]) != NULL))
-       {
-           c++;
-           switch(*c)
-           {
-               case 'r':
-                   fprintf(outs,"%d",lines);
-                   break;
-               case 's':
-                   fprintf(outs,"%f",score);
-                   break;
-               case 'c':
-                   fprintf(outs,"%s",make_category_string(value_count,values));
-                   break;
-               case 'l':
-                   fprintf(outs,"%s",make_label_string(value_count,values));
-                   break;
-               case 'd':
-                   for(i = 0;i < dimensions;i++)
-                   {
-                       *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
-                       if(i < dimensions - 1) fputc(list_separator,outs);
-                   }
+        if(*c == '%' && c[1] != '\000' && (strchr(directives,c[1]) != NULL || strchr(":.%",c[1]) != NULL))
+        {
+            c++;
+            switch(*c)
+            {
+                case 'r':
+                    fprintf(outs,"%d",lines);
+                    break;
+                case 's':
+                    fprintf(outs,"%f",score);
+                    break;
+                case 'c':
+                    fprintf(outs,"%s",make_category_string(value_count,values));
+                    break;
+                case 'l':
+                    fprintf(outs,"%s",make_label_string(value_count,values));
+                    break;
+                case 'd':
+                    for(i = 0;i < dimensions;i++)
+                    {
+                        if(check_idx(dim_idx[i],text_idx_count,text_idx) && values != NULL)
+                        {
+                            fprintf(outs,"%s",values[dim_idx[i]]);
+                        } else
+                        {
+                            *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
+                        }
+                        if(i < dimensions - 1) fputc(list_separator,outs);
+                    }
                    break;
                case 'a':
                    for(i = 0;i < dimensions;i++)

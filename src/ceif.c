@@ -29,8 +29,11 @@
 #include <time.h>
 
 /* Global data */
-int dim_idx[DIM_MAX];           // final table of dimension indices to be used. Index refers to input line field index
-int dimensions = 0;             // dimensions in current setup
+int dim_idx[DIM_MAX];          // final table of dimension indices to be used. Index refers to input line field index
+int dimensions = 0;            // dimensions in current setup
+
+int text_idx[DIM_MAX];         // table of dimension indices having text based input values. Texts are mapped to hash values using hash().
+int text_idx_count = 0;        // number of text based input values
 
 int ignore_idx[DIM_MAX];
 int ignore_idx_count = 0;
@@ -55,8 +58,8 @@ char input_separator = ',';       // input separator for csv data
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
-int decimals = 6;                 // Number of decimals when printing saving dimension data
-int unique_samples = 0;           // accpet only unique samples, in some cases this yields better results
+int decimals = 6;                 // Number of decimals when printing and saving dimension data
+int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
 char *printf_format = "";       // User given printf format for dimension and average values
 char list_separator = ',';         // seprator for dimension and average values in output
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
@@ -67,6 +70,7 @@ char *ignore_dims = NULL;           // which input values are ignored, user give
 char *include_dims = NULL;           // which input values are included, user given string
 char *category_dims = NULL;           // list of dimensions to be used as category label, user given string
 char *label_dims = NULL;           // list of dimensions to be used as category label, user given string
+char *text_dims = NULL;           // list of dimensions to be used as text based input values, user given string
 
 int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
@@ -74,7 +78,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::A";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::AX:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -112,6 +116,7 @@ static struct option long_opts[] =
   {"delete", 1, 0, 'D'},
   {"new", 2, 0, 'N'},
   {"aggregate", 0, 0, 'A'},
+  {"text-dims", 1, 0, 'X'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -155,6 +160,7 @@ Options:\n\
   -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
   -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
   -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
+  -X, --text-dims             comma separated list of dimensions to be used as text based input values, first is number 1. Ranges can be given using dash\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -412,6 +418,10 @@ main (int argc, char **argv)
                 break;
             case 'A':
                 aggregate = 1;
+                break;
+            case 'X':
+                text_dims = xstrdup(optarg);
+                text_idx_count = parse_dims(optarg,text_idx);
                 break;
             default:
                 usage(opt);

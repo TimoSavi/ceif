@@ -212,13 +212,23 @@ int v_cmp(double *t,double *s)
 }
 
 
-/* parse single sample attribute 
-   Possible calculate hash for text attributes later
-   now assume all data being float
+/* parse single numeric sample attribute 
    */
 double parse_dim_attribute(char *value)
 {
     return atof(value);
+}
+
+/* parse single text attribute 
+ * a hash is calculated based on string.
+ * NOTE! collisions may occur
+ *
+ * Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown" 
+ * Note also that "Yes" and "yes" will produce different values
+ */
+double parse_dim_hash_attribute(char *value)
+{
+    return (double) hash(value);
 }
 
 /* parse ascii value table to dimension table of type double
@@ -232,7 +242,19 @@ void parse_values(double *dim,char **values, int value_count, int saved)
         // silently ignore missing input row dimension values
         if(dim_idx[i] < value_count || saved)
         {
-            dim[i] = parse_dim_attribute(values[saved ? i : dim_idx[i]]);
+            if(saved)
+            {
+                dim[i] = parse_dim_attribute(values[i]);
+            } else
+            {
+                if(check_idx(dim_idx[i],text_idx_count,text_idx))
+                {
+                    dim[i] = parse_dim_hash_attribute(values[dim_idx[i]]);
+                } else
+                {
+                    dim[i] = parse_dim_attribute(values[dim_idx[i]]);
+                }
+            }
         } else
         {
             dim[i] = 0.0;   // use default value for missing dimension vlaue

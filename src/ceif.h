@@ -101,13 +101,14 @@ extern int ignore_idx[];
 extern int include_idx[];
 extern int category_idx[];
 extern int label_idx[];
-
+extern int text_idx[];
 
 extern int dimensions;            // dimensions in current setup
 extern int ignore_idx_count;
 extern int include_idx_count;
 extern int category_idx_count;
 extern int label_idx_count;
+extern int text_idx_count;
 
 extern char *cat_filter[];
 extern int cat_filter_count;
@@ -132,6 +133,7 @@ extern char *include_dims;
 extern char *ignore_dims;
 extern char *category_dims;
 extern char *label_dims;
+extern char *text_dims;
 
 extern int forest_count;
 extern int forest_cap;
@@ -160,6 +162,7 @@ int parse_csv_line(char **,int,char *,char);
 /* learn.c prototypes */
 void train_forest(FILE *,int,int);
 double parse_dim_attribute(char *);
+double parse_dim_hash_attribute(char *);
 double dot(double *, double *);
 double c(int);
 int dim_ok(int,int);
@@ -181,6 +184,7 @@ char *make_category_string(int,char **);
 double calculate_score(int ,double *);
 void print_missing_categories(FILE *,char *);
 void print_(FILE *, double, int,int,int,char **,double *,char *,char *);
+int check_idx(int ,int , int *);
 
 
 /* save.c prototypes */

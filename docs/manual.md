@@ -13,6 +13,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -V | Display version and exit|
 | -I&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
 | -U&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This can be used with -I when there are lot of unused fields|
+| -X&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be as text fields when reading the input file. Ranges can be given with dash (e.g. 2-9). A hash value from range 0-32770 is generated using field string value. Note that this is not collision free. Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown. Note also that "Yes" and "yes" will produce different value|
 | -t&nbsp;INTEGER&nbsp;&nbsp; | Number of trees to use. Default is 100|
 | -s&nbsp;INTEGER | Number of samples for each tree. Default is 256|
 | -f&nbsp;CHAR | Field separator for input files|
