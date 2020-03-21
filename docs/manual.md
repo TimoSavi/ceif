@@ -11,9 +11,9 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Display help and exit|
 | -d&nbsp;INTEGER | Number of decimals when printing and saving dimension values. Default is 6|
 | -V | Display version and exit|
-| -I&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
-| -U&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This can be used with -I when there are lot of unused fields|
-| -X&nbsp;LIST | LIST is a comma separated list field numbers (first = 1) which should be as text fields when reading the input file. Ranges can be given with dash (e.g. 2-9). A hash value from range 0-32770 is generated using field string value. Note that this is not collision free. Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown". Note also that "Yes" and "yes" will produce different value|
+| -I&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
+| -U&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This can be used with -I when there are lot of unused fields|
+| -X&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be as text fields when reading the input file. Ranges can be given with dash (e.g. 2-9). A hash value from range 0-32770 is generated using field string value. Note that this is not collision free. Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown". Note also that "Yes" and "yes" will produce different value|
 | -t&nbsp;INTEGER&nbsp;&nbsp; | Number of trees to use. Default is 100|
 | -s&nbsp;INTEGER | Number of samples for each tree. Default is 256|
 | -f&nbsp;CHAR | Field separator for input files|
@@ -41,7 +41,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
 | -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
 | -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
-| -W&nbsp;STRING | Weigth reduction for certain dimensions or automatic weigth calculation. STRING syntax is <list>:<weigth> or "auto", where list is comma separated list of dimensions and weigth in percentage value used in reduction (0 - 100). If "auto" is given, weigths are calculated automatically for all dimensions based on dimension maximum value. Several <list>:<weigth> options can be given|
+| -W&nbsp;STRING | Weigth reduction for certain dimensions or automatic weigth calculation. STRING syntax is **list**:**weigth** or "auto", where **list** is comma separated list of dimensions and **weigth** is percentage value used in reduction (0 - 100). If "auto" is given, weigths are calculated automatically for all dimensions based on dimension maximum value. Several **list**:**weigth** options can be given|
 | -q | Print forest information in human readable form and exit|
 
 If FILE is "-" then standard input or output is read or written.
