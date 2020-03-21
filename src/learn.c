@@ -1,5 +1,4 @@
-/*  
- *    ceif - categorized extended isolation forest
+/*    ceif - categorized extended isolation forest
  *
  *    Copyright (C) 2019 Timo Savinen
  *    This file is part of ceif.
@@ -570,7 +569,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     v_copy(p,X[samples[random_sample]].dimension);
 
     for(i = 0;i < dimensions;i++) {
-        p[i] += n_vector[i] * dimension_density[i] * heigth_ratio *  prange_extension_factor;   // move sample by adjust 
+        p[i] += n_vector[i] * dimension_density[i] * heigth_ratio *  prange_extension_factor;   // move sample by adjustment
     }
 
     return p;
@@ -632,23 +631,30 @@ double *make_n_vector(double *adjust)
     double *n;
     static double best[DIM_MAX];
     
-    n = calculate_n();
+    v_copy(best,calculate_n());
 
-    if(adjust == NULL) return n;
-
-    v_copy(best,n);
-    min_dot = fabs(dot(best,adjust));
-
-    for(i = 1;i < N_ADJUST_COUNT;i++)
+    if(adjust != NULL)
     {
-        n = calculate_n();
-        d = fabs(dot(n,adjust));
+        min_dot = fabs(dot(best,adjust));
 
-        if(d < min_dot)
+        for(i = 1;i < N_ADJUST_COUNT;i++)
         {
-            min_dot = d;
-            v_copy(best,n);
+            n = calculate_n();
+            d = fabs(dot(n,adjust));
+
+            if(d < min_dot)
+            {
+                min_dot = d;
+                v_copy(best,n);
+            }
         }
+    }
+
+    // Adjust n vector by each dimension weigth, this can be used when dimension values have very large differences
+
+    for(i = 0;i < dimensions;i++) 
+    {
+        if(weigth[i] < 1.0) best[i] *= weigth[i];
     }
 
     return best;
@@ -662,7 +668,8 @@ static
 int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int heigth, int heigth_limit, double *dimension_density)
 {
     struct node *this;
-    double *p,*adjust = NULL;
+    double *p;
+    static double *adjust = NULL;
     int i,node_index;
     int left_count = 0, rigth_count = 0,new;
     int *left_samples;
@@ -689,13 +696,12 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
 
     if(n_vector_adjust)
     {
-        adjust = v_dup(generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
+        if(adjust == NULL) adjust = xmalloc(dimensions * sizeof(double));
+        v_copy(adjust,generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
         v_subt(adjust,generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
     }
 
     this->n = v_dup(make_n_vector(adjust));
-
-    if(adjust != NULL) free(adjust);
 
     this->left = -1;
     this->rigth = -1;
@@ -743,6 +749,37 @@ void populate_tree(struct tree *t,int sample_count,int *samples,struct sample *X
     t->first = add_node(t,sample_count,samples,X,0,heigth_limit,dimension_density);
 }
 
+/* Calculate auto weigths for a forest, 
+ * Auto weigth is based on the smallest maximum dimension value.
+ * Weigth for each dim is calculated by formula (values absolute values):
+ *
+ * weigth = sqrt(smallest_max_value_in_forest/dim_max_value)
+ *
+ * Smallest_max_value_in_forest is the value of the dimension having smallest absolute max value, this dim will have the weigth 1.0 
+ * and all others will have < 1.0
+ *
+ * Division (smallest / s) is not used directly because it scales down largest values too much
+ */
+static
+void calculate_auto_weigth(double *min,double *max)
+{
+    int i;
+    double smallest = 0.0;
+    double s;
+
+    for(i = 0;i < dimensions;i++)
+    { 
+        s = fmax(fabs(max[i]), fabs(min[i]));                              // Take the largest abs value for a dim
+        if((s > 0.0 && s < smallest) || smallest == 0.0) smallest = s;    // check if it is the smallest one
+    }
+
+    for(i = 0;i < dimensions;i++)
+    {
+        s = fmax(fabs(max[i]), fabs(min[i]));                              // Take the largest abs value for a dim
+        weigth[i] = s > 0.0 ? sqrt(smallest / s) : 1.0;
+    }
+}
+
 /* train one forest
  */
 static 
@@ -750,14 +787,16 @@ void train_one_forest(int forest_idx)
 {
     int i = 0;
     struct forest *f = &forest[forest_idx];
-    int *s = xmalloc(samples_max * sizeof(int));
+    static int *s = NULL; 
     int sample_count,total_samples = 0;
 
-    if(!tree_count) return;
+    if(!tree_count) f->filter = 1;
 
     if(f->X_count < SAMPLES_MIN) f->filter = 1;  /*  check the resonable amount of samples */
 
     if(f->filter) return;
+    
+    if(s == NULL) s = xmalloc(samples_max * sizeof(int));
 
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
@@ -769,6 +808,8 @@ void train_one_forest(int forest_idx)
 
         f->avg[i] /= (double) f->X_count;              // turn to average
     }
+
+    if(auto_weigth) calculate_auto_weigth(f->min,f->max);
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
 
@@ -785,7 +826,6 @@ void train_one_forest(int forest_idx)
 
     f->heigth_limit = ceil(log2(total_samples / tree_count + 1) + log(prange_extension_factor + 1));
     f->c = c(total_samples / tree_count);    
-    free(s);
 }
 
 /* Add a regular expression to category filter list
@@ -955,13 +995,10 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 // next sample
                 for(i = dimensions - 1;i >= 0;i--)              
                 {
-                    if(sidx[i] == test_sample_interval)
+                    if(i && sidx[i] == test_sample_interval)
                     {
-                        if(i)
-                        {
-                            sidx[i] = 0;
-                            sidx[i - 1]++;
-                        }
+                        sidx[i] = 0;
+                        sidx[i - 1]++;
                     } else
                     {
                         if(i == dimensions - 1) sidx[i]++;

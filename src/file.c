@@ -25,6 +25,7 @@
 #include <locale.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 
 #define VALUES_MAX (2*DIM_MAX)             // Max values for parsing a csv line
 
@@ -65,6 +66,7 @@ parse_csv_line(char *values[],int max_values,char *line,char separator)
     int n = 0;
     int in_quote;
     char *new_line;
+    char *start = line;
 
     if(line == NULL || max_values < 1) return 0;
 
@@ -80,7 +82,7 @@ parse_csv_line(char *values[],int max_values,char *line,char separator)
         }
 
         values[n++] = line;
-        while(*line != '\000' && ((!in_quote && *line != separator) || (in_quote && *line != '"'))) line++;
+        while(*line != '\000' && ((!in_quote && (*line != separator || (*line == separator && line > start && line[-1] == '\\'))) || (in_quote && *line != '"'))) line++;
         if (in_quote && *line == '"') *line++ = '\000';
         while(*line != '\000' && *line != separator) line++;
         if (*line == separator) *line++ = '\000';
@@ -149,3 +151,88 @@ parse_dims(char *optarg, int *array)
     }
     return dims;
 }
+
+#define _I fprintf(outs,"  ")
+#define _P(...) fprintf(outs, __VA_ARGS__)
+#define _2P(...) _I; _P( __VA_ARGS__)
+#define _3P(...) _I; _2P( __VA_ARGS__)
+#define _O(b) (b ? "On" : "Off")
+#define _S(i,max) if(i < max - 1) _P("%c",',')
+#define _D(name,count,array) _2P(name); for(i = 0;i < count;i++) {_P("%d",array[i]+1);_S(i,count);} _P("\n")
+
+/* Print forest contents in user readbaly form
+ */
+void
+print_forest_info(FILE *outs)
+{
+    int forest_idx,i;
+    struct forest *f;
+    char outstr[100];
+    struct tm *tmp;
+        
+    _P("Global setting:\n");
+    _2P("Number of forests: %d\n",forest_count);
+    _2P("Number of analyzed dimensions: %d\n",dimensions);
+    _2P("Number of samples/tree: %d\n",samples_max);
+    _2P("Number of trees: %d\n",tree_count);
+    _2P("Number of decimals: %d\n",decimals);
+    _2P("P-range extension factor: %f\n",prange_extension_factor);
+    _2P("Outlier score: %f\n",outlier_score);
+    _2P("Input separator: %c\n",input_separator);
+    _2P("Output separator: %c\n",list_separator);
+    _2P("Header is %s\n",_O(header));
+    _2P("N-vector adjust is %s\n",_O(n_vector_adjust));
+    _2P("Auto weigth is %s\n",_O(auto_weigth));
+    _2P("Aggregate is %s\n",_O(aggregate));
+    _2P("Unigue samples is %s\n",_O(unique_samples));
+    _2P("Print string: \"%s\"\n",print_string);
+
+
+    _D("Dimensions used in analysis: ",dimensions,dim_idx);
+    _D("User ignored dimensions: ",ignore_idx_count,ignore_idx);
+    _D("User included dimensions: ",include_idx_count,include_idx);
+    _D("Category dimensions: ",category_idx_count,category_idx);
+    _D("Label dimensions: ",label_idx_count,label_idx);
+    _D("Dimensions treated as text: ",text_idx_count,text_idx);
+
+
+    if(forest_count) _P("\nForest data:\n");
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        f = &forest[forest_idx];
+        _2P("\nForest category string: %s\n",f->category);
+        _3P("Filter is %s\n",_O(f->filter));
+        _3P("Number of samples: %d\n",f->X_count);
+        _3P("Average path length (c): %f\n",f->c);
+        _3P("Max. tree heigth: %d\n",f->heigth_limit);
+
+        tmp = localtime(&f->last_updated);
+        if(tmp != NULL)
+        {
+            outstr[0] = '\000';
+            strftime(outstr, sizeof(outstr), "%c", tmp);
+            _3P("Last updated: %s\n",outstr);
+        }
+
+        _P("\n");
+        _3P("%15s%*s\n","Dimension sample value summary:",12*dimensions,"Dimension");
+
+        _3P("%15s","");
+        for(i = 0;i < dimensions;i++) _P("%25d",i+1);
+        _P("\n");
+
+        _3P("%15s","Maximum value");
+        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->max[i]);
+        _P("\n");
+        
+        _3P("%15s","Minimum value");
+        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->min[i]);
+        _P("\n");
+        
+        _3P("%15s","Average value");
+        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->avg[i] / (f->filter ? f->X_count : 1));
+        _P("\n");
+        
+    }
+}
+

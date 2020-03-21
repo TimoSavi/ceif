@@ -27,7 +27,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
 static char *W_sample = "S;%s\n";
 
@@ -45,16 +45,21 @@ void write_error()
 static
 void write_global_data(FILE *w,int f_count)
 {
-    char *filter_string;
+    char *filter_str;
+    char *weigth_str;
 
-    filter_string = make_csv_line(cat_filter,cat_filter_count,';');
+    filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
+    weigth_str = xstrdup(make_csv_line(weigth_string,weigth_count,';'));
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_string,\
-                decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "") < 0)
+                input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
+                decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "",\
+                weigth_str) < 0)
     {
         write_error();
     }
+    free(filter_str);
+    free(weigth_str);
 }
 
 /* write dimension data to csv string
@@ -124,15 +129,16 @@ write_forest_file(FILE *data_file,time_t delete_interval)
    Parse global parametes from forest file
    */
 static 
-void parse_G(char *l)
+int parse_G(char *l)
 {
     int value_count,i,c;
     char *v[100];
     char *f[FILTER_MAX];
+    char *w[WEIGTH_MAX];
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 22) // change this too if parameter count changes
+    if(value_count == 23) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
         label_dims = xstrdup(v[2]);
@@ -164,8 +170,14 @@ void parse_G(char *l)
         text_dims = xstrdup(v[21]);
         text_idx_count = parse_dims(v[21],text_idx);
 
+        c = parse_csv_line(w,WEIGTH_MAX,v[22],';');
+        for(i = 0;i < c;i++) weigth_string[i] = xstrdup(w[i]);
+        weigth_count = c;
+
         samples_total = tree_count * samples_max;
+        return 1;
     }
+    return 0;
 }
 
 int parse_F(int forest_idx,char *l)
@@ -225,7 +237,7 @@ read_forest_file(FILE *data_file)
         {
             if(input_line[0] == 'G')
             {
-                parse_G(input_line);
+                if(!parse_G(input_line)) return 0;
             }
         } else
         {

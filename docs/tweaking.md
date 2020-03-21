@@ -153,6 +153,7 @@ are printed with black color.
 ![](pics/2blob_testdata.png)
 
 ### Adjust ***n*** vector for data having significant difference between dimension attribute ranges
+#### Using -n option only
 If training dataset has dimension attribute value ranges with significant differences then the extended isolation forest method causes the attributes having smaller range values
 to yield poor results. This is due to the method of selecting the ***n*** vector. The dataset values are divided by a vector which is perpendicular to ***n*** vector. If the data value range is narrow
 then there are much less data set divisions during training phase among narrow data attributes compared to wider attribute values.
@@ -185,3 +186,17 @@ The method of ***n*** vector adjust is:
 3. Try to find a ***n*** vector which is perpendicular to vector selected in previous step. This is done by generating 12 random ***n*** vectors and selecting the best of them.
 
 Now the selected ***n*** vector should be somehow perpendicular to narrower data attribute.
+#### With -W option in case the scale difference is very large
+In this example the X range is 1 - 35000 and y range is 2 - 5.5. Here -R and -O options are sligthly changed. If only -n option is used:
+
+    ceif -l linedata2.csv -R20 -T1 -n -p "%d,0x%x" -o plot_data.csv -O0.575
+
+![](pics/W_adjust1.png)
+
+Adding automatic dimensions weigth adjustment:
+
+    ceif -l linedata2.csv -R20 -T1 -Wauto -n -p "%d,0x%x" -o plot_data.csv -O0.575
+
+![](pics/W_adjust2.png)
+
+Now 0.575 score range in acceptable level. Options -Wauto and -n should probably be used always when there is even medium differencies between dimensions scales.

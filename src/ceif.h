@@ -26,15 +26,16 @@
 #define INPUT_LEN_MAX 1048576
 #define SAMPLES_MIN 24            // minimun number of samples for a forest
 #define FILTER_MAX 100            // maximun number of category filters
+#define WEIGTH_MAX 100            // maximun number of weigth options
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
-#define N_ADJUST_COUNT 12         // How many N vectors are tested for the best n adjust result
-#define CATEGORY_SEPARATOR ":"    // separator string for category values
-#define LABEL_SEPARATOR ":"       // separator string for label values
+#define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
+#define CATEGORY_SEPARATOR ";"    // separator string for category values
+#define LABEL_SEPARATOR "-"       // separator string for label values
 
 /* should normal distributed values be written to cache for faster execution */
 #define FAST_N 1
-#define FAST_N_SAMPLES 4096
+#define FAST_N_SAMPLES 32771
 
 /* cache size for c values (the average depth in an unsuccessful search in a Binary Search Tree) */
 #define FAST_C_SAMPLES 2048
@@ -113,6 +114,11 @@ extern int text_idx_count;
 extern char *cat_filter[];
 extern int cat_filter_count;
 
+extern char *weigth_string[];  
+extern int weigth_count;      
+extern int auto_weigth;      
+extern double weigth[];     
+
 extern int tree_count;                // trees / forest
 extern int samples_max;              // max samples / tree
 extern int samples_total;              // max samples / forest
@@ -158,6 +164,8 @@ FILE * xfopen_test(char *, char *, char);
 /* file.c prototypes */
 char *make_csv_line(char **,int,char);
 int parse_csv_line(char **,int,char *,char);
+void print_forest_info(FILE *);
+
 
 /* learn.c prototypes */
 void train_forest(FILE *,int,int);
