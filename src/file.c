@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#include <math.h>
 
 #define VALUES_MAX (2*DIM_MAX)             // Max values for parsing a csv line
 
@@ -232,7 +233,170 @@ print_forest_info(FILE *outs)
         _3P("%15s","Average value");
         for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->avg[i] / (f->filter ? f->X_count : 1));
         _P("\n");
-        
     }
 }
 
+#define DENSITY_MAX 100
+
+/* Print sample ascii density map
+ * For each forest the density of each dimensions is preinted as ascii char map,
+ * There are 100 buckets between smallest and largest value of all dimension attributes
+ * For each buck the ascii char is print according the number of samples in that buck (75%, 50%, 50%, 25% and 0%) (#, =, -, . and space)
+ */
+void
+print_sample_density(FILE *outs,int common_scale)
+{
+    int forest_idx,i,j,first;
+    static char *digit="0123456789#";
+    double min = 0,max = 0,bucket_size = 0,percentage;
+    struct forest *f;
+    int density[DENSITY_MAX];
+    size_t bucket;
+
+    _P("Sample value density map\n");
+    _P("Each dimensions is divided into %d buckets, the digit under a bucket means number of 1/10 of samples in that bucket, # means all samples belong to one bucket\n\n",DENSITY_MAX);
+    _P("Empty means no samples\n\n");
+
+    if(!forest_count) return;
+
+    if(common_scale)
+    {
+        first = 1;
+        for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+        {
+            f = &forest[forest_idx];
+
+            if(!f->X_count) continue;
+
+            // find all dimensions min and max values
+            if(first)
+            {
+                min = f->X[0].dimension[0];
+                max = f->X[0].dimension[0];
+                first = 0;
+            }
+
+            for(i = 0;i < f->X_count;i++)
+            {
+                for(j = 0;j < dimensions;j++)
+                {
+                    min = fmin(min,f->X[i].dimension[j]);
+                    max = fmax(max,f->X[i].dimension[j]);
+                }
+            }
+        }
+        if(first) return;
+        bucket_size = (max - min) / (double) DENSITY_MAX;
+    }
+
+    _P("\n### Density by forest ###\n");
+ 
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        f = &forest[forest_idx];
+
+        if(!f->X_count) continue;
+
+        if(!common_scale)
+        {
+            // find all dimensions min and max values
+            min = f->X[0].dimension[0];
+            max = f->X[0].dimension[0];
+
+            for(i = 0;i < f->X_count;i++)
+            {
+                for(j = 0;j < dimensions;j++)
+                {
+                    min = fmin(min,f->X[i].dimension[j]);
+                    max = fmax(max,f->X[i].dimension[j]);
+                }
+            }
+            bucket_size = (max - min) / (double) DENSITY_MAX;
+        }
+
+        if(bucket_size == 0.0) continue;
+
+        _P("\nForest category string: %s, bucket size %.*f\n\n",f->category,decimals,bucket_size);
+
+        _2P("%10s","Min...Max");
+        _P("%15.*f ",decimals,min);
+        for(i = 0;i < DENSITY_MAX;i++) _P("-");
+        _P("%15.*f\n\n",decimals,max);
+
+        for(j = 0;j < dimensions;j++)
+        {
+            for(i = 0;i < DENSITY_MAX;i++) density[i] = 0;
+
+            _2P("%10s","Dimension");
+            _P("%15d ",j+1);
+
+            for(i = 0;i < f->X_count;i++)
+            {
+                bucket = (size_t) ((f->X[i].dimension[j] - min) / bucket_size);
+                if(bucket >= DENSITY_MAX) bucket = DENSITY_MAX - 1;
+                density[bucket]++;
+            }
+
+            for(i = 0;i < DENSITY_MAX;i++) 
+            {
+                percentage = ((double) density[i] / f->X_count) * 10.0;
+                percentage > 0.0 ? _P("%c",digit[(size_t) percentage]) : _P("%c",' ');
+            }
+            _P("\n");
+        }
+    }
+
+    _P("\n### Density by dimension ###\n");
+
+    for(j = 0;j < dimensions;j++)
+    {
+        if(!common_scale)
+        {
+           f = &forest[0];
+            min = f->X[0].dimension[j];
+            max = f->X[0].dimension[j];
+
+            for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+            {
+                f = &forest[forest_idx];
+
+                for(i = 0;i < f->X_count;i++)
+                {
+                    min = fmin(min,f->X[i].dimension[j]);
+                    max = fmax(max,f->X[i].dimension[j]);
+                }
+                bucket_size = (max - min) / (double) DENSITY_MAX;
+            }
+        }
+        
+        _P("\nDimension %d, bucket size %.*f\n\n",j + 1,decimals,bucket_size);
+
+        _2P("%10s","Min...Max");
+        _P("%35.*f ",decimals,min);
+        for(i = 0;i < DENSITY_MAX;i++) _P("-");
+        _P("%15.*f\n\n",decimals,max);
+
+        for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+        {
+            f = &forest[forest_idx];
+
+            _2P("%10s%35s ","Category:",f->category);
+
+            for(i = 0;i < DENSITY_MAX;i++) density[i] = 0;
+
+            for(i = 0;i < f->X_count;i++)
+            {
+                bucket = (size_t) ((f->X[i].dimension[j] - min) / bucket_size);
+                if(bucket >= DENSITY_MAX) bucket = DENSITY_MAX - 1;
+                density[bucket]++;
+            }
+
+            for(i = 0;i < DENSITY_MAX;i++) 
+            {
+                percentage = ((double) density[i] / f->X_count) * 10.0;
+                percentage > 0.0 ? _P("%c",digit[(size_t) percentage]) : _P("%c",' ');
+            }
+            _P("\n");
+        }
+    }
+}

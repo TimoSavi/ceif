@@ -84,7 +84,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::AX:W:q";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::AX:W:qy::";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -125,6 +125,7 @@ static struct option long_opts[] =
   {"text-dims", 1, 0, 'X'},
   {"weigth", 1, 0, 'W'},
   {"query", 0, 0, 'q'},
+  {"sample-density", 2, 0, 'y'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -171,6 +172,8 @@ Options:\n\
   -X, --text-dims STRING      comma separated list of dimensions in STRING to be used as text based input values, first is number 1. Ranges can be given using dash\n\
   -W, --weigth STRING         weigth reduction for certain dimensions. STRING syntax is <list>:<weigth> or \"auto\", where list is comma separated list of dimensions and weigth if percentage value used in reduction (0 - 100). If \"auto\" is given, weigths are calculated automatically for all dimensions based on dimension max. value. Several <list>:<weigth> options can be given\n\
   -q, --query                 print forest info and exit\n\
+  -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
+  -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -323,6 +326,8 @@ main (int argc, char **argv)
     int run_test = 0;
     int make_tree = 0;
     int make_query = 0;
+    int print_density = 0;
+    int common_scale = 0;
     int test_range_interval = 256;
     int print_missing = 0;
     time_t delete_interval = (time_t) 0;
@@ -490,6 +495,10 @@ main (int argc, char **argv)
                 case 'q':
                     make_query = 1;
                     break;
+                case 'y':
+                    print_density = 1;
+                    if(optarg != NULL && optarg[0] == 'y') common_scale = 1;
+                    break;
                 default:
                     usage(opt);
                     break;
@@ -533,6 +542,13 @@ main (int argc, char **argv)
             free(learn_file);
             learn_file = NULL;
         } 
+    }
+
+    if(print_density)
+    {
+        print_sample_density(outs,common_scale);
+        fclose(outs);
+        exit(0);
     }
 
     if(analyze_file !=  NULL)

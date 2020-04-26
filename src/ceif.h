@@ -165,6 +165,8 @@ FILE * xfopen_test(char *, char *, char);
 char *make_csv_line(char **,int,char);
 int parse_csv_line(char **,int,char *,char);
 void print_forest_info(FILE *);
+void print_sample_density(FILE *,int);
+
 
 
 /* learn.c prototypes */

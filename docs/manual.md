@@ -43,6 +43,8 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
 | -W&nbsp;STRING | Weigth reduction for certain dimensions or automatic weigth calculation. STRING syntax is **list**:**weigth** or "auto", where **list** is comma separated list of dimensions and **weigth** is percentage value used in reduction (0 - 100). If "auto" is given, weigths are calculated automatically for all dimensions based on dimension maximum value. Several **list**:**weigth** options can be given|
 | -q | Print forest information in human readable form and exit|
+| -y | Print forest information ascii density map|
+| -yy | Print forest information ascii density map with common sample scale for all forests|
 
 If FILE is "-" then standard input or output is read or written.
 
