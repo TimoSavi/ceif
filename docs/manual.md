@@ -36,12 +36,11 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is value between 0..100 (default is 10). This is the percentage of input data rows to be checked for uniqueness. Value 100 can be used if every accepted sample data should be unique|
 | -m&nbsp;STRING| Printf format for printing float values for sample and sample average values. Default is "%.*f"|
 | -e&nbsp;CHAR| Value separator when printing sample, sample average and analysed data values. Default is comma|
-| -n | adjust n-vector to be perpendicular to dimension attribute having largest value range|
 | -M&nbsp;STRING | Print category value, average values or last update time of forests which have not used in analysis. Optional printf format STRING is used in printing|
 | -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
 | -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
 | -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
-| -W&nbsp;STRING | Weigth reduction for certain dimensions or automatic weigth calculation. STRING syntax is **list**:**weigth** or "auto", where **list** is comma separated list of dimensions and **weigth** is percentage value used in reduction (0 - 100). If "auto" is given, weigths are calculated automatically for all dimensions based on dimension maximum value. Several **list**:**weigth** options can be given|
+| -W | Scale dimensions attributes. All attribute ranges are scaled to largest attribute range. Use this if there is even minor difference between attribute scales|
 | -q | Print forest information in human readable form and exit|
 | -y | Print forest information ascii density map|
 | -yy | Print forest information ascii density map with common sample scale for all forests|
