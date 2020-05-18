@@ -49,7 +49,7 @@ void write_global_data(FILE *w,int f_count)
     char *weigth_str;
 
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
-    weigth_str = xstrdup(make_csv_line(weigth_string,weigth_count,';'));
+    weigth_str = auto_weigth ? "auto" : "";
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
                 input_separator,header,outlier_score,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
@@ -59,7 +59,6 @@ void write_global_data(FILE *w,int f_count)
         write_error();
     }
     free(filter_str);
-    free(weigth_str);
 }
 
 /* write dimension data to csv string
@@ -134,7 +133,6 @@ int parse_G(char *l)
     int value_count,i,c;
     char *v[100];
     char *f[FILTER_MAX];
-    char *w[WEIGTH_MAX];
 
     value_count = parse_csv_line(v,100,l,';');
 
@@ -170,9 +168,7 @@ int parse_G(char *l)
         text_dims = xstrdup(v[21]);
         text_idx_count = parse_dims(v[21],text_idx);
 
-        c = parse_csv_line(w,WEIGTH_MAX,v[22],';');
-        for(i = 0;i < c;i++) weigth_string[i] = xstrdup(w[i]);
-        weigth_count = c;
+        if(strcmp(v[22],"auto") == 0) auto_weigth = 1;
 
         samples_total = tree_count * samples_max;
         return 1;
@@ -201,6 +197,7 @@ int parse_F(int forest_idx,char *l)
         f->t = NULL;
         f->min = NULL;
         f->max = NULL;
+        f->scale_range_idx = -1;
         f->avg = NULL;
         f->summary = NULL;
         f->dim_density = NULL;

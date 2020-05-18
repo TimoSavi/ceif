@@ -85,7 +85,7 @@ void populate_dimension(double *d,char **values,int value_count)
  * returns the length from last node
  */
 static 
-double search_last_node(int this_idx,struct node *n,double *dimension,int heigth)
+double search_last_node(struct forest *f,int this_idx,struct node *n,double *dimension,int heigth)
 {
     struct node *this = &n[this_idx];
 
@@ -94,14 +94,14 @@ double search_last_node(int this_idx,struct node *n,double *dimension,int heigth
         return (double) heigth + c(this->sample_count);
     }
 
-    if(dot(dimension,this->n) < this->pdotn)
+    if(wdot(dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
     {
         if(this->left == -1) return (double) heigth;
-        return search_last_node(this->left,n,dimension,heigth + 1);
+        return search_last_node(f,this->left,n,dimension,heigth + 1);
     } else
     {
         if(this->rigth == -1) return (double) heigth;
-        return search_last_node(this->rigth,n,dimension,heigth + 1);
+        return search_last_node(f,this->rigth,n,dimension,heigth + 1);
     }
 }
     
@@ -111,9 +111,9 @@ double search_last_node(int this_idx,struct node *n,double *dimension,int heigth
  * return the path length
  */
 static 
-double calculate_path_length(struct tree *t,double *dimension)
+double calculate_path_length(struct forest *f,struct tree *t,double *dimension)
 {
-    return search_last_node(t->first,t->n,dimension,0);
+    return search_last_node(f,t->first,t->n,dimension,0);
 }
 
 
@@ -130,12 +130,12 @@ double calculate_score(int forest_idx,double *dimension)
     {
         for(i = 0;i < tree_count;i++)
         {
-            path_length += calculate_path_length(&f->t[i],dimension);
+            path_length += calculate_path_length(f,&f->t[i],dimension);
         }
     }
-    
+
     path_length = path_length / tree_count;  // turn to average 
- 
+
     return (1/pow(2,path_length/f->c));
 }
 

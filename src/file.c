@@ -182,7 +182,6 @@ print_forest_info(FILE *outs)
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
     _2P("Header is %s\n",_O(header));
-    _2P("N-vector adjust is %s\n",_O(n_vector_adjust));
     _2P("Auto weigth is %s\n",_O(auto_weigth));
     _2P("Aggregate is %s\n",_O(aggregate));
     _2P("Unigue samples is %s\n",_O(unique_samples));

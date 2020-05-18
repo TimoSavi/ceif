@@ -165,6 +165,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].t = NULL;
    forest[forest_count].min = NULL;
    forest[forest_count].max = NULL;
+   forest[forest_count].scale_range_idx = -1;
    forest[forest_count].summary = NULL;
    forest[forest_count].c = 0;
    forest[forest_count].heigth_limit = 0;
@@ -591,6 +592,39 @@ double dot(double *a, double *b)
     return d;
 } 
 
+/* sxcale a double value. Scaling is done using scale_min and scale_max values
+ * with values min...max range
+ */
+static double
+scale_double(double value, double range, double scale_min, double min, double max)
+{
+    if(max == min) return value;
+
+    return range * (value - min) / (max - min) + scale_min;
+}
+
+/* calculate dot from two arrays by scaling the array a if auto_weigth == 1
+ * Scaling is done using the largest range (pointed by scale_range_idx and min/max values)
+ */
+double wdot(double *a, double *b, int scale_range_idx, double *min, double *max)
+{
+    int i;
+    double range;
+    double d = 0.0;
+
+    if (!auto_weigth || scale_range_idx == -1) return dot(a,b);
+
+    range = max[scale_range_idx] - min[scale_range_idx];
+
+    for(i = 0;i < dimensions;i++)      
+    {
+        d += scale_double(a[i],range,min[scale_range_idx],min[i],max[i]) * b[i];
+    }
+ 
+    return d;
+}
+
+
 /* calculate average tree height for given sample size n
  *  */
 double _c(int n)
@@ -615,49 +649,13 @@ void init_fast_c_cache()
     for(i = 0;i < FAST_C_SAMPLES;i++) fast_c_cache[i] = _c(i);
 }
 
-/* make an n vector, If n_vector_adjust is set then try to find n
-   which is perpendicular to vector adjust.
-
-   Adjust should be parallel to main data set.
-
-   Adjustment can be used if dimension value ranges have big difference compared to each other
+/* make an n vector, 
 */
 
 static
-double *make_n_vector(double *adjust)
+double *make_n_vector()
 {
-    int i;
-    double d,min_dot;
-    double *n;
-    static double best[DIM_MAX];
-    
-    v_copy(best,calculate_n());
-
-    if(adjust != NULL)
-    {
-        min_dot = fabs(dot(best,adjust));
-
-        for(i = 1;i < N_ADJUST_COUNT;i++)
-        {
-            n = calculate_n();
-            d = fabs(dot(n,adjust));
-
-            if(d < min_dot)
-            {
-                min_dot = d;
-                v_copy(best,n);
-            }
-        }
-    }
-
-    // Adjust n vector by each dimension weigth, this can be used when dimension values have very large differences
-
-    for(i = 0;i < dimensions;i++) 
-    {
-        if(weigth[i] < 1.0) best[i] *= weigth[i];
-    }
-
-    return best;
+    return calculate_n();
 }
 
 
@@ -665,11 +663,10 @@ double *make_n_vector(double *adjust)
  * returns the index of this node, -1 if end of tree
  */
 static 
-int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int heigth, int heigth_limit, double *dimension_density)
+int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struct sample *X,int heigth, int heigth_limit)
 {
     struct node *this;
     double *p;
-    static double *adjust = NULL;
     int i,node_index;
     int left_count = 0, rigth_count = 0,new;
     int *left_samples;
@@ -694,23 +691,16 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
     this->level = heigth;
     this->sample_count = sample_count;
 
-    if(n_vector_adjust)
-    {
-        if(adjust == NULL) adjust = xmalloc(dimensions * sizeof(double));
-        v_copy(adjust,generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
-        v_subt(adjust,generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density));
-    }
-
-    this->n = v_dup(make_n_vector(adjust));
+    this->n = v_dup(make_n_vector());
 
     this->left = -1;
     this->rigth = -1;
-    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),dimension_density);
-    this->pdotn = dot(p,this->n);
+    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->dim_density);
+    this->pdotn = wdot(p,this->n,f->scale_range_idx,f->min,f->max);
 
     for(i = 0;i < sample_count;i++)
     {
-        if(dot(X[samples[i]].dimension,this->n) < this->pdotn)
+        if(wdot(X[samples[i]].dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
         {
             left_samples[left_count] = samples[i];
             left_count++;
@@ -723,14 +713,14 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
 
     if(left_count > 1) 
     {
-        new = add_node(t,left_count,left_samples,X,heigth + 1,heigth_limit,dimension_density);
+        new = add_node(f,t,left_count,left_samples,X,heigth + 1,heigth_limit);
         this = &t->n[node_index];
         this->left = new;
     }
 
     if(rigth_count > 1) 
     {
-        new = add_node(t,rigth_count,rigth_samples,X,heigth + 1,heigth_limit,dimension_density);
+        new = add_node(f,t,rigth_count,rigth_samples,X,heigth + 1,heigth_limit);
         this = &t->n[node_index];
         this->rigth = new;
     }
@@ -744,40 +734,35 @@ int add_node(struct tree *t,int sample_count,int *samples,struct sample *X,int h
 /* populate one tree
  */
 static 
-void populate_tree(struct tree *t,int sample_count,int *samples,struct sample *X,int heigth_limit, double *dimension_density)
+void populate_tree(struct forest *f, struct tree *t,int sample_count,int *samples,struct sample *X,int heigth_limit)
 {
-    t->first = add_node(t,sample_count,samples,X,0,heigth_limit,dimension_density);
+    t->first = add_node(f,t,sample_count,samples,X,0,heigth_limit);
 }
 
-/* Calculate auto weigths for a forest, 
- * Auto weigth is based on the smallest maximum dimension value.
- * Weigth for each dim is calculated by formula (values absolute values):
+/* find min...max range to be used in auto scale of dimension attributes 
+ * min...max range is the attribute dimension having the smallest maximun absolute value
  *
- * weigth = sqrt(smallest_max_value_in_forest/dim_max_value)
- *
- * Smallest_max_value_in_forest is the value of the dimension having smallest absolute max value, this dim will have the weigth 1.0 
- * and all others will have < 1.0
- *
- * Division (smallest / s) is not used directly because it scales down largest values too much
+ * Returns the index of min/max tables. Index points to largest min...max range attribute
+ * Returns -1, if no range can be found. In this case all attributes have same value
  */
-static
-void calculate_auto_weigth(double *min,double *max)
+int find_weigth_scale_idx(double *min,double *max)
 {
     int i;
-    double smallest = 0.0;
+    int idx = -1;
+    double max_range = 0.0;
     double s;
 
     for(i = 0;i < dimensions;i++)
     { 
-        s = fmax(fabs(max[i]), fabs(min[i]));                              // Take the largest abs value for a dim
-        if((s > 0.0 && s < smallest) || smallest == 0.0) smallest = s;    // check if it is the smallest one
-    }
+        s = max[i] - min[i];                         
 
-    for(i = 0;i < dimensions;i++)
-    {
-        s = fmax(fabs(max[i]), fabs(min[i]));                              // Take the largest abs value for a dim
-        weigth[i] = s > 0.0 ? sqrt(smallest / s) : 1.0;
+        if(s > max_range)
+        {
+            max_range = s;
+            idx = i;
+        }
     }
+    return idx;
 }
 
 /* train one forest
@@ -809,7 +794,7 @@ void train_one_forest(int forest_idx)
         f->avg[i] /= (double) f->X_count;              // turn to average
     }
 
-    if(auto_weigth) calculate_auto_weigth(f->min,f->max);
+    if(auto_weigth) f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
 
@@ -821,7 +806,7 @@ void train_one_forest(int forest_idx)
          f->t[i].node_count = 0;
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
-         populate_tree(&f->t[i],sample_count,s,f->X,ceil(log2(sample_count + 1) + log(prange_extension_factor + 1)),f->dim_density);
+         populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count + 1) + log(prange_extension_factor + 1)));
     }
 
     f->heigth_limit = ceil(log2(total_samples / tree_count + 1) + log(prange_extension_factor + 1));

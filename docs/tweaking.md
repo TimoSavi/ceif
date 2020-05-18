@@ -152,51 +152,30 @@ are printed with black color.
 
 ![](pics/2blob_testdata.png)
 
-### Adjust ***n*** vector for data having significant difference between dimension attribute ranges
-#### Using -n option only
+### Scale dimension values for data having significant difference between dimension attribute absolute values
+#### No scaling
 If training dataset has dimension attribute value ranges with significant differences then the extended isolation forest method causes the attributes having smaller range values
-to yield poor results. This is due to the method of selecting the ***n*** vector. The dataset values are divided by a vector which is perpendicular to ***n*** vector. If the data value range is narrow
-then there are much less data set divisions during training phase among narrow data attributes compared to wider attribute values.
+to yield poor results. This is due to the extended isolation forests dot product. The small scale attributes lose their significance if other attributes have much larger absolute values.
 
-This causes the narrower data set attributes to be seen much wider as they should because they are no divided in the same manner as wider attributes.
+In this example a data set having long line shape is used. Training dataset has two attributes having ranges 5...117 and 100 000...2 000 000. The second attribute is much larger that the first. 
+If a test data set is generated without dimension scaling the results shows that there is no clear border X attribute test values. All X values are considered equal:
 
-In this example a data set having long line shape is used. Data set has two attributes having ranges 0..2000 and 10..16.7. The second attribute is much narrower that the first. 
-If a test data set is generated without ***n*** vector adjust the results show that there is no clear border around second attribute test values:
+    ceif -l Wtest.csv -R50 -T3  -p "%d,0x%x" -o plot_data.csv -O0.65
 
-    ceif -l linedata.csv -T3 -R 250 -i512 -p "%d,0x%x" -o plot_data.csv -O0.5
+The data points having score value 0.65 or larger are printed, note the scale of datapoints.
 
-The data points having score value 0.5 or larger are printed, note the scale of datapoints.
+![](pics/lrange.png)
 
-![](pics/n_adjust1.png)
+the whole X range is considered to have score less than 0.65. This probably not the result which was expected.
 
-Almost the whole Y range is considered to have score less than 0.5. This probably not the result which was expected.
+#### Scale with option -W
+Running again with option -W:
 
-Running again with option -n:
+    ceif -l Wtest.csv -R50 -T3  -p "%d,0x%x" -o plot_data.csv -O0.65 -W
 
-    ceif -l linedata.csv -T3 -R 250 -i512 -p "%d,0x%x" -o plot_data.csv -O0.5 -n
+Result is now better, there is clear 0.65 score range around the data line.
 
-Result is now better, there is clear 0.5 score range around the data line.
+![](pics/lrangeW.png)
 
-![](pics/n_adjust2.png)
-    
-The method of ***n*** vector adjust is:
-
-1. Select two random points (a1 and a2) near sample points (the ***p*** vector selection method is used here).
-2. Make the vector between a1 and a2 a adjustment vector. This vector should now probably follow the narrower attribute values. E.g. it should have almost same direction as the black sample line in example above.
-3. Try to find a ***n*** vector which is perpendicular to vector selected in previous step. This is done by generating 12 random ***n*** vectors and selecting the best of them.
-
-Now the selected ***n*** vector should be somehow perpendicular to narrower data attribute.
-#### With -W option in case the scale difference is very large
-In this example the X range is 1 - 35000 and y range is 2 - 5.5. Here -R and -O options are sligthly changed. If only -n option is used:
-
-    ceif -l linedata2.csv -R20 -T1 -n -p "%d,0x%x" -o plot_data.csv -O0.575
-
-![](pics/W_adjust1.png)
-
-Adding automatic dimensions weigth adjustment:
-
-    ceif -l linedata2.csv -R20 -T1 -Wauto -n -p "%d,0x%x" -o plot_data.csv -O0.575
-
-![](pics/W_adjust2.png)
-
-Now 0.575 score range in acceptable level. Options -Wauto and -n should probably be used always when there is even medium differencies between dimensions scales.
+The option -W causes all dimension attributes to be scaled according to the largest attribute range. In the example above the X range 5...117 is scaled 
+to the Y range (100 000...2 000 000). This makes both attributes equal in score analysis.

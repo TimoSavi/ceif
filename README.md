@@ -33,4 +33,4 @@ This has following effects:
 
 The ***p*** selection area is effectively an enlarged sample point area and not rectangular area which can cause anomalies.
 
-Also the ***n*** selection can be adjusted, see the [tweaking document](docs/tweaking.md) for details.
+The scale of dimension attribute values can be adjusted too, see the [tweaking document](docs/tweaking.md) for details.

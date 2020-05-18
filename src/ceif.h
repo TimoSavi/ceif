@@ -80,6 +80,7 @@ struct forest
     struct sample *X;       // samples for this forest
     double *min;            // learn data min values dimension
     double *max;            // learn data max values dimension
+    int scale_range_idx;    // dimension index to range to be used in scaling (-W). Points tomin and max arrays, -1 if no ranges (all attributes have the same value)
     double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
     double *summary;        // aggregated values when analysing or categorizing
@@ -114,10 +115,7 @@ extern int text_idx_count;
 extern char *cat_filter[];
 extern int cat_filter_count;
 
-extern char *weigth_string[];  
-extern int weigth_count;      
 extern int auto_weigth;      
-extern double weigth[];     
 
 extern int tree_count;                // trees / forest
 extern int samples_max;              // max samples / tree
@@ -174,6 +172,7 @@ void train_forest(FILE *,int,int);
 double parse_dim_attribute(char *);
 double parse_dim_hash_attribute(char *);
 double dot(double *, double *);
+double wdot(double *, double *,int, double *,double *);
 double c(int);
 int dim_ok(int,int);
 void add_to_X(struct forest *,char **, int ,int ,int);
@@ -183,6 +182,8 @@ void add_forest_hash(int, char *);
 void test2(FILE *,double,int);
 void init_fast_n_cache();
 void init_fast_c_cache();
+//void find_weigth_scale(double *,double *);
+
 
 
 

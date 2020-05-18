@@ -50,11 +50,7 @@ int label_idx_count = 0;                 // number of labels fields
 char *cat_filter[FILTER_MAX];  // Category filters
 int cat_filter_count = 0;      // Category filter count
 
-char *weigth_string[WEIGTH_MAX];  // User given weigth options
-int weigth_count = 0;             // Number of weigth options
-int auto_weigth = 0;              // Should weigths be calculataed automatically
-
-double weigth[DIM_MAX];           // weigth reduction value (0 - 1.0) for each dimesions. Value 0 means dimension is ignored totally and 1.0 means no reduction.
+int auto_weigth = 0;           // Should weigths be calculated automatically
 
 char *print_string = NULL;     // How to print outlier data
 int tree_count = 100;             // trees / forest
@@ -84,7 +80,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:nM::D:N::AX:W:qy::";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -117,13 +113,12 @@ static struct option long_opts[] =
   {"unique-samples", 2, 0, 'u'},
   {"printf-format", 1, 0, 'm'},
   {"list-separator", 1, 0, 'e'},
-  {"n-adjust", 0, 0, 'n'},
   {"missing", 2, 0, 'M'},
   {"delete", 1, 0, 'D'},
   {"new", 2, 0, 'N'},
   {"aggregate", 0, 0, 'A'},
   {"text-dims", 1, 0, 'X'},
-  {"weigth", 1, 0, 'W'},
+  {"weigth", 0, 0, 'W'},
   {"query", 0, 0, 'q'},
   {"sample-density", 2, 0, 'y'},
   {NULL, 0, NULL, 0}
@@ -164,13 +159,12 @@ Options:\n\
   -u, --unique-samples INTEGER accept INTEGER percent of samples as duplicates, default is take all samples.\n\
   -m, --printf-format STRING  printf format string for dimension and average value printing\n\
   -e, --list-separator CHAR   value separator for dimension and average value printing\n\
-  -n, --n-adjust              adjust n-vector to be perpendicular to dimension attribute having largest value range\n\
   -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used for printing\n\
   -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
   -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
   -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
   -X, --text-dims STRING      comma separated list of dimensions in STRING to be used as text based input values, first is number 1. Ranges can be given using dash\n\
-  -W, --weigth STRING         weigth reduction for certain dimensions. STRING syntax is <list>:<weigth> or \"auto\", where list is comma separated list of dimensions and weigth if percentage value used in reduction (0 - 100). If \"auto\" is given, weigths are calculated automatically for all dimensions based on dimension max. value. Several <list>:<weigth> options can be given\n\
+  -W, --weigth                scale dimension attributes. Target range is the largest range of dimension attributes\n\
   -q, --query                 print forest info and exit\n\
   -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
@@ -185,7 +179,7 @@ time_t parse_delete_interval(char *s)
     int len = strlen(s);
     time_t value = (time_t) atol(s);
 
-    if(value == (time_t) 0) panic("Invalid time format for option -M",s,NULL);
+    if(value == (time_t) 0) panic("Invalid time format for old forest data deletion",s,NULL);
 
     switch(s[len - 1])
     {
@@ -210,56 +204,6 @@ time_t parse_delete_interval(char *s)
             break;
     }
     return value;
-}
-
-/* Parse user given weigth option and put results to array weigth. 
- * Weigth can be given for each dimension as percentage value (0-100). 
- * Array weigth has the value of weigth/100 so it can be used directly as multiplier in n-vector generation
- *
- * weigth are given as:
- *
- * <list>:<weigth>
- *
- * where
- *
- * list is comma separated list if diemnsion values, ranges can be given with dash
- * weigth is a double between 0-100
- */
-void
-parse_weigths()
-{
-    int i,j,fields,idx_count;
-    double w;
-    char *values[2];
-    char option[1024];
-    int idx[DIM_MAX];
-
-    // default value is 1.0
-    for(i = 0;i < DIM_MAX;i++) weigth[i] = 1.0;     
-
-    for(i = 0;i < weigth_count;i++)
-    {
-        if(strcmp(weigth_string[i],"auto") == 0)
-        {
-            auto_weigth = 1;
-            return;
-        }
-
-        strcpy(option,weigth_string[i]);   // make a copy so we do not mess the original
-        fields = parse_csv_line(values,2,option,':');
-        if(fields == 2)
-        {
-            idx_count = parse_dims(values[0],idx);
-            w = atof(values[1]);
-            
-            if(w < 0.0 || w > 100.0) panic("Syntax error in weigth option",weigth_string[i],NULL);
-
-            for(j = 0;j < idx_count;j++) weigth[idx[j]] =  w / 100.0;
-        } else
-        {
-            panic("Syntax error in weigth option",weigth_string[i],NULL);
-        }
-    }
 }
 
 
@@ -459,9 +403,6 @@ main (int argc, char **argv)
                 case 'e':
                     list_separator = optarg[0];
                     break;
-                case 'n':
-                    n_vector_adjust = 1;
-                    break;
                 case 'V':
                     print_version();
                     exit(0);
@@ -490,7 +431,7 @@ main (int argc, char **argv)
                     text_idx_count = parse_dims(optarg,text_idx);
                     break;
                 case 'W':
-                    if(weigth_count < WEIGTH_MAX) weigth_string[weigth_count++] = xstrdup(optarg);
+                    auto_weigth = 1;
                     break;
                 case 'q':
                     make_query = 1;
@@ -509,8 +450,6 @@ main (int argc, char **argv)
 
     init_fast_n_cache();
     init_fast_c_cache();
-
-    parse_weigths();
 
     set_locale ? setlocale(LC_ALL,"") : setlocale(LC_ALL,"C");
 
