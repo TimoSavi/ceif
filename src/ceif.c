@@ -57,8 +57,12 @@ int tree_count = 100;             // trees / forest
 int samples_max = 256;            // max samples / tree
 int samples_total;                // max samples / forest
 char input_separator = ',';       // input separator for csv data
+char category_separator = ';';       // separator for category values
+char label_separator = '-';       // separator for category values
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
+int auto_outlier_score = 0;            // outlier score detected automatically based on sample value having max. score
+double auto_score_factor = 0.075; // How much to expand sample set when determining the auto score, larger value yields larger auto score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
@@ -80,7 +84,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ek";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -121,6 +125,8 @@ static struct option long_opts[] =
   {"weigth", 0, 0, 'W'},
   {"query", 0, 0, 'q'},
   {"sample-density", 2, 0, 'y'},
+  {"sample-scores", 0, 0, 'E'},
+  {"remove-outlier", 0, 0, 'k'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -168,6 +174,7 @@ Options:\n\
   -q, --query                 print forest info and exit\n\
   -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
+  -E, --sample-scores         print samples values with sample score and exit\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -271,6 +278,8 @@ main (int argc, char **argv)
     int make_tree = 0;
     int make_query = 0;
     int print_density = 0;
+    int print_sample_s = 0;
+    int kill_outlier = 0;
     int common_scale = 0;
     int test_range_interval = 256;
     int print_missing = 0;
@@ -292,6 +301,7 @@ main (int argc, char **argv)
     FILE *outs = NULL;           // file to print results
 
     init_forest_hash();
+    read_config_file();          // config file parameters are read before options
 
 #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)
@@ -340,8 +350,15 @@ main (int argc, char **argv)
                     save_file = xstrdup(optarg);
                     break;
                 case 'O':
-                    outlier_score = atof(optarg);
-                    if(outlier_score < 0 || outlier_score > 1) panic("Give outlier score between 0 and 1",NULL,NULL);
+                    if(strcmp(optarg,"auto") == 0) 
+                    {
+                        auto_outlier_score = 1;
+                    } else
+                    {
+                        auto_outlier_score = 0;
+                        outlier_score = atof(optarg);
+                        if(outlier_score < 0.0 || outlier_score > 1.0) panic("Give outlier score between 0 and 1",NULL,NULL);
+                    }
                     break;
                 case 'r':
                     load_file = xstrdup(optarg);
@@ -440,6 +457,12 @@ main (int argc, char **argv)
                     print_density = 1;
                     if(optarg != NULL && optarg[0] == 'y') common_scale = 1;
                     break;
+                case 'E':
+                    print_sample_s = 1;
+                    break;
+                case 'k':
+                    kill_outlier = 1;
+                    break;
                 default:
                     usage(opt);
                     break;
@@ -457,7 +480,7 @@ main (int argc, char **argv)
 
     if(print_string == NULL) print_string = "%s %v";
         
-    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query) make_tree = 1;  // we need tree info
+    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || kill_outlier) make_tree = 1;  // we need tree info
 
     if(output_file != NULL)
     {
@@ -483,6 +506,11 @@ main (int argc, char **argv)
         } 
     }
 
+    if(kill_outlier)
+    {
+        remove_outlier();
+    }
+
     if(print_density)
     {
         print_sample_density(outs,common_scale);
@@ -493,6 +521,7 @@ main (int argc, char **argv)
     if(analyze_file !=  NULL)
     {
         analyzes = xfopen(analyze_file,"r",'a');
+        if(auto_outlier_score) init_auto_scores();
         analyze(analyzes,outs,not_found_format);
         fclose(analyzes);
         if(print_missing) print_missing_categories(outs,missing_format);
@@ -514,7 +543,15 @@ main (int argc, char **argv)
 
     if(make_query)
     {
+        if(auto_outlier_score) init_auto_scores();
         print_forest_info(outs);
+        fclose(outs);
+        exit(0);
+    }
+    
+    if(print_sample_s)
+    {
+        print_sample_scores(outs);
         fclose(outs);
         exit(0);
     }
@@ -528,7 +565,11 @@ main (int argc, char **argv)
         if(set_locale) setlocale(LC_ALL,"");
     }
 
-    if(run_test) test2(outs,test_extension_factor,test_range_interval);
+    if(run_test)
+    {
+        if(auto_outlier_score) init_auto_scores();
+        test2(outs,test_extension_factor,test_range_interval);
+    }
 
     fclose(outs);
 

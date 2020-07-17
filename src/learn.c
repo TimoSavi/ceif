@@ -86,12 +86,13 @@ void add_forest_hash(int idx, char *category_string)
 
 
 /* make category sring using values from file and category_idx
- * values are concatenad with semicolon
+ * values are concatenad with category_separator
  * return pointer to string
  */
 char *make_category_string(int value_count,char **values)
 {
     int i;
+    char *end;
     static char c[10240];
 
     c[0] = '\000';
@@ -101,7 +102,12 @@ char *make_category_string(int value_count,char **values)
         if(category_idx[i] < value_count)
         {
             strcat(c,values[category_idx[i]]);
-            if(i < category_idx_count - 1) strcat(c,CATEGORY_SEPARATOR);
+            if(i < category_idx_count - 1)
+            {
+                end = &c[strlen(c)];
+                *end++ = category_separator;
+                *end = '\000';
+            } 
         }
     }
     return c;
@@ -576,6 +582,26 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     return p;
 }
 
+/* Expands a vector "out" by moving attribute values away from average
+ * Each dimension attribute is moved app. max +/- 7.5% of attribute value (if auto_score_factor == 0.075)
+ * Returns a pointer to expanded vector
+ */
+double *v_expand(double *dim, double *avg, double *density,int sample_count)
+{
+    int i;
+    static double p[DIM_MAX];
+
+    v_copy(p,dim);
+
+    for(i = 0;i < dimensions;i++) 
+    {
+        p[i] += (p[i] >= avg[i] ? 1.0 : -1.0) * density[i] * sample_count * auto_score_factor;
+    }
+
+    return p;
+}
+    
+
 /* calculate dot from two arrays with size of dimensions
  */
 
@@ -592,7 +618,7 @@ double dot(double *a, double *b)
     return d;
 } 
 
-/* sxcale a double value. Scaling is done using scale_min and scale_max values
+/* scale a double value. Scaling is done using scale_min and scale_max values
  * with values min...max range
  */
 static double
@@ -972,7 +998,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score >= outlier_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+                    if(score >= (auto_outlier_score ? f->auto_score : outlier_score)) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
 
                     v_copy(prev_dimension, test_dimension);
                 }
@@ -993,7 +1019,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                            
             for(samples = 0;samples < TEST_SAMPLES && samples < f->X_count;samples++)
             {
-                 print_(outs,0.0,0,forest_idx,0,NULL,f->X[ri(0,f->X_count - 1)].dimension,print_string,"sdaxC");
+                 print_(outs,0.0,0,forest_idx,0,NULL,f->X[f->X_count <= TEST_SAMPLES ? samples : ri(0,f->X_count - 1)].dimension,print_string,"sdaxC");
             }
         }
     }

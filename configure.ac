@@ -9,4 +9,5 @@ AC_CONFIG_FILES([
  Makefile
  src/Makefile
 ])
+AC_DEFINE([CEIF_CONFIG],["~/.ceifrc"],[Some variables can be set here])
 AC_OUTPUT

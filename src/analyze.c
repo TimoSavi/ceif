@@ -170,6 +170,7 @@ static
 char *make_label_string(int value_count,char **values)
 {
     int i;
+    char *end;
     static char l[10240];
 
     l[0] = '\000';
@@ -179,7 +180,12 @@ char *make_label_string(int value_count,char **values)
         if(label_idx[i] < value_count)
         {
             strcat(l,values[label_idx[i]]);
-            if(i < label_idx_count - 1) strcat(l,LABEL_SEPARATOR);
+            if(i < label_idx_count - 1)
+            {
+                end = &l[strlen(l)];
+                *end++ = label_separator;
+                *end = '\000';
+            }
         }
     }
     return l;
@@ -255,10 +261,10 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                    }
                    break;
                case ':':
-                   fprintf(outs,"%s",CATEGORY_SEPARATOR);
+                   fprintf(outs,"%c",category_separator);
                    break;
                case '.':
-                   fprintf(outs,"%s",LABEL_SEPARATOR);
+                   fprintf(outs,"%c",label_separator);
                    break;
                case '%':
                    fprintf(outs,"%c",'%');
@@ -350,6 +356,77 @@ void aggregate_values(int forest_idx,double *sample)
     }
 }
 
+/* Calculate automatic outlier score for each forest
+ * Auto score is initialized by the maximun sample score value.
+ * Sample values are sligthly  randomly moved using v_shake, 
+ * This sould avoid near false positives
+ * 
+ */
+void init_auto_scores()
+{
+    int forest_idx,i;
+    double score;
+    struct forest *f;
+
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        f = &forest[forest_idx];
+        
+        f->auto_score = 0.0;
+
+        if(f->filter) continue;
+
+        for(i = 0;i < f->X_count;i++)
+        {
+            score = calculate_score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
+            if(score > f->auto_score) f->auto_score = score;
+        }
+    }
+}
+
+/* remove outlier
+ * For each non filterd forest the sample with the highest  score is removed from 
+ * samples.
+ *
+ * Forest must be saved with option -w if the if cleaned forest data is need afterwards
+ */
+void remove_outlier()
+{
+    int forest_idx,i,outlier_idx;
+    double score,max_score;
+    struct forest *f;
+
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        f = &forest[forest_idx];
+
+        if(f->filter) continue;
+
+        outlier_idx = -1;
+        max_score = 0.0;
+
+        for(i = 0;i < f->X_count;i++)
+        {
+            score = calculate_score(forest_idx,f->X[i].dimension);
+            if(score > max_score)
+            {
+                max_score = score;
+                outlier_idx = i;
+            }
+        }
+
+        if(outlier_idx >= 0)
+        {
+            free(f->X[outlier_idx].dimension);
+
+            for(i = outlier_idx;i < f->X_count - 1;i++)
+            {
+                f->X[i] = f->X[i + 1];
+            }
+            f->X_count--;
+        }
+    }
+}
 
 /* analyze data from file. 
  * All lines are analyzed against loaded forest/tree data
@@ -367,7 +444,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
     double score;
     
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
-            
+
     while(fgets(input_line,INPUT_LEN_MAX,in_stream) != NULL) 
     {
         lines++;
@@ -380,6 +457,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
         {
             init_dims(value_count);
             dimension =  xmalloc(dimensions * sizeof(double));
+            if(auto_outlier_score) init_auto_scores();
             first = 0;
         }
 
@@ -397,7 +475,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
                 } else
                 {
                     score = calculate_score(forest_idx,dimension);
-                    if(score >= outlier_score) 
+                    if(score >= (auto_outlier_score ? forest[forest_idx].auto_score : outlier_score))
                     {
                         print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
                     }
@@ -417,7 +495,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
             if(forest[i].summary != NULL && !forest[i].filter)
             {
                 score = calculate_score(i,forest[i].summary);
-                if(score >= outlier_score) 
+                if(score >= (auto_outlier_score ? forest[i].auto_score : outlier_score))
                 {
                     print_(outs,score,0,i,0,NULL,forest[i].summary,print_string,"rsdaxCt");
                 }

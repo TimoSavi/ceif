@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <math.h>
+#include <ctype.h>
 
 #define VALUES_MAX (2*DIM_MAX)             // Max values for parsing a csv line
 
@@ -153,6 +154,122 @@ parse_dims(char *optarg, int *array)
     return dims;
 }
 
+/*  check if config line is empty or has a comment */
+static
+int skip_line(char *input_line)
+{
+    char *c = input_line;
+    
+    while(isspace(*c)) c++;
+
+    if(*c == '#' || *c == '\000') return 1;
+
+    return 0;
+}
+
+/* parse config line. 
+ * Line can have heading and trailing whitespaces
+ * Comments start with #
+ * Format for config is:
+ * NAME VALUE
+ *
+ * Function checks if NAME is present and returns pointer to start of the VALUE
+ * returns NULL if NAME not found
+ */
+static 
+char *parse_config_line(char *input_line,char *name)
+{
+    char *c = input_line,*e;
+
+    while(isspace(*c)) c++;
+
+    if(strncasecmp(c,name,strlen(name)) == 0)
+    {
+        c += strlen(name);
+        if(isspace(*c))
+        {
+            while(isspace(*c)) c++;
+            e = c;
+            while(!isspace(*e) && *e != '\000') e++;
+            *e = '\000';
+            if(*c != '\000') return c;
+        }
+    }
+    return NULL;
+}
+
+
+/* read config file ~/.ceifrc for global default values 
+ * for certain variables
+ */
+#define CONFIG_LEN_MAX 100
+void read_config_file()
+{
+    FILE *f;
+    char *value;
+    char *home;
+    char *config_file = CEIF_CONFIG;
+    char input_line[CONFIG_LEN_MAX];
+    char input_file[1024];
+
+    input_file[0] = '\000';
+
+    home = getenv("HOME");
+
+    if(config_file[0] == '~' && home != NULL)
+    {
+        strcat(input_file,home);
+        strcat(input_file,&config_file[1]);
+    } else
+    {
+        strcat(input_file,config_file);
+    }
+
+    f = xfopen_test(input_file,"r",'a');
+
+    if(f == NULL) return;
+
+    while(fgets(input_line,CONFIG_LEN_MAX,f) != NULL)
+    {
+        if(skip_line(input_line)) continue;
+
+        if((value = parse_config_line(input_line,"AUTO_SCORE_FACTOR")) != NULL)
+        {
+            auto_score_factor = atof(value);
+        } else if((value = parse_config_line(input_line,"SAMPLES")) != NULL)
+        {
+            samples_max = atoi(value);
+        } else if((value = parse_config_line(input_line,"TREES")) != NULL)
+        {
+            tree_count = atoi(value);
+        } else if((value = parse_config_line(input_line,"DECIMALS")) != NULL)
+        {
+            decimals = atoi(value);
+        } else if((value = parse_config_line(input_line,"PRANGE_EXTENSION_FACTOR")) != NULL)
+        {
+            prange_extension_factor = atof(value);
+        } else if((value = parse_config_line(input_line,"AUTO_SCORE")) != NULL)
+        {
+            auto_outlier_score = atoi(value);
+        } else if((value = parse_config_line(input_line,"AUTO_WEIGTH")) != NULL)
+        {
+            auto_weigth = atoi(value);
+        } else if((value = parse_config_line(input_line,"CATEGORY_SEPARATOR")) != NULL)
+        {
+            category_separator = value[0];
+            if(category_separator == '"' && value[1]) category_separator = value[1];
+        } else if((value = parse_config_line(input_line,"LABEL_SEPARATOR")) != NULL)
+        {
+            label_separator = value[0];
+            if(label_separator == '"' && value[1]) label_separator = value[1];
+        } else
+        {
+            panic("Unknown option in config file",input_line,NULL);
+        }
+    }
+}
+
+
 #define _I fprintf(outs,"  ")
 #define _P(...) fprintf(outs, __VA_ARGS__)
 #define _2P(...) _I; _P( __VA_ARGS__)
@@ -178,6 +295,7 @@ print_forest_info(FILE *outs)
     _2P("Number of trees: %d\n",tree_count);
     _2P("Number of decimals: %d\n",decimals);
     _2P("P-range extension factor: %f\n",prange_extension_factor);
+    _2P("Auto outlier score is %s\n",_O(auto_outlier_score));
     _2P("Outlier score: %f\n",outlier_score);
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
@@ -205,6 +323,10 @@ print_forest_info(FILE *outs)
         _3P("Number of samples: %d\n",f->X_count);
         _3P("Average path length (c): %f\n",f->c);
         _3P("Max. tree heigth: %d\n",f->heigth_limit);
+        if(auto_outlier_score)
+        {
+            _3P("Auto outlier score: %f\n",f->auto_score);
+        }
 
         tmp = localtime(&f->last_updated);
         if(tmp != NULL)
@@ -399,3 +521,41 @@ print_sample_density(FILE *outs,int common_scale)
         }
     }
 }
+
+/* print samples scores. 
+ * All samples of all non filterd forest are printed with sample score
+ */
+
+void
+print_sample_scores(FILE *outs)
+{
+    int forest_idx,i,j;
+    double score;
+    struct forest *f;
+
+    _P("Sample score list\n");
+
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+       f = &forest[forest_idx];
+
+       if(f->filter) continue;
+
+       _P("\nForest category string: %s\n",f->category);
+       _2P("%10s%25s\n","Score","Dimension values");
+       _2P("%10s","");
+       for(j = 0;j < dimensions;j++) _P("%25d",j);
+       _P("\n");
+
+       for(i = 0;i < f->X_count;i++)
+       {
+           score = calculate_score(forest_idx,f->X[i].dimension);
+           _2P("%10f",score);
+           for(j = 0;j < dimensions;j++) _P("%25.*f",decimals,f->X[i].dimension[j]);
+           _P("\n");
+       }
+    }
+}
+
+
+

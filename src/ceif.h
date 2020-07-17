@@ -30,8 +30,6 @@
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
-#define CATEGORY_SEPARATOR ";"    // separator string for category values
-#define LABEL_SEPARATOR "-"       // separator string for label values
 
 /* should normal distributed values be written to cache for faster execution */
 #define FAST_N 1
@@ -86,6 +84,7 @@ struct forest
     double *summary;        // aggregated values when analysing or categorizing
     int analyzed;           // Is this forest used in analysis 
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
+    double auto_score;      // automatic socre calculated based on sample value having max score value
     struct tree *t;         // Tree table, NULL if not initialized
 };
 
@@ -124,6 +123,8 @@ extern char *print_string;
 extern char input_separator;
 extern int header;
 extern double outlier_score;
+extern int auto_outlier_score;
+extern double auto_score_factor;
 extern double prange_extension_factor;
 extern double test_extension_factor;
 extern int decimals;
@@ -132,6 +133,9 @@ extern char *printf_format;
 extern char list_separator;
 extern int n_vector_adjust;
 extern int aggregate;
+
+extern char category_separator;       // separator for category values
+extern char label_separator;       // separator for category values
 
 extern char *include_dims;
 extern char *ignore_dims;
@@ -164,6 +168,9 @@ char *make_csv_line(char **,int,char);
 int parse_csv_line(char **,int,char *,char);
 void print_forest_info(FILE *);
 void print_sample_density(FILE *,int);
+void print_sample_scores(FILE *);
+void read_config_file();
+
 
 
 
@@ -182,7 +189,8 @@ void add_forest_hash(int, char *);
 void test2(FILE *,double,int);
 void init_fast_n_cache();
 void init_fast_c_cache();
-//void find_weigth_scale(double *,double *);
+double *v_expand(double *,double *,double *,int);
+
 
 
 
@@ -196,6 +204,9 @@ double calculate_score(int ,double *);
 void print_missing_categories(FILE *,char *);
 void print_(FILE *, double, int,int,int,char **,double *,char *,char *);
 int check_idx(int ,int , int *);
+void init_auto_scores();
+void remove_outlier();
+
 
 
 /* save.c prototypes */
