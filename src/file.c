@@ -190,7 +190,10 @@ char *parse_config_line(char *input_line,char *name)
         {
             while(isspace(*c)) c++;
             e = c;
-            while(!isspace(*e) && *e != '\000') e++;
+            while(*e != '\000') e++;
+            e--;
+            while(e > c && isspace(*e)) e--;   // remove trailing spaces
+            e++;
             *e = '\000';
             if(*c != '\000') return c;
         }

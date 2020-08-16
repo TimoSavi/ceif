@@ -179,3 +179,20 @@ Result is now better, there is clear 0.65 score range around the data line.
 
 The option -W causes all dimension attributes to be scaled according to the largest attribute range. In the example above the X range 5...117 is scaled 
 to the Y range (100 000...2 000 000). This makes both attributes equal in score analysis.
+
+### Using auto outlier score
+Following examples show how the automatic outlier score can be determined for file circle.csv. This process is adjusted using different values for rc-file variable AUTO\_SCORE\_FACTOR.
+Examples are run using command:
+
+    ceif -l circle.csv  -Oauto -R100 -T1  -p "%d,0x%x" -o plot_data.csv
+
+And plotting the file plot_data.csv with gnuplot. Non outlier area is printed with white color, outliers are non white. 
+Following table contains result of different values of AUTO\_SCORE\_FACTOR. More larger value means more larger outlier score.
+
+|AUTO\_SCORE\_FACTOR value|score map|Comment|
+|---|---|---|
+|0, value zero means that the outlier score is taken from the sample having higher score as such|![](pics/ascore_0.png)|Samples with higher score determine directly the outlier area|
+|5, default value|![](pics/ascore_5.png)|non outlier area is slighly expanded|
+|15|![](pics/ascore_15.png)|non outlier area is expanded more|
+|40|![](pics/ascore_40.png)|and non outlier area is still larger|
+|-5, negative value cause some sample points to be considered as outliers|![](pics/ascore_m5.png)|Now some sample points are clearly in outlier area, non outlier area is reduced|

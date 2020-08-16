@@ -62,7 +62,7 @@ char label_separator = '-';       // separator for category values
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 int auto_outlier_score = 0;            // outlier score detected automatically based on sample value having max. score
-double auto_score_factor = 0.075; // How much to expand sample set when determining the auto score, larger value yields larger auto score
+double auto_score_factor = 5.0;   // How much to expand sample set when determining the auto score, larger value yields larger auto score
 double prange_extension_factor = 1.0;    // extents the area from where p is selected
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
@@ -153,6 +153,7 @@ Options:\n\
   -o, --output FILE           outlier data is printed to FILE. Default is stdout\n\
   -w, --write-forest FILE     write forest data to FILE\n\
   -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0-1.0)\n\
+  -O, --outlier-score auto    outlier score is determined using sample value having largest score\n\
   -r, --read-forest FILE      read forest data from FILE\n\
   -C, --category-dim LIST     comma separated list of dimensions to form a category string\n\
   -L, --label-dim LIST        comma separated list of dimensions to form a label string\n\
@@ -175,6 +176,7 @@ Options:\n\
   -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
   -E, --sample-scores         print samples values with sample score and exit\n\
+  -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -461,7 +463,7 @@ main (int argc, char **argv)
                     print_sample_s = 1;
                     break;
                 case 'k':
-                    kill_outlier = 1;
+                    kill_outlier++;
                     break;
                 default:
                     usage(opt);
@@ -506,10 +508,7 @@ main (int argc, char **argv)
         } 
     }
 
-    if(kill_outlier)
-    {
-        remove_outlier();
-    }
+    while(kill_outlier--) remove_outlier();
 
     if(print_density)
     {

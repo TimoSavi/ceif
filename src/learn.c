@@ -583,7 +583,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
 }
 
 /* Expands a vector "out" by moving attribute values away from average
- * Each dimension attribute is moved app. max +/- 7.5% of attribute value (if auto_score_factor == 0.075)
+ * Each dimension attribute is moved "out" form dimension average value by density multiplied by auto_score_factor
  * Returns a pointer to expanded vector
  */
 double *v_expand(double *dim, double *avg, double *density,int sample_count)
@@ -595,7 +595,7 @@ double *v_expand(double *dim, double *avg, double *density,int sample_count)
 
     for(i = 0;i < dimensions;i++) 
     {
-        p[i] += (p[i] >= avg[i] ? 1.0 : -1.0) * density[i] * sample_count * auto_score_factor;
+        p[i] += (p[i] >= avg[i] ? 1.0 : -1.0) * density[i] * auto_score_factor;
     }
 
     return p;
