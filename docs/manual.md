@@ -23,8 +23,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -p&nbsp;STRING | Printf style format to print anomaly data or categorized data. See printing directives below|
 | -o&nbsp;FILE | Print output to FILE. Default is to use stdout|
 | -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
-| -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0. 
-Also option argument "auto" can be given. Then the outlier score is determined by the score from sample having maximum score. This process can be adjusted with
+| -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0.  Also option argument "auto" can be given. Then the outlier score is determined by the score from sample having maximum score. This process can be adjusted with
 rc-file variable AUTO\_SCORE\_FACTOR, see section user rc-file for more details |
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
@@ -80,7 +79,7 @@ Following variables are supported:
 
 | Variable | Meaning | default value |
 |----|----|----|
-|AUTO\_SCORE\_FACTOR|When calculating the auto score (option -Oauto) the sample set can be expanded before finding the score for each sample. This value can adjust how much the sample set is expanded. More larger value causes more higher auto score. Negative values can be used too, the auto score will lower than natural maximun smaple score|5|
+|AUTO\_SCORE\_FACTOR|When calculating the auto score (option -Oauto) the sample set can be expanded before finding the score for each sample. This value adjusts how much the sample set is expanded. More larger value causes more higher auto score. Negative values can be used too, the auto score will be lower than natural maximum sample score|5|
 |SAMPLES|Number of samples taken for each forest, same affect as option -s|256|
 |TREES|Number of trees for each forest, same affect as option -t|100|
 |DECIMALS|Number of decimals used when saving forest data. Affects also printing of sample values (option -d)|6|
