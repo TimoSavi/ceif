@@ -23,8 +23,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -p&nbsp;STRING | Printf style format to print anomaly data or categorized data. See printing directives below|
 | -o&nbsp;FILE | Print output to FILE. Default is to use stdout|
 | -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
-| -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0.  Also option argument "auto" can be given. Then the outlier score is determined by the score from sample having maximum score. This process can be adjusted with
-rc-file variable AUTO\_SCORE\_FACTOR, see section user rc-file for more details |
+| -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0.  Also option argument "auto" can be given. Then the outlier score is determined by the score from sample having maximum score. This process can be adjusted with rc-file variable AUTO\_SCORE\_FACTOR, see section user rc-file for more details |
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
@@ -72,7 +71,7 @@ If FILE is "-" then standard input or output is read or written.
 Value separator for d,a and v can be given by option -e.
 
 ### User rc-file
-Some defaults can be read from user specific rc file ~/.ceifrc. File has variable-value pairs separated by whitespace. Comments start with #. 
+Some defaults can be read from user specific rc-file ~/.ceifrc. File has variable-value pairs separated by whitespace. Comments start with #. 
 These values can be overriden by command options and saved forest data (read using option -r).
 
 Following variables are supported:
