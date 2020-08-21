@@ -191,8 +191,19 @@ Following table contains result of different values of AUTO\_SCORE\_FACTOR. More
 
 |AUTO\_SCORE\_FACTOR value|score map|Comment|
 |---|---|---|
-|0, value zero means that the outlier score is taken from the sample having higher score as such|![](pics/ascore_0.png)|Samples with higher score determine directly the outlier area|
-|5, default value|![](pics/ascore_5.png)|non outlier area is slighly expanded|
+|0, value zero means that the outlier score is the same as score from the sample having the highest score|![](pics/ascore_0.png)|Sample with the highest score determines the outlier area|
+|5, default value, sample set is slightly expanded out from the average value of each dimension value before finding the highest score|![](pics/ascore_5.png)|non outlier area is slighly expanded|
 |15|![](pics/ascore_15.png)|non outlier area is expanded more|
-|40|![](pics/ascore_40.png)|and non outlier area is still larger|
-|-5, negative value cause some sample points to be considered as outliers|![](pics/ascore_m5.png)|Now some sample points are clearly in outlier area, non outlier area is reduced|
+|40|![](pics/ascore_40.png)|and non outlier area is wider again|
+|-5, negative value causes some sample points to be considered as outliers. Negative value reduces the sample set towards dimension average before finding the largest score|![](pics/ascore_m5.png)|Now some sample points are clearly in outlier area|
+
+Each dimension attribute is moved out from the dimension attribute average by the formula (for values larger than average):
+
+    a += a * AUTO\_SCORE\_FACTOR * d
+
+Operator -= is used for values smaller than average.
+
+Where
+  
+    a = dimension attribute value
+    d = dimension density, calculated using formula: (dimension attribute max value - dimension attribute min value) / number of samples
