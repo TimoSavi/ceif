@@ -206,12 +206,11 @@ char *parse_config_line(char *input_line,char *name)
  * for certain variables
  */
 #define CONFIG_LEN_MAX 100
-void read_config_file()
+void read_config_file(char *config_file)
 {
     FILE *f;
     char *value;
     char *home;
-    char *config_file = CEIF_CONFIG;
     char input_line[CONFIG_LEN_MAX];
     char input_file[1024];
 
@@ -230,7 +229,12 @@ void read_config_file()
 
     f = xfopen_test(input_file,"r",'a');
 
-    if(f == NULL) return;
+    if(f == NULL)
+    {
+        if(strcmp(config_file,CEIF_CONFIG) == 0) return;
+        panic("Cannot read rc-file",config_file,NULL);
+    }
+
 
     while(fgets(input_line,CONFIG_LEN_MAX,f) != NULL)
     {

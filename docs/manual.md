@@ -46,6 +46,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -yy | Print forest information ascii density map with common sample scale for all forests|
 | -E | Print samples with sample score|
 | -k | Remove the sample having maximun sample score for each non filtered forest. If option is given several times, then several samples are removed. This can be used to remove outliers from samples. Modified sample set can be saved with option -w|
+| -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
 
 
 If FILE is "-" then standard input or output is read or written.
@@ -72,7 +73,7 @@ Value separator for d,a and v can be given by option -e.
 
 ### User rc-file
 Some defaults can be read from user specific rc-file ~/.ceifrc. File has variable-value pairs separated by whitespace. Comments start with #. 
-These values can be overriden by command options and saved forest data (read using option -r).
+These values can be overriden by command options and saved forest data (read using option -r). Note that file given with option -g overrides options given before -g.
 
 Following variables are supported:
 

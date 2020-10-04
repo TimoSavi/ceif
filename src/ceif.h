@@ -169,7 +169,7 @@ int parse_csv_line(char **,int,char *,char);
 void print_forest_info(FILE *);
 void print_sample_density(FILE *,int);
 void print_sample_scores(FILE *);
-void read_config_file();
+void read_config_file(char *);
 
 
 

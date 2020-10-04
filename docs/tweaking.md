@@ -199,11 +199,11 @@ Following table contains result of different values of AUTO\_SCORE\_FACTOR. More
 
 Each dimension attribute is moved out from the dimension attribute average by the formula (for values larger than average):
 
-    a += a * AUTO\_SCORE\_FACTOR * d
+    a += AUTO_SCORE_FACTOR * d
 
 Operator -= is used for values smaller than average.
 
 Where
   
-    a = dimension attribute value
+    a = dimension attribute value to be moved
     d = dimension density, calculated using formula: (dimension attribute max value - dimension attribute min value) / number of samples

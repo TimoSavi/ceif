@@ -84,7 +84,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ek";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -107,7 +107,6 @@ static struct option long_opts[] =
   {"header", 0, 0, 'H'},
   {"set-locale", 0, 0, 'S'},
   {"label-dim", 1, 0, 'L'},
-  {"save-forest", 1, 0, 'd'},
   {"read-forest", 1, 0, 'r'},
   {"prange-factor", 1, 0, 'R'},
   {"categorize", 1, 0, 'c'},
@@ -127,6 +126,7 @@ static struct option long_opts[] =
   {"sample-density", 2, 0, 'y'},
   {"sample-scores", 0, 0, 'E'},
   {"remove-outlier", 0, 0, 'k'},
+  {"rc-file", 1, 0, 'g'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -177,6 +177,7 @@ Options:\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
   -E, --sample-scores         print samples values with sample score and exit\n\
   -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
+  -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -303,7 +304,7 @@ main (int argc, char **argv)
     FILE *outs = NULL;           // file to print results
 
     init_forest_hash();
-    read_config_file();          // config file parameters are read before options
+    read_config_file(CEIF_CONFIG);          // config file parameters are read before options
 
 #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)
@@ -465,13 +466,16 @@ main (int argc, char **argv)
                 case 'k':
                     kill_outlier++;
                     break;
+                case 'g':
+                    read_config_file(optarg);
+                    break;
                 default:
                     usage(opt);
                     break;
             }
         }
 
-    srand(time(NULL));
+    srand(time(NULL) + getpid());
 
     init_fast_n_cache();
     init_fast_c_cache();
