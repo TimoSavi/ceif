@@ -47,6 +47,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -E | Print samples with sample score|
 | -k | Remove the sample having maximun sample score for each non filtered forest. If option is given several times, then several samples are removed. This can be used to remove outliers from samples. Modified sample set can be saved with option -w|
 | -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
+| -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
 
 
 If FILE is "-" then standard input or output is read or written.

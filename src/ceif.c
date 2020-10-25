@@ -84,7 +84,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:P";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -127,6 +127,7 @@ static struct option long_opts[] =
   {"sample-scores", 0, 0, 'E'},
   {"remove-outlier", 0, 0, 'k'},
   {"rc-file", 1, 0, 'g'},
+  {"correlation-coe", 0, 0, 'P'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -178,6 +179,7 @@ Options:\n\
   -E, --sample-scores         print samples values with sample score and exit\n\
   -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
   -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
+  -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -282,6 +284,7 @@ main (int argc, char **argv)
     int make_query = 0;
     int print_density = 0;
     int print_sample_s = 0;
+    int print_correlation = 0;
     int kill_outlier = 0;
     int common_scale = 0;
     int test_range_interval = 256;
@@ -469,6 +472,9 @@ main (int argc, char **argv)
                 case 'g':
                     read_config_file(optarg);
                     break;
+                case 'P':
+                    print_correlation = 1;
+                    break;
                 default:
                     usage(opt);
                     break;
@@ -486,7 +492,7 @@ main (int argc, char **argv)
 
     if(print_string == NULL) print_string = "%s %v";
         
-    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || kill_outlier) make_tree = 1;  // we need tree info
+    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || kill_outlier || print_correlation) make_tree = 1;  // we need tree info
 
     if(output_file != NULL)
     {
@@ -555,6 +561,13 @@ main (int argc, char **argv)
     if(print_sample_s)
     {
         print_sample_scores(outs);
+        fclose(outs);
+        exit(0);
+    }
+
+    if(print_correlation)
+    {
+        print_correlation_coefficent(outs);
         fclose(outs);
         exit(0);
     }

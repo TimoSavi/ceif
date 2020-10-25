@@ -495,7 +495,7 @@ void init_fast_n_cache()
 {
     int i;
 
-    if(FAST_N) for(i = 0;i < FAST_N_SAMPLES;i++) fast_n_cache[i] = gaussrand();
+    for(i = 0;i < FAST_N_SAMPLES;i++) fast_n_cache[i] = gaussrand();
 }
 
 /* calculate random normal distributed number from [0,1]
@@ -505,7 +505,7 @@ double N()
 {
     static int next_n=0;
 
-    if(FAST_N)
+    if(FAST_N_SAMPLES)
     {
         if(next_n == FAST_N_SAMPLES) next_n = 0;
         return fast_n_cache[next_n++];

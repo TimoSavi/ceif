@@ -347,7 +347,7 @@ print_forest_info(FILE *outs)
         _3P("%15s%*s\n","Dimension sample value summary:",12*dimensions,"Dimension");
 
         _3P("%15s","");
-        for(i = 0;i < dimensions;i++) _P("%25d",i+1);
+        for(i = 0;i < dimensions;i++) _P("%25d",i + 1);
         _P("\n");
 
         _3P("%15s","Maximum value");
@@ -456,7 +456,7 @@ print_sample_density(FILE *outs,int common_scale)
             for(i = 0;i < DENSITY_MAX;i++) density[i] = 0;
 
             _2P("%10s","Dimension");
-            _P("%15d ",j+1);
+            _P("%15d ",j + 1);
 
             for(i = 0;i < f->X_count;i++)
             {
@@ -551,7 +551,7 @@ print_sample_scores(FILE *outs)
        _P("\nForest category string: %s\n",f->category);
        _2P("%10s%25s\n","Score","Dimension values");
        _2P("%10s","");
-       for(j = 0;j < dimensions;j++) _P("%25d",j);
+       for(j = 0;j < dimensions;j++) _P("%25d",j + 1);
        _P("\n");
 
        for(i = 0;i < f->X_count;i++)
@@ -564,5 +564,80 @@ print_sample_scores(FILE *outs)
     }
 }
 
+/* calculate standard deviation for all dimensions for a forest
+ */
+static
+void calc_stddev(struct forest *f, double *stddev)
+{
+    int i,j;
 
+    for(i = 0;i < dimensions;i++) stddev[i] = 0.0;
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        for(j = 0;j < dimensions;j++) stddev[j] += (f->X[i].dimension[j] - f->avg[j]) * (f->X[i].dimension[j] - f->avg[j]); 
+    }
+
+    for(j = 0;j < dimensions;j++) stddev[j] = sqrt(stddev[j] / (double) (f->X_count - 1));
+}
+        
+
+/* print correlation coefficents for all dimension attribute pairs using Pearson method. 
+ * Correlation coefficent has a value between +1 and −1. A value of +1 is total positive linear correlation, 0 is no linear correlation, and −1 is total negative linear correlation
+ * */
+void print_correlation_coefficent(FILE *outs)
+{
+    int forest_idx,i;
+    int a,b;
+    double psum,cc,slope;
+    double *stddev;
+    struct forest *f;
+
+    if(dimensions < 2) return;  // This makes sence only for multi-dim cases
+
+    stddev = xmalloc(dimensions * sizeof(double));
+
+    _P("Correlation coefficent with regression line slope and y-intercept for every dimension attribute pair.\n");
+    _P("Correlation coefficent has a value between +1 and −1. A value of +1 is total positive linear correlation, 0 is no linear correlation, and −1 is total negative linear correlation.\n");
+
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        f = &forest[forest_idx];
+
+        if(f->filter) continue;
+        if(f->X_count < 2) continue;
+
+        _P("\nForest category string: %s\n",f->category);
+        _2P("%12s%15s%15s%15s%15s\n","Coefficent","Slope","y-intercept","Dimension x","Dimension y");
+
+        calc_stddev(f,stddev);
+
+        for(a = 0;a < dimensions;a++)
+        {
+            for(b = a + 1;b < dimensions;b++)
+            {
+                if(stddev[a] > 0.0 && stddev[b] > 0.0)
+                {
+                    psum = 0.0;
+
+                    for(i = 0;i < f->X_count;i++)
+                    {
+                        psum += f->X[i].dimension[a] * f->X[i].dimension[b];
+                    }
+
+                    cc = (psum - f->X_count * f->avg[a] * f->avg[b]) / ((double) (f->X_count - 1) * stddev[a] * stddev[b]);
+
+                    slope = cc * (stddev[b] / stddev[a]);
+                } else
+                {
+                    cc = 0.0;
+                    slope = 0.0;
+                }
+
+                _2P("%12f%15f%15f%15d%15d\n",cc,slope,f->avg[b] - slope * f->avg[a],a + 1,b + 1);
+            }
+        }
+    }
+    free(stddev);
+}
 

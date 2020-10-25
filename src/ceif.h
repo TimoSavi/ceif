@@ -32,7 +32,6 @@
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
 
 /* should normal distributed values be written to cache for faster execution */
-#define FAST_N 1
 #define FAST_N_SAMPLES 32771
 
 /* cache size for c values (the average depth in an unsuccessful search in a Binary Search Tree) */
@@ -169,6 +168,7 @@ int parse_csv_line(char **,int,char *,char);
 void print_forest_info(FILE *);
 void print_sample_density(FILE *,int);
 void print_sample_scores(FILE *);
+void print_correlation_coefficent(FILE *);
 void read_config_file(char *);
 
 
