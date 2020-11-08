@@ -79,10 +79,10 @@ Updating the square.ceif with small blob:
 
 Creating anomaly map with commads:
 
-    ceif -r square.ceif -T1 Oauto -p "%d,0x%x,%s" -o plot_data.csv   
+    ceif -r square.ceif -T1 -Oauto -p "%d,0x%x,%s" -o plot_data.csv   
     gnuplot plot.gp
 
-Resulting map in pic.png, non inlier area is white:
+Resulting map in pic.png, inlier area is white:
 
 ![](pics/square_sblob.png)
 
