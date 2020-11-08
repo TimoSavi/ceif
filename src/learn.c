@@ -557,11 +557,11 @@ void v_subt(double *a, double *b)
  * returns pointer to p array.
  * p are taken from random sample point centered n-sphere having random diameter
  *
- * diamenter length is proportional to avaerage dimension density, tree heigth (larger at root) and user given prange_extension_factor
+ * diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
  *
  */
 static
-double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *dimension_density)
+double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
 {
     int i;
     int random_sample;
@@ -572,11 +572,11 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     random_sample = ri(0,sample_count - 1);
     n_vector = calculate_n();
 
-    // copy random sample to p vector and make adjustment vector using random unit vector n_vector, dimension density, current heigth (= max_heigth at start) and user given factor
+    // copy random sample to p vector and add adjustment vector to it
     v_copy(p,X[samples[random_sample]].dimension);
 
     for(i = 0;i < dimensions;i++) {
-        p[i] += n_vector[i] * dimension_density[i] * heigth_ratio *  prange_extension_factor;   // move sample by adjustment
+        p[i] += n_vector[i] * heigth_ratio *  ((max[i] - min[i] > 0.0 ? max[i] - min[i] : 1.0) / 2.0);   // move sample by adjustment
     }
 
     return p;
@@ -655,7 +655,8 @@ double wdot(double *a, double *b, int scale_range_idx, double *min, double *max)
  *  */
 double _c(int n)
 {
-    if(n <= 2) return 1.0;   
+    if (n < 2) return 0.0;   
+    if (n == 2) return 1.0;
     return 2.0 * (log(n - 1) + 0.5772156649) - (2 * (double) (n - 1) / (double) n);
 }
 
@@ -721,7 +722,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
 
     this->left = -1;
     this->rigth = -1;
-    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->dim_density);
+    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->max,f->min);
     this->pdotn = wdot(p,this->n,f->scale_range_idx,f->min,f->max);
 
     for(i = 0;i < sample_count;i++)
@@ -832,10 +833,10 @@ void train_one_forest(int forest_idx)
          f->t[i].node_count = 0;
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
-         populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count + 1) + log(prange_extension_factor + 1)));
+         populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)));
     }
 
-    f->heigth_limit = ceil(log2(total_samples / tree_count + 1) + log(prange_extension_factor + 1));
+    f->heigth_limit = ceil(log2(total_samples / tree_count));
     f->c = c(total_samples / tree_count);    
 }
 
@@ -985,6 +986,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 sidx[i] = 0;
                 prev_dimension[i] = 0;
                 len[i] = f->max[i] - f->min[i];
+                if(len[i] == 0.0) len[i] = 1.0;
             }
 
             while(sidx[0] <= test_sample_interval)

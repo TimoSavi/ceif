@@ -63,7 +63,6 @@ int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
 int auto_outlier_score = 0;            // outlier score detected automatically based on sample value having max. score
 double auto_score_factor = 5.0;   // How much to expand sample set when determining the auto score, larger value yields larger auto score
-double prange_extension_factor = 1.0;    // extents the area from where p is selected
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
 char *printf_format = "";       // User given printf format for dimension and average values
@@ -84,7 +83,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:R:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:P";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -108,7 +107,6 @@ static struct option long_opts[] =
   {"set-locale", 0, 0, 'S'},
   {"label-dim", 1, 0, 'L'},
   {"read-forest", 1, 0, 'r'},
-  {"prange-factor", 1, 0, 'R'},
   {"categorize", 1, 0, 'c'},
   {"category-filter", 1, 0, 'F'},
   {"test", 2, 0, 'T'},
@@ -128,6 +126,7 @@ static struct option long_opts[] =
   {"remove-outlier", 0, 0, 'k'},
   {"rc-file", 1, 0, 'g'},
   {"correlation-coe", 0, 0, 'P'},
+  {"auto-score-factor", 1, 0, 'x'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -401,10 +400,6 @@ main (int argc, char **argv)
                 case 'h':
                     help(0);
                     break;
-                case 'R':
-                    prange_extension_factor = atof(optarg);
-                    if(prange_extension_factor < 0) panic("Give P-range extension factor equal or larger than zero",NULL,NULL);
-                    break;
                 case 'F':
                     add_category_filter(optarg);
                     break;
@@ -474,6 +469,9 @@ main (int argc, char **argv)
                     break;
                 case 'P':
                     print_correlation = 1;
+                    break;
+                case 'x':
+                    auto_score_factor = atof(optarg);
                     break;
                 default:
                     usage(opt);

@@ -124,7 +124,6 @@ extern int header;
 extern double outlier_score;
 extern int auto_outlier_score;
 extern double auto_score_factor;
-extern double prange_extension_factor;
 extern double test_extension_factor;
 extern int decimals;
 extern int unique_samples;

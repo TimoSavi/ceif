@@ -252,9 +252,6 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"DECIMALS")) != NULL)
         {
             decimals = atoi(value);
-        } else if((value = parse_config_line(input_line,"PRANGE_EXTENSION_FACTOR")) != NULL)
-        {
-            prange_extension_factor = atof(value);
         } else if((value = parse_config_line(input_line,"AUTO_SCORE")) != NULL)
         {
             auto_outlier_score = atoi(value);
@@ -301,8 +298,8 @@ print_forest_info(FILE *outs)
     _2P("Number of samples/tree: %d\n",samples_max);
     _2P("Number of trees: %d\n",tree_count);
     _2P("Number of decimals: %d\n",decimals);
-    _2P("P-range extension factor: %f\n",prange_extension_factor);
     _2P("Auto outlier score is %s\n",_O(auto_outlier_score));
+    if(auto_outlier_score) _2P("Auto outlier score factor is %f\n",auto_score_factor);
     _2P("Outlier score: %f\n",outlier_score);
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
@@ -599,6 +596,7 @@ void print_correlation_coefficent(FILE *outs)
 
     _P("Correlation coefficent with regression line slope and y-intercept for every dimension attribute pair.\n");
     _P("Correlation coefficent has a value between +1 and −1. A value of +1 is total positive linear correlation, 0 is no linear correlation, and −1 is total negative linear correlation.\n");
+    _P("Value 0 is also returned in case the correlation coefficent is undefined.\n");
 
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
     {
@@ -607,8 +605,8 @@ void print_correlation_coefficent(FILE *outs)
         if(f->filter) continue;
         if(f->X_count < 2) continue;
 
-        _P("\nForest category string: %s\n",f->category);
-        _2P("%12s%15s%15s%15s%15s\n","Coefficent","Slope","y-intercept","Dimension x","Dimension y");
+        _P("\nForest category string: %s, number of samples: %d\n",f->category,f->X_count);
+        _2P("%12s %15s %15s%15s%15s\n","Coefficent","Slope","y-intercept","Dimension x","Dimension y");
 
         calc_stddev(f,stddev);
 
@@ -625,16 +623,15 @@ void print_correlation_coefficent(FILE *outs)
                         psum += f->X[i].dimension[a] * f->X[i].dimension[b];
                     }
 
-                    cc = (psum - f->X_count * f->avg[a] * f->avg[b]) / ((double) (f->X_count - 1) * stddev[a] * stddev[b]);
-
+                    cc = (psum - (double) f->X_count * f->avg[a] * f->avg[b]) / ((double) (f->X_count - 1) * stddev[a] * stddev[b]);
                     slope = cc * (stddev[b] / stddev[a]);
                 } else
                 {
                     cc = 0.0;
                     slope = 0.0;
                 }
-
-                _2P("%12f%15f%15f%15d%15d\n",cc,slope,f->avg[b] - slope * f->avg[a],a + 1,b + 1);
+                
+                _2P("%12f %15f %15f%15d%15d\n",cc,slope,f->avg[b] - slope * f->avg[a],a + 1,b + 1);
             }
         }
     }

@@ -61,7 +61,7 @@ void write_global_data(FILE *w,int f_count)
     }
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,score_str,prange_extension_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
+                input_separator,header,score_str,auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
                 decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "",\
                 weigth_str) < 0)
     {
@@ -166,7 +166,7 @@ int parse_G(char *l)
             outlier_score = atof(v[9]);
         }
 
-        prange_extension_factor = atof(v[10]);
+        auto_score_factor = atof(v[10]);
         ignore_dims = xstrdup(v[11]);
         ignore_idx_count = parse_dims(v[11],ignore_idx);
         include_dims = xstrdup(v[12]);
