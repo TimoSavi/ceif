@@ -38,7 +38,7 @@ Outlier area is printed using color and non outlier are is white.
 
 |Outlier score value (-O)|Two blobs|Square|Circle|
 |---|---|---|---|
-|training data||![](pics/2blob.png)|![](pics/square.png)|![](pics/circle.png)|
+|training data|![](pics/2blob.png)|![](pics/square.png)|![](pics/circle.png)|
 |0|![](pics/2blob_O0.png)|![](pics/square_O0.png)|![](pics/circle_O0.png)|
 |0.5|![](pics/2blob_O05.png)|![](pics/square_O05.png)|![](pics/circle_O05.png)|
 |auto|![](pics/2blob_Oauto.png)|![](pics/square_Oauto.png)|![](pics/circle_Oauto.png)|
@@ -69,7 +69,9 @@ In following example a square map is updated with a small blob:
 
 Training and saving the square to file square.ceif:
 
-   ceif -l square.csv -Oauto -W -w square.ceif 
+    ceif -l square.csv -Oauto -W -w square.ceif 
+
+Using the option -W for dimension auto scaling. It is good to use in cases when the new data is unknown and can have significally larger values than old data. 
 
 Updating the square.ceif with small blob:
 
@@ -80,7 +82,7 @@ Creating anomaly map with commads:
     ceif -r square.ceif -T1 Oauto -p "%d,0x%x,%s" -o plot_data.csv   
     gnuplot plot.gp
 
-Resulting map in pic.png, non outlier are is white:
+Resulting map in pic.png, non inlier area is white:
 
 ![](pics/square_sblob.png)
 
@@ -178,7 +180,7 @@ Following table contains result of different values of AUTO\_SCORE\_FACTOR. More
 |---|---|---|
 |0, value zero means that the outlier score is the same as score from the sample having the highest score|![](pics/ascore_0.png)|Sample with the highest score determines the outlier area|
 |5, default value, sample set is slightly expanded out from the average value of each dimension value before finding the highest score|![](pics/ascore_5.png)|non outlier area is slighly expanded|
-|10|![](pics/ascore_10.png)|non outlier area is expanded more, too much because center is now outlier area|
+|10|![](pics/ascore_10.png)|non outlier area is expanded more, too much actually because center is now outlier area|
 |10 with 300 trees (-t 300)|![](pics/ascore_10_t300.png)|center has now more inliers, adding more trees (and samples) yields usually better results|
 |-5, negative value causes some sample points to be considered as outliers. Negative value reduces the sample set towards dimension average before finding the largest score|![](pics/ascore_m5.png)|Now some sample points are clearly in outlier area|
 
