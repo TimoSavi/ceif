@@ -30,7 +30,6 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given. If REGEXP is preceded by "-v " then matching is inverted|
 | -H | Input data contains a header line which is ignored. Default is to read all lines|
 | -S | Set locale to local locale. Default is use locale "C"|
-| -R&nbsp;FLOAT| Interception point ***p*** range extension factor. Higher value means that starting interception points are selected more away from sample data points and maximum tree height is larger|
 | -T&nbsp;FLOAT| Generate test data. Test data is generated using sample set min/max values and test data point interval given by option -i (default is 256). Test data range can be enlarged by FLOAT. E.g. value 1.0 doubles the test data range. After test data is printed max 10240 sample data points are printed with score 0|
 | -i&nbsp;INTEGER| Test data point interval. Larger value means more dense test data point set|
 | -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is value between 0..100 (default is 10). This is the percentage of input data rows to be checked for uniqueness. Value 100 can be used if every accepted sample data should be unique|
@@ -48,6 +47,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -k | Remove the sample having maximun sample score for each non filtered forest. If option is given several times, then several samples are removed. This can be used to remove outliers from samples. Modified sample set can be saved with option -w|
 | -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
 | -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
+| -x&nbsp;FLOAT| Auto score extension factor, see user rc-file section for details. Default value is 5.0 |
 
 
 If FILE is "-" then standard input or output is read or written.

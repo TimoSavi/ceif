@@ -833,10 +833,10 @@ void train_one_forest(int forest_idx)
          f->t[i].node_count = 0;
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
-         populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)));
+         populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)) + 1);
     }
 
-    f->heigth_limit = ceil(log2(total_samples / tree_count));
+    f->heigth_limit = ceil(log2(total_samples / tree_count)) + 1;
     f->c = c(total_samples / tree_count);    
 }
 

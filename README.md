@@ -21,9 +21,8 @@ To tackle this here the ***p*** selection has following steps:
 
 1. Select a random sample point
 2. Calculate a random adjustment vector ***a*** from standard normal distribution [0,1]. The length &#124;***a***&#124; is proportional to:
-  * Average sample point distance
   * Tree height (larger at tree root)
-  * User given parameter (-R)
+  * Dimension value range, larger range makes adjustment larger
 3. Interception ***p*** is calculated by adding the ***a*** to randomly selected sample point.
 
 This has following effects:
