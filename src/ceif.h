@@ -31,6 +31,10 @@
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
 
+/* Special outlier_scoire values for automatic and average based scores */
+#define AVERAGE_SCORE -1
+#define AUTO_SCORE -2
+
 /* should normal distributed values be written to cache for faster execution */
 #define FAST_N_SAMPLES 32771
 
@@ -84,6 +88,10 @@ struct forest
     int analyzed;           // Is this forest used in analysis 
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     double auto_score;      // automatic socre calculated based on sample value having max score value
+    double average_score;   // average score of all saved samples
+    double test_average_score; // average score of tested data, can be compared with average_score
+    int analyzed_rows;      // Number of rows used in analysis
+    int high_analyzed_rows; // Number of rows having score higher than avaerage score
     struct tree *t;         // Tree table, NULL if not initialized
 };
 
@@ -122,7 +130,6 @@ extern char *print_string;
 extern char input_separator;
 extern int header;
 extern double outlier_score;
-extern int auto_outlier_score;
 extern double auto_score_factor;
 extern double test_extension_factor;
 extern int decimals;
@@ -131,6 +138,7 @@ extern char *printf_format;
 extern char list_separator;
 extern int n_vector_adjust;
 extern int aggregate;
+extern double average_score_factor;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -195,7 +203,7 @@ double *v_expand(double *,double *,double *,int);
 
 
 /* analyze.c prototypes */
-void analyze(FILE *, FILE *,char *);
+void analyze(FILE *, FILE *,char *,char *);
 void categorize(FILE *, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);
@@ -203,8 +211,13 @@ double calculate_score(int ,double *);
 void print_missing_categories(FILE *,char *);
 void print_(FILE *, double, int,int,int,char **,double *,char *,char *);
 int check_idx(int ,int , int *);
+void calculate_forest_auto_score(int);
 void init_auto_scores();
 void remove_outlier();
+void calculate_average_sample_score(int);
+void calculate_forest_score(int);
+double get_forest_score(int);
+
 
 
 

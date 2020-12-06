@@ -212,8 +212,14 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                 case 'r':
                     fprintf(outs,"%d",lines);
                     break;
+                case'h':
+                    fprintf(outs,"%d",forest[forest_idx].high_analyzed_rows);
+                    break;
                 case 's':
                     fprintf(outs,"%f",score);
+                    break;
+                case 'S':
+                    fprintf(outs,"%f",forest[forest_idx].test_average_score);
                     break;
                 case 'c':
                     fprintf(outs,"%s",make_category_string(value_count,values));
@@ -356,33 +362,29 @@ void aggregate_values(int forest_idx,double *sample)
     }
 }
 
-/* Calculate automatic outlier score for each forest
+/* Init auto (max) score for a forest 
  * Auto score is initialized by the maximun sample score value.
- * Sample values are sligthly  randomly moved using v_shake, 
- * This sould avoid near false positives
- * 
- */
-void init_auto_scores()
+ * Sample values are sligthly randomly moved using v_expand, 
+ * */
+void calculate_forest_auto_score(int forest_idx)
 {
-    int forest_idx,i;
     double score;
+    int i;
     struct forest *f;
 
-    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
-    {
-        f = &forest[forest_idx];
+    f = &forest[forest_idx];
         
-        f->auto_score = 0.0;
+    f->auto_score = 0.0;
 
-        if(f->filter) continue;
+    if(f->filter) return;
 
-        for(i = 0;i < f->X_count;i++)
-        {
-            score = calculate_score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
-            if(score > f->auto_score) f->auto_score = score;
-        }
+    for(i = 0;i < f->X_count;i++)
+    {
+        score = calculate_score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
+        if(score > f->auto_score) f->auto_score = score;
     }
 }
+
 
 /* remove outlier
  * For each non filterd forest the sample with the highest  score is removed from 
@@ -400,7 +402,7 @@ void remove_outlier()
     {
         f = &forest[forest_idx];
 
-        if(f->filter) continue;
+        if(f->filter || f->X_count <= SAMPLES_MIN) continue;    // Do not remove samples below limit, renders forest filtered
 
         outlier_idx = -1;
         max_score = 0.0;
@@ -428,14 +430,78 @@ void remove_outlier()
     }
 }
 
-/* analyze data from file. 
- * All lines are analyzed against loaded forest/tree data
- * and anomalies (having score > outlier_score) using printing mask
+/* calculate average sample score for a forest
+ * Average is counted once, this is chekked using f->average_score (it is practically never zero)
+ *
  */
-void
-analyze(FILE *in_stream, FILE *outs,char *not_found_format)
+void calculate_average_sample_score(int forest_idx)
 {
     int i;
+    struct forest *f;
+    double stddev = 0.0;
+    double *scores;
+
+    f = &forest[forest_idx];
+
+    if(f->filter) return;
+     
+    f->average_score = 0.0;
+
+    scores = xmalloc(f->X_count * sizeof(double));
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        scores[i] = calculate_score(forest_idx,f->X[i].dimension);
+        f->average_score += scores[i];
+    }
+
+    f->average_score /= (double) f->X_count;
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        stddev += (f->average_score - scores[i]) * (f->average_score - scores[i]);
+    }
+
+    stddev = sqrt(stddev / (double) f->X_count);
+
+    f->average_score += stddev * average_score_factor;
+
+    free(scores);
+}
+
+/* Return score for a forest, spcial scores for auto and average socres are handled here
+ */
+inline 
+double get_forest_score(int forest_idx)
+{
+    if(outlier_score == AUTO_SCORE) return forest[forest_idx].auto_score;
+    if(outlier_score == AVERAGE_SCORE) return forest[forest_idx].average_score;
+    return outlier_score;
+}
+
+/* Calculate appropriate automatic score for a forest
+ */
+inline 
+void calculate_forest_score(int forest_idx)
+{
+    if(forest[forest_idx].average_score == 0.0 && outlier_score == AVERAGE_SCORE) 
+    {
+        calculate_average_sample_score(forest_idx);
+    } else if(forest[forest_idx].auto_score == 0.0 && outlier_score == AUTO_SCORE)
+    {
+        calculate_forest_auto_score(forest_idx);
+    }
+}
+
+
+
+/* analyze data from file. 
+ * All lines are analyzed against loaded forest/tree data
+ * and print anomalies (having score > outlier_score) using printing mask
+ */
+void
+analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
+{
     int value_count;
     int lines = 0;
     int forest_idx;
@@ -457,7 +523,6 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
         {
             init_dims(value_count);
             dimension =  xmalloc(dimensions * sizeof(double));
-            if(auto_outlier_score) init_auto_scores();
             first = 0;
         }
 
@@ -474,8 +539,22 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
                     aggregate_values(forest_idx,dimension);
                 } else
                 {
+                    calculate_forest_score(forest_idx);
+
+                    forest[forest_idx].analyzed_rows++;
+
                     score = calculate_score(forest_idx,dimension);
-                    if(score >= (auto_outlier_score ? forest[forest_idx].auto_score : outlier_score))
+
+                    if(outlier_score == AVERAGE_SCORE && forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
+
+                    if(average_format != NULL)
+                    {
+                        if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
+                        forest[forest_idx].test_average_score += score;
+                        if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
+                    }
+
+                    if(score >= get_forest_score(forest_idx))
                     {
                         print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
                     }
@@ -490,19 +569,43 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format)
 
     if(aggregate)
     {
-        for(i = 0;i < forest_count;i++)
+        for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
         {
-            if(forest[i].summary != NULL && !forest[i].filter)
+            if(forest[forest_idx].summary != NULL && !forest[forest_idx].filter)
             {
-                score = calculate_score(i,forest[i].summary);
-                if(score >= (auto_outlier_score ? forest[i].auto_score : outlier_score))
+                forest[forest_idx].analyzed_rows = 1;
+
+                calculate_forest_score(forest_idx);
+
+                score = calculate_score(forest_idx,forest[forest_idx].summary);
+                    
+                if(average_format != NULL)
                 {
-                    print_(outs,score,0,i,0,NULL,forest[i].summary,print_string,"rsdaxCt");
+                    if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
+                    forest[forest_idx].test_average_score = score;
+                    if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
+                }
+
+                if(score >= get_forest_score(forest_idx))
+                {
+                    print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCt");
                 }
             }
         }
     }
 
+    if(average_format != NULL)
+    {
+        for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+        {
+            if(!forest[forest_idx].filter && forest[forest_idx].analyzed_rows > 0)
+            {
+                forest[forest_idx].test_average_score /= forest[forest_idx].analyzed_rows;
+                print_(outs,forest[forest_idx].average_score,forest[forest_idx].analyzed_rows,forest_idx,0,NULL,NULL,average_format,"sraxCthS");
+            }
+        }
+    }
+    
     if(dimension != NULL) free(dimension);
 }
 

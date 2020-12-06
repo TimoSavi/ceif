@@ -61,7 +61,6 @@ char category_separator = ';';       // separator for category values
 char label_separator = '-';       // separator for category values
 int header = 0;                         // input data has a header row to skip
 double outlier_score = 0.75;            // outlier score
-int auto_outlier_score = 0;            // outlier score detected automatically based on sample value having max. score
 double auto_score_factor = 5.0;   // How much to expand sample set when determining the auto score, larger value yields larger auto score
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
@@ -69,6 +68,7 @@ char *printf_format = "";       // User given printf format for dimension and av
 char list_separator = ',';         // seprator for dimension and average values in output
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
+double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -83,7 +83,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:v:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -126,7 +126,8 @@ static struct option long_opts[] =
   {"remove-outlier", 0, 0, 'k'},
   {"rc-file", 1, 0, 'g'},
   {"correlation-coe", 0, 0, 'P'},
-  {"auto-score-factor", 1, 0, 'x'},
+  {"score-factor", 1, 0, 'x'},
+  {"average", 1, 0, 'v'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -152,8 +153,10 @@ Options:\n\
   -p, --print STRING          outlier printing format\n\
   -o, --output FILE           outlier data is printed to FILE. Default is stdout\n\
   -w, --write-forest FILE     write forest data to FILE\n\
-  -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0-1.0)\n\
-  -O, --outlier-score auto    outlier score is determined using sample value having largest score\n\
+  -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0.0 - 1.0)\n\
+  -O, --outlier-score max     outlier score is determined using sample value having the highest score\n\
+  -O, --outlier-score average outlier score is determined using sample average score\n\
+  -x, --score-factor FLOAT    set max and average outlier score factor to FLOAT\n\
   -r, --read-forest FILE      read forest data from FILE\n\
   -C, --category-dim LIST     comma separated list of dimensions to form a category string\n\
   -L, --label-dim LIST        comma separated list of dimensions to form a label string\n\
@@ -179,6 +182,7 @@ Options:\n\
   -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
   -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
   -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
+  -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -284,12 +288,14 @@ main (int argc, char **argv)
     int print_density = 0;
     int print_sample_s = 0;
     int print_correlation = 0;
+    int print_average = 0;
     int kill_outlier = 0;
     int common_scale = 0;
     int test_range_interval = 256;
     int print_missing = 0;
     time_t delete_interval = (time_t) 0;
     char *missing_format = "%C";
+    char *average_format = NULL;
     char *not_found_format = NULL;
     double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
     char *learn_file = NULL;
@@ -304,6 +310,7 @@ main (int argc, char **argv)
     FILE *saves = NULL;             // file to save forest for reuse
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
+    char *endp;
 
     init_forest_hash();
     read_config_file(CEIF_CONFIG);          // config file parameters are read before options
@@ -355,14 +362,17 @@ main (int argc, char **argv)
                     save_file = xstrdup(optarg);
                     break;
                 case 'O':
-                    if(strcmp(optarg,"auto") == 0) 
+                    if(strcmp(optarg,"auto") == 0 || strcmp(optarg,"max") == 0) 
                     {
-                        auto_outlier_score = 1;
+                        outlier_score = AUTO_SCORE;
+                    } else if(strcmp(optarg,"average") == 0)
+                    {
+                        outlier_score = AVERAGE_SCORE;
                     } else
                     {
-                        auto_outlier_score = 0;
-                        outlier_score = atof(optarg);
-                        if(outlier_score < 0.0 || outlier_score > 1.0) panic("Give outlier score between 0 and 1",NULL,NULL);
+                        outlier_score = strtod(optarg,&endp);
+                        
+                        if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') panic("Give outlier score between 0 and 1 or \"max\" or \"average\"",NULL,NULL);
                     }
                     break;
                 case 'r':
@@ -471,7 +481,17 @@ main (int argc, char **argv)
                     print_correlation = 1;
                     break;
                 case 'x':
-                    auto_score_factor = atof(optarg);
+                    auto_score_factor = average_score_factor = atof(optarg);
+                    break;
+                case 'v':
+                    print_average = 1;
+                    if(optarg != NULL)
+                    {
+                        average_format = xstrdup(optarg);
+                    } else
+                    {
+                        average_format = "%C %r %h";
+                    }
                     break;
                 default:
                     usage(opt);
@@ -490,7 +510,8 @@ main (int argc, char **argv)
 
     if(print_string == NULL) print_string = "%s %v";
         
-    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || kill_outlier || print_correlation) make_tree = 1;  // we need tree info
+    if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || 
+       kill_outlier || print_correlation || print_average) make_tree = 1;  // we need tree info
 
     if(output_file != NULL)
     {
@@ -528,8 +549,7 @@ main (int argc, char **argv)
     if(analyze_file !=  NULL)
     {
         analyzes = xfopen(analyze_file,"r",'a');
-        if(auto_outlier_score) init_auto_scores();
-        analyze(analyzes,outs,not_found_format);
+        analyze(analyzes,outs,not_found_format,average_format);
         fclose(analyzes);
         if(print_missing) print_missing_categories(outs,missing_format);
     }
@@ -550,7 +570,6 @@ main (int argc, char **argv)
 
     if(make_query)
     {
-        if(auto_outlier_score) init_auto_scores();
         print_forest_info(outs);
         fclose(outs);
         exit(0);
@@ -581,7 +600,6 @@ main (int argc, char **argv)
 
     if(run_test)
     {
-        if(auto_outlier_score) init_auto_scores();
         test2(outs,test_extension_factor,test_range_interval);
     }
 

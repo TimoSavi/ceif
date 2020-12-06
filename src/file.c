@@ -243,6 +243,9 @@ void read_config_file(char *config_file)
         if((value = parse_config_line(input_line,"AUTO_SCORE_FACTOR")) != NULL)
         {
             auto_score_factor = atof(value);
+        } else if((value = parse_config_line(input_line,"MAX_SCORE_FACTOR")) != NULL)
+        {
+            auto_score_factor = atof(value);
         } else if((value = parse_config_line(input_line,"SAMPLES")) != NULL)
         {
             samples_max = atoi(value);
@@ -254,7 +257,10 @@ void read_config_file(char *config_file)
             decimals = atoi(value);
         } else if((value = parse_config_line(input_line,"AUTO_SCORE")) != NULL)
         {
-            auto_outlier_score = atoi(value);
+            if(atoi(value)) outlier_score = AUTO_SCORE;
+        } else if((value = parse_config_line(input_line,"MAX_SCORE")) != NULL)
+        {
+            if(atoi(value)) outlier_score = AUTO_SCORE;
         } else if((value = parse_config_line(input_line,"AUTO_WEIGTH")) != NULL)
         {
             auto_weigth = atoi(value);
@@ -266,7 +272,13 @@ void read_config_file(char *config_file)
         {
             label_separator = value[0];
             if(label_separator == '"' && value[1]) label_separator = value[1];
-        } else
+        } else if((value = parse_config_line(input_line,"AVERAGE_SCORE_FACTOR")) != NULL)
+        {
+            average_score_factor = atof(value);
+        } else if((value = parse_config_line(input_line,"AVERAGE_SCORE")) != NULL)
+        {
+            if(atoi(value)) outlier_score = AVERAGE_SCORE;
+        } else 
         {
             panic("Unknown option in config file",input_line,NULL);
         }
@@ -298,9 +310,18 @@ print_forest_info(FILE *outs)
     _2P("Number of samples/tree: %d\n",samples_max);
     _2P("Number of trees: %d\n",tree_count);
     _2P("Number of decimals: %d\n",decimals);
-    _2P("Auto outlier score is %s\n",_O(auto_outlier_score));
-    if(auto_outlier_score) _2P("Auto outlier score factor is %f\n",auto_score_factor);
-    _2P("Outlier score: %f\n",outlier_score);
+
+    if(outlier_score == AUTO_SCORE)
+    {
+        _2P("Outlier score is based on maximum sample score. Samples are adjusted by: dimension density * %f\n",auto_score_factor);
+    } else if(outlier_score == AVERAGE_SCORE)
+    {
+        _2P("Outlier score is sample score average increased using stddev * average score factor: %s += stddev * %f\n","average",average_score_factor);
+    } else
+    {
+        _2P("Outlier score: %f\n",outlier_score);
+    }
+
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
     _2P("Header is %s\n",_O(header));
@@ -316,21 +337,31 @@ print_forest_info(FILE *outs)
     _D("Category dimensions: ",category_idx_count,category_idx);
     _D("Label dimensions: ",label_idx_count,label_idx);
     _D("Dimensions treated as text: ",text_idx_count,text_idx);
+    _P("\n");
+    _2P("Density is sample max - min range divided by sample count");
+    _P("\n");
 
 
     if(forest_count) _P("\nForest data:\n");
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
     {
         f = &forest[forest_idx];
+
+        calculate_forest_score(forest_idx);
+
         _2P("\nForest category string: %s\n",f->category);
         _3P("Filter is %s\n",_O(f->filter));
         _3P("Number of samples: %d\n",f->X_count);
         _3P("Average path length (c): %f\n",f->c);
         _3P("Max. tree heigth: %d\n",f->heigth_limit);
-        if(auto_outlier_score)
+
+        if(outlier_score == AUTO_SCORE)
         {
-            _3P("Auto outlier score: %f\n",f->auto_score);
-        }
+            _3P("Maximum sample based outlier score: %f\n",f->auto_score);
+        } else if(outlier_score == AVERAGE_SCORE)
+        {
+            _3P("Adjusted average based outlier score: %f\n",f->average_score);
+        } 
 
         tmp = localtime(&f->last_updated);
         if(tmp != NULL)
@@ -356,7 +387,11 @@ print_forest_info(FILE *outs)
         _P("\n");
         
         _3P("%15s","Average value");
-        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->avg[i] / (f->filter ? f->X_count : 1));
+        for(i = 0;i < dimensions;i++) _P("%25f",f->avg[i]);
+        _P("\n");
+        
+        _3P("%15s","Density");
+        for(i = 0;i < dimensions;i++) _P("%25f",f->dim_density[i]);
         _P("\n");
     }
 }
@@ -544,7 +579,7 @@ print_sample_scores(FILE *outs)
        f = &forest[forest_idx];
 
        if(f->filter) continue;
-
+        
        _P("\nForest category string: %s\n",f->category);
        _2P("%10s%25s\n","Score","Dimension values");
        _2P("%10s","");

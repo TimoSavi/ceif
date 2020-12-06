@@ -27,7 +27,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%s;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
 static char *W_sample = "S;%s\n";
 
@@ -47,21 +47,12 @@ void write_global_data(FILE *w,int f_count)
 {
     char *filter_str;
     char *weigth_str;
-    char score_str[20];
 
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
     weigth_str = auto_weigth ? "auto" : "";
 
-    if(auto_outlier_score)
-    {
-        strcpy(score_str,"auto");
-    } else
-    {
-        sprintf(score_str,"%f",outlier_score);
-    }
-
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,score_str,auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
+                input_separator,header,outlier_score,auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
                 decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "",\
                 weigth_str) < 0)
     {
@@ -158,13 +149,7 @@ int parse_G(char *l)
         input_separator = v[7][0];
         header = atoi(v[8]);
 
-        if(strcmp(v[9],"auto") == 0)
-        {
-            auto_outlier_score = 1;
-        } else
-        {
-            outlier_score = atof(v[9]);
-        }
+        outlier_score = atof(v[9]);
 
         auto_score_factor = atof(v[10]);
         ignore_dims = xstrdup(v[11]);
@@ -223,6 +208,12 @@ int parse_F(int forest_idx,char *l)
 
         f->X_cap = atoi(v[4]) + 1;
         f->X = xmalloc(f->X_cap * sizeof(struct sample));
+
+        f->analyzed_rows = 0;
+        f->high_analyzed_rows = 0;
+        f->auto_score = 0.0;
+        f->average_score = 0.0;
+        f->test_average_score = 0.0;
 
         add_forest_hash(forest_idx,f->category);
 

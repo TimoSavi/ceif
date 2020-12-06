@@ -179,6 +179,11 @@ int select_forest(int value_count,char **values)
    forest[forest_count].last_updated = now;
    forest[forest_count].avg = xmalloc(dimensions * sizeof(double));
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
+   forest[forest_count].analyzed_rows = 0;
+   forest[forest_count].high_analyzed_rows = 0;
+   forest[forest_count].auto_score = 0.0;
+   forest[forest_count].average_score = 0.0;
+   forest[forest_count].test_average_score = 0.0;
 
    add_forest_hash(forest_count,category_string);
 
@@ -576,7 +581,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     v_copy(p,X[samples[random_sample]].dimension);
 
     for(i = 0;i < dimensions;i++) {
-        p[i] += n_vector[i] * heigth_ratio *  ((max[i] - min[i] > 0.0 ? max[i] - min[i] : 1.0) / 2.0);   // move sample by adjustment
+        p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
     }
 
     return p;
@@ -657,7 +662,7 @@ double _c(int n)
 {
     if (n < 2) return 0.0;   
     if (n == 2) return 1.0;
-    return 2.0 * (log(n - 1) + 0.5772156649) - (2 * (double) (n - 1) / (double) n);
+    return 2.0 * (log(n - 1) + 0.5772156649) - (2.0 * (double) (n - 1) / (double) n);
 }
 
 /* get the average tree height for given sample size n
@@ -722,7 +727,9 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
 
     this->left = -1;
     this->rigth = -1;
+
     p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->max,f->min);
+
     this->pdotn = wdot(p,this->n,f->scale_range_idx,f->min,f->max);
 
     for(i = 0;i < sample_count;i++)
@@ -801,16 +808,13 @@ void train_one_forest(int forest_idx)
     struct forest *f = &forest[forest_idx];
     static int *s = NULL; 
     int sample_count,total_samples = 0;
+    
+    if(s == NULL) s = xmalloc(samples_max * sizeof(int));
 
     if(!tree_count) f->filter = 1;
 
     if(f->X_count < SAMPLES_MIN) f->filter = 1;  /*  check the resonable amount of samples */
 
-    if(f->filter) return;
-    
-    if(s == NULL) s = xmalloc(samples_max * sizeof(int));
-
-    if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
 
     for(i = 0;i < dimensions;i++) 
@@ -820,6 +824,10 @@ void train_one_forest(int forest_idx)
 
         f->avg[i] /= (double) f->X_count;              // turn to average
     }
+
+    if(f->filter) return;
+    
+    if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
 
     if(auto_weigth) f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
 
@@ -836,7 +844,7 @@ void train_one_forest(int forest_idx)
          populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)) + 1);
     }
 
-    f->heigth_limit = ceil(log2(total_samples / tree_count)) + 1;
+    f->heigth_limit = ceil(log2(total_samples / tree_count)) + 2;
     f->c = c(total_samples / tree_count);    
 }
 
@@ -965,7 +973,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
     int i;
     int forest_idx;
     int samples = 0;
-    double score;
+    double score, forest_score;
     double *test_dimension;
     double *prev_dimension;
     static double len[DIM_MAX];             // precalculated max - min value
@@ -980,6 +988,9 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
         if(!forest[forest_idx].filter)
         {
             f = &forest[forest_idx];
+
+            calculate_forest_score(forest_idx);
+            forest_score = get_forest_score(forest_idx);
 
             for(i = 0;i < dimensions;i++) 
             {
@@ -1000,7 +1011,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score >= (auto_outlier_score ? f->auto_score : outlier_score)) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+                    if(score >= forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
 
                     v_copy(prev_dimension, test_dimension);
                 }
