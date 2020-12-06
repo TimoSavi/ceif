@@ -63,7 +63,7 @@ And command used in outlier case:
 Average method was run with option -x 4, because default value leaves too much samples in outlier area.
 
 |Outlier score value (-O)|No outliers|Outliers|
-|---|---|---|---|
+|---|---|---|
 |max|![](pics/square_no_max.png)|![](pics/square_o_max.png)|
 |average|![](pics/square_no_avg.png)|![](pics/square_o_avg.png)|
 
@@ -226,14 +226,14 @@ Average based anomaly score is calculated by finding the training set average sc
 Where stddev is training set score standard deviation.
 
 ### Print analysed data average info
-Option -v can be used to print average calculated from analysed data (given by option -a). If option -v is used then ceif calulates the total number of anlysed lines and
+Option -v can be used to print average calculated from analysed data (given by option -a). If option -v is used then ceif calculates the total number of anlysed lines and
 the number of lines which had larger score that adjusted average training data score. Option -v requires a printing mask, which can have following directives:
 
 | Directive | Meaning |
 |----|----|
-| %r | Current input file row number|
+| %r | Number of analysed rows|
 | %s | Adjusted average anomaly score|
-| %S | Average anomaly score for analysed data, this is not adjusted |
+| %S | Average anomaly score for analysed data, this is not adjusted|
 | %h | Number of analysed rows having larger outlier score than average score|
 
 Example using square data and few lines from circle.csv as anomaly data:
