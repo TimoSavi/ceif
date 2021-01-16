@@ -41,6 +41,9 @@
 /* cache size for c values (the average depth in an unsuccessful search in a Binary Search Tree) */
 #define FAST_C_SAMPLES 2048
 
+/* Power of 2 */
+#define POW2(a) ((a)*(a))
+
 /* Data structures */
 /* All forest related structures will be managed by dynamic tables
  */
@@ -89,6 +92,8 @@ struct forest
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     double auto_score;      // automatic socre calculated based on sample value having max score value
     double average_score;   // average score of all saved samples
+    double min_score;       // Minimum score of all saved samples
+    double max_score;       // Maximum score of all saved samples
     double test_average_score; // average score of tested data, can be compared with average_score
     int analyzed_rows;      // Number of rows used in analysis
     int high_analyzed_rows; // Number of rows having score higher than avaerage score
@@ -125,6 +130,7 @@ extern int auto_weigth;
 
 extern int tree_count;                // trees / forest
 extern int samples_max;              // max samples / tree
+extern int max_total_samples;
 extern int samples_total;              // max samples / forest
 extern char *print_string;
 extern char input_separator;
@@ -139,6 +145,7 @@ extern char list_separator;
 extern int n_vector_adjust;
 extern int aggregate;
 extern double average_score_factor;
+extern int scale_score;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -158,7 +165,10 @@ extern struct forest_hash fhash[];
 
 /* ceif.c prototypes */
 void panic(char *,char *,char *);
+void info(char *,char *,char *);
 int parse_dims(char *,int *);
+void parse_user_score(char *);
+
 
 
 /* xmalloc.c prototypes */
@@ -178,9 +188,6 @@ void print_sample_scores(FILE *);
 void print_correlation_coefficent(FILE *);
 void read_config_file(char *);
 
-
-
-
 /* learn.c prototypes */
 void train_forest(FILE *,int,int);
 double parse_dim_attribute(char *);
@@ -197,9 +204,7 @@ void test2(FILE *,double,int);
 void init_fast_n_cache();
 void init_fast_c_cache();
 double *v_expand(double *,double *,double *,int);
-
-
-
+double scale_double(double,double,double,double,double);
 
 
 /* analyze.c prototypes */
@@ -217,9 +222,7 @@ void remove_outlier();
 void calculate_average_sample_score(int);
 void calculate_forest_score(int);
 double get_forest_score(int);
-
-
-
+void remove_samples(char *);
 
 /* save.c prototypes */
 void write_forest_file(FILE *,time_t);

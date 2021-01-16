@@ -55,6 +55,7 @@ int auto_weigth = 0;           // Should weigths be calculated automatically
 char *print_string = NULL;     // How to print outlier data
 int tree_count = 100;             // trees / forest
 int samples_max = 256;            // max samples / tree
+int max_total_samples = 0;        // limit for samples_total, if zero use samples_max * trees
 int samples_total;                // max samples / forest
 char input_separator = ',';       // input separator for csv data
 char category_separator = ';';       // separator for category values
@@ -69,6 +70,7 @@ char list_separator = ',';         // seprator for dimension and average values 
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
 double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
+int scale_score = 0;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -83,7 +85,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:v:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:v:R:z:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -128,6 +130,8 @@ static struct option long_opts[] =
   {"correlation-coe", 0, 0, 'P'},
   {"score-factor", 1, 0, 'x'},
   {"average", 1, 0, 'v'},
+  {"reset-forest", 1, 0, 'R'},
+  {"inplace-forest", 1, 0, 'z'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -158,6 +162,7 @@ Options:\n\
   -O, --outlier-score average outlier score is determined using sample average score\n\
   -x, --score-factor FLOAT    set max and average outlier score factor to FLOAT\n\
   -r, --read-forest FILE      read forest data from FILE\n\
+  -z, --inplace-forest FILE   read forest data from FILE and after any processing write forest back to FILE\n\
   -C, --category-dim LIST     comma separated list of dimensions to form a category string\n\
   -L, --label-dim LIST        comma separated list of dimensions to form a label string\n\
   -H, --header                input data file has a header\n\
@@ -183,6 +188,7 @@ Options:\n\
   -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
   -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
   -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
+  -R, --reset-forest STRING   Remove all samples for a forest read using option -r and having forest string STRING\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -229,7 +235,8 @@ void usage(int opt)
         help(1);
 }
 
-void panic(char *msg,char *info,char *syserror)
+static 
+void message(char *msg,char *info,char *syserror)
 {
     if(msg != NULL)
     {
@@ -247,9 +254,18 @@ void panic(char *msg,char *info,char *syserror)
             fprintf(stderr,"%s: %s; %s\n",PACKAGE_NAME,msg,syserror);
         }
     }
+}
+
+void panic(char *msg,char *info,char *syserror)
+{
+    message(msg,info,syserror);
     exit(1);
 }
 
+void info(char *msg,char *info,char *syserror)
+{
+    message(msg,info,syserror);
+}
 
 
 void
@@ -274,6 +290,35 @@ void init_forest_hash()
         fhash[i].idx_count = 0;
         fhash[i].idx_cap = 0;
         fhash[i].idx = NULL;
+    }
+}
+
+/* parse outlier score
+ */
+void parse_user_score(char *score_str)
+{
+    char *endp;
+
+    scale_score = 0;
+
+    if(strcmp(score_str,"auto") == 0 || strcmp(score_str,"max") == 0) 
+    {
+        outlier_score = AUTO_SCORE;
+    } else if(strcmp(score_str,"average") == 0)
+    {
+        outlier_score = AVERAGE_SCORE;
+    } else
+    {
+        outlier_score = strtod(score_str,&endp);
+
+        if(*endp == 's' && endp[1] == '\000') 
+        {
+            scale_score = 1;
+            *endp = '\000';
+        }
+
+        if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
+            panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required) or \"max\" or \"average\"",NULL,NULL);
     }
 }
 
@@ -310,7 +355,8 @@ main (int argc, char **argv)
     FILE *saves = NULL;             // file to save forest for reuse
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
-    char *endp;
+
+    setlocale(LC_ALL,"C");
 
     init_forest_hash();
     read_config_file(CEIF_CONFIG);          // config file parameters are read before options
@@ -358,33 +404,33 @@ main (int argc, char **argv)
                     if(print_string != NULL) free(print_string);
                     print_string = xstrdup(optarg);
                     break;
+                case 'O':
+                    parse_user_score(optarg);
+                    break;
                 case 'w':
                     save_file = xstrdup(optarg);
                     break;
-                case 'O':
-                    if(strcmp(optarg,"auto") == 0 || strcmp(optarg,"max") == 0) 
-                    {
-                        outlier_score = AUTO_SCORE;
-                    } else if(strcmp(optarg,"average") == 0)
-                    {
-                        outlier_score = AVERAGE_SCORE;
-                    } else
-                    {
-                        outlier_score = strtod(optarg,&endp);
-                        
-                        if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') panic("Give outlier score between 0 and 1 or \"max\" or \"average\"",NULL,NULL);
-                    }
-                    break;
+                case 'z':   /* no break here */
+                    if(save_file == NULL) save_file = xstrdup(optarg);
                 case 'r':
                     load_file = xstrdup(optarg);
                     /* load now, parameters after this take higher presence */
-                    if(load_file !=  NULL && forest_count == 0)
+                    if(forest_count == 0)
                     {
-                        setlocale(LC_ALL,"C");
-                        loads = xfopen(load_file,"r",'a');
-                        if(!read_forest_file(loads)) panic("Cannot load forest data",load_file,NULL);
-                        fclose(loads);
-                    }
+                        if (opt == 'z')
+                        {
+                            loads = xfopen_test(load_file,"r",'a');
+                        } else
+                        {
+                            loads = xfopen(load_file,"r",'a');
+                        }
+
+                        if(loads != NULL)
+                        {
+                            if(!read_forest_file(loads)) panic("Cannot load forest data from file",load_file,NULL);
+                            fclose(loads);
+                        }
+                    } 
                     break;
                 case 'C':
                     category_dims = xstrdup(optarg);
@@ -399,7 +445,6 @@ main (int argc, char **argv)
                     break;
                 case 'S':
                     set_locale = 1;
-                    setlocale(LC_ALL,"");
                     break;
                 case 'o':
                     output_file = xstrdup(optarg);
@@ -493,6 +538,9 @@ main (int argc, char **argv)
                         average_format = "%C %r %h";
                     }
                     break;
+                case 'R':
+                    remove_samples(optarg);
+                    break;
                 default:
                     usage(opt);
                     break;
@@ -504,9 +552,9 @@ main (int argc, char **argv)
     init_fast_n_cache();
     init_fast_c_cache();
 
-    set_locale ? setlocale(LC_ALL,"") : setlocale(LC_ALL,"C");
+    if(set_locale) setlocale(LC_ALL,"");
 
-    samples_total = tree_count * samples_max;
+    samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;   // total samples count is trees * samples/tree, this can be limited using config MAX_SAMPLES
 
     if(print_string == NULL) print_string = "%s %v";
         

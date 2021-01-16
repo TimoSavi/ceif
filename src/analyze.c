@@ -24,6 +24,7 @@
 #include "ceif.h"
 #include <math.h>
 #include <time.h>
+#include <float.h>
 
 #define INPUT_LEN_MAX 1048576
 
@@ -120,7 +121,7 @@ double calculate_path_length(struct forest *f,struct tree *t,double *dimension)
 /* calculates score for a data row in given forest
  * returns score
  */
-double calculate_score(int forest_idx,double *dimension)
+double _score(int forest_idx,double *dimension)
 {
     int i;
     struct forest *f = &forest[forest_idx];
@@ -137,6 +138,54 @@ double calculate_score(int forest_idx,double *dimension)
     path_length = path_length / tree_count;  // turn to average 
 
     return (1/pow(2,path_length/f->c));
+}
+
+
+/* Calculates max score for a forest
+ * This is done making a dimension with big value (which is probably "big" in almost every case)
+ * returns score
+ */
+double calculate_max_score(int forest_idx)
+{
+    static int i = 0;
+    static double max_dim[DIM_MAX];
+    double score;
+    int save_auto_weigth = auto_weigth;
+
+    auto_weigth = 0;  // no need for scaling
+
+    for(;i < dimensions;i++) max_dim[i] = DBL_MAX / 1e+40;
+
+    score = _score(forest_idx,max_dim);
+
+    auto_weigth = save_auto_weigth;
+
+    return score;
+}
+
+/* calculate scaled score. Forest min (from sample having lowest score) and max range (found using a dim with "big" values) 
+ * is used to scale score to range 0...1
+ */
+double calculate_score_scale(int forest_idx,double *dimension)
+{
+    double score;
+
+    score = scale_double(_score(forest_idx,dimension),1.0,0.0,forest[forest_idx].min_score,forest[forest_idx].max_score);
+
+    if(score < 0.0) score = 0.0;
+    if(score > 1.0) score = 1.0;
+
+    return score;
+}
+
+
+/* calculate score, scale if scale_score is set
+ */
+double calculate_score(int forest_idx,double *dimension)
+{
+    if(scale_score) return calculate_score_scale(forest_idx,dimension);
+
+    return _score(forest_idx,dimension);
 }
 
 /* make a RGB value using score.
@@ -380,7 +429,7 @@ void calculate_forest_auto_score(int forest_idx)
 
     for(i = 0;i < f->X_count;i++)
     {
-        score = calculate_score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
+        score = _score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
         if(score > f->auto_score) f->auto_score = score;
     }
 }
@@ -446,20 +495,26 @@ void calculate_average_sample_score(int forest_idx)
     if(f->filter) return;
      
     f->average_score = 0.0;
+    f->min_score = 1.0;
 
     scores = xmalloc(f->X_count * sizeof(double));
 
     for(i = 0;i < f->X_count;i++)
     {
-        scores[i] = calculate_score(forest_idx,f->X[i].dimension);
+        scores[i] = _score(forest_idx,f->X[i].dimension);
+
+        if(scores[i] < f->min_score) f->min_score = scores[i];
+
         f->average_score += scores[i];
     }
+
+    f->max_score = calculate_max_score(forest_idx);
 
     f->average_score /= (double) f->X_count;
 
     for(i = 0;i < f->X_count;i++)
     {
-        stddev += (f->average_score - scores[i]) * (f->average_score - scores[i]);
+        stddev += POW2(f->average_score - scores[i]);
     }
 
     stddev = sqrt(stddev / (double) f->X_count);
@@ -484,7 +539,7 @@ double get_forest_score(int forest_idx)
 inline 
 void calculate_forest_score(int forest_idx)
 {
-    if(forest[forest_idx].average_score == 0.0 && outlier_score == AVERAGE_SCORE) 
+    if(forest[forest_idx].average_score == 0.0 && (outlier_score == AVERAGE_SCORE || scale_score)) 
     {
         calculate_average_sample_score(forest_idx);
     } else if(forest[forest_idx].auto_score == 0.0 && outlier_score == AUTO_SCORE)
@@ -510,7 +565,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
     double score;
     
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
-
+        
     while(fgets(input_line,INPUT_LEN_MAX,in_stream) != NULL) 
     {
         lines++;
@@ -534,18 +589,16 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 
             if(forest_idx >= 0)
             {
+                calculate_forest_score(forest_idx);
+
                 if(aggregate)
                 {
                     aggregate_values(forest_idx,dimension);
                 } else
                 {
-                    calculate_forest_score(forest_idx);
-
                     forest[forest_idx].analyzed_rows++;
 
                     score = calculate_score(forest_idx,dimension);
-
-                    if(outlier_score == AVERAGE_SCORE && forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
 
                     if(average_format != NULL)
                     {
@@ -574,9 +627,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
             if(forest[forest_idx].summary != NULL && !forest[forest_idx].filter)
             {
                 forest[forest_idx].analyzed_rows = 1;
-
-                calculate_forest_score(forest_idx);
-
+                        
                 score = calculate_score(forest_idx,forest[forest_idx].summary);
                     
                 if(average_format != NULL)
@@ -628,6 +679,14 @@ categorize(FILE *in_stream, FILE *outs)
 
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
 
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)  /* Get forest sample score min ... max range */
+    {
+        if(!forest[forest_idx].filter)
+        {
+            if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
+        }
+    }
+
     while(fgets(input_line,INPUT_LEN_MAX,in_stream) != NULL) 
     {
         lines++;
@@ -659,8 +718,9 @@ categorize(FILE *in_stream, FILE *outs)
                 {
                     if(!forest[forest_idx].filter)
                     {
-                            score = calculate_score(forest_idx,dimension);
-                            if(best_forest_idx == -1 || score < min_score)
+                            score = calculate_score_scale(forest_idx,dimension);
+
+                            if(best_forest_idx == -1 || score <= min_score)
                             {
                                 min_score = score;
                                 best_forest_idx = forest_idx;
@@ -684,7 +744,7 @@ categorize(FILE *in_stream, FILE *outs)
                 {
                     if(!forest[j].filter)
                     {
-                        score = calculate_score(j,forest[i].summary);
+                        score = calculate_score_scale(j,forest[i].summary);
                         if(best_forest_idx == -1 || score < min_score)
                         {
                             min_score = score;
@@ -701,7 +761,7 @@ categorize(FILE *in_stream, FILE *outs)
 }
 
 
-/* print category label of thos forests which are not
+/* print category label of those forests which are not
  * filtered and which ar enot used in analysis
  *
  * This can be used to indicate which probably expected data is missing from analyzed file
@@ -715,3 +775,21 @@ void print_missing_categories(FILE *outs,char *format)
         if(!forest[i].filter && !forest[i].analyzed) print_(outs,0.0,0,i,0,NULL,NULL,format,"Cat");
     }
 }
+
+/* Reset sample count for a forest given by parameter
+ */
+void remove_samples(char *forest_string)
+{
+    int forest_idx;
+
+    forest_idx = search_forest_hash(forest_string);
+
+    if(forest_idx >= 0) 
+    {
+        forest[forest_idx].X_count = 0;
+    } else
+    {
+        info("No forest having string",forest_string,NULL);
+    }
+}
+

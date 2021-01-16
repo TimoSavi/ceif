@@ -22,12 +22,14 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -c&nbsp;FILE | File to categorize|
 | -p&nbsp;STRING | Printf style format to print anomaly data or categorized data. See printing directives below|
 | -o&nbsp;FILE | Print output to FILE. Default is to use stdout|
+| -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
+| -z&nbsp;FILE | Read and write forest data from/to file. Forest data is read from file FILE and after any prcessing written back to FILE|
 | -O&nbsp;max | Outlier score for anomaly detection. If argument "max" is given then the outlier score is determined by the score from sample having maximum score. This process can be adjusted by option -x or rc-file variable MAX\_SCORE\_FACTOR, see section user rc-file for more details |
 | -O&nbsp;average | Outlier score for anomaly detection. If argument "average" is given then the outlier score is determined sample score average and stadars deviation. This process can be adjusted by option -x or rc-file variable AVERAGE\_SCORE\_FACTOR, see section user rc-file for more details |
 | -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
+| -O&nbsp;FLOATs| Outlier score for anomaly detection. If suffix 's' is given the actual anaylyzed score is scaled to range 0-1 using forest min/max scores. This ensures that best inlier has value zero and the farthest outlier will get value 1.0.  Use values 0.0s - 1.0s|
 | -x&nbsp;FLOAT| Adjustment factor for automatic outlier score|
-| -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
 | -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given. If REGEXP is preceded by "-v " then matching is inverted|
@@ -50,6 +52,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -k | Remove the sample having maximun sample score for each non filtered forest. If option is given several times, then several samples are removed. This can be used to remove outliers from samples. Modified sample set can be saved with option -w|
 | -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
 | -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
+| -R&nbsp;STRING | Remove all samples for a forest having STRING as forest string.|
 
 
 If FILE is "-" then standard input or output is read or written.
@@ -94,6 +97,7 @@ Following variables are supported:
 |AUTO\_WEIGTH|Scale sample values before analysing the forest, 1 = yes, 0 = no|0|
 |CATEGORY\_SEPARATOR|Char to be used as a separator when concatenating category fields|;|
 |LABEL\_SEPARATOR|Char to be used as a separator when concatenating label fields|-|
+|OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
 
 Example of rc-file:
 

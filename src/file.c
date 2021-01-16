@@ -278,9 +278,15 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"AVERAGE_SCORE")) != NULL)
         {
             if(atoi(value)) outlier_score = AVERAGE_SCORE;
-        } else 
+        } else  if((value = parse_config_line(input_line,"MAX_SAMPLES")) != NULL)
         {
-            panic("Unknown option in config file",input_line,NULL);
+             max_total_samples = atoi(value);
+        } else if((value = parse_config_line(input_line,"OUTLIER_SCORE")) != NULL)
+        {
+             parse_user_score(value);
+        } else
+        {
+             panic("Unknown option in config file",input_line,NULL);
         }
     }
 }
@@ -319,7 +325,15 @@ print_forest_info(FILE *outs)
         _2P("Outlier score is sample score average increased using stddev * average score factor: %s += stddev * %f\n","average",average_score_factor);
     } else
     {
-        _2P("Outlier score: %f\n",outlier_score);
+        _2P("Outlier score: %f",outlier_score);
+
+        if(scale_score)
+        {
+            _P(", scores are scaled to 0..1 using forest sample minimum and maximum score\n");
+        } else
+        {
+            _2P("\n");
+        }
     }
 
     _2P("Input separator: %c\n",input_separator);
@@ -352,16 +366,23 @@ print_forest_info(FILE *outs)
         _2P("\nForest category string: %s\n",f->category);
         _3P("Filter is %s\n",_O(f->filter));
         _3P("Number of samples: %d\n",f->X_count);
-        _3P("Average path length (c): %f\n",f->c);
-        _3P("Max. tree heigth: %d\n",f->heigth_limit);
 
-        if(outlier_score == AUTO_SCORE)
+        if(!f->filter)
         {
-            _3P("Maximum sample based outlier score: %f\n",f->auto_score);
-        } else if(outlier_score == AVERAGE_SCORE)
-        {
-            _3P("Adjusted average based outlier score: %f\n",f->average_score);
-        } 
+            _3P("Average path length (c): %f\n",f->c);
+            _3P("Max. tree heigth: %d\n",f->heigth_limit);
+
+            if(outlier_score == AUTO_SCORE)
+            {
+                _3P("Maximum sample based outlier score: %f\n",f->auto_score);
+            } else if(outlier_score == AVERAGE_SCORE)
+            {
+                _3P("Adjusted average based outlier score: %f\n",f->average_score);
+            } else if(scale_score)
+            {
+                _3P("Sample score range is between %f and %f, this used to scale data scores to 0..1 range\n",f->min_score,f->max_score);
+            }
+        }
 
         tmp = localtime(&f->last_updated);
         if(tmp != NULL)
@@ -370,6 +391,8 @@ print_forest_info(FILE *outs)
             strftime(outstr, sizeof(outstr), "%c", tmp);
             _3P("Last updated: %s\n",outstr);
         }
+
+        if(!f->X_count) continue;
 
         _P("\n");
         _3P("%15s%*s\n","Dimension sample value summary:",12*dimensions,"Dimension");
@@ -579,6 +602,8 @@ print_sample_scores(FILE *outs)
        f = &forest[forest_idx];
 
        if(f->filter) continue;
+
+       calculate_forest_score(forest_idx);
         
        _P("\nForest category string: %s\n",f->category);
        _2P("%10s%25s\n","Score","Dimension values");
@@ -607,7 +632,7 @@ void calc_stddev(struct forest *f, double *stddev)
 
     for(i = 0;i < f->X_count;i++)
     {
-        for(j = 0;j < dimensions;j++) stddev[j] += (f->X[i].dimension[j] - f->avg[j]) * (f->X[i].dimension[j] - f->avg[j]); 
+        for(j = 0;j < dimensions;j++) stddev[j] += POW2(f->X[i].dimension[j] - f->avg[j]); 
     }
 
     for(j = 0;j < dimensions;j++) stddev[j] = sqrt(stddev[j] / (double) (f->X_count - 1));

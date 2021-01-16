@@ -183,6 +183,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].high_analyzed_rows = 0;
    forest[forest_count].auto_score = 0.0;
    forest[forest_count].average_score = 0.0;
+   forest[forest_count].min_score = 1.0;
    forest[forest_count].test_average_score = 0.0;
 
    add_forest_hash(forest_count,category_string);
@@ -250,8 +251,8 @@ void parse_values(double *dim,char **values, int value_count, int saved)
 
     for(i = 0;i < dimensions;i++)
     {
-        // silently ignore missing input row dimension values
-        if(dim_idx[i] < value_count || saved)
+        // silently ignore missing input dimension values
+        if((saved ? i : dim_idx[i]) < value_count)
         {
             if(saved)
             {
@@ -268,7 +269,7 @@ void parse_values(double *dim,char **values, int value_count, int saved)
             }
         } else
         {
-            dim[i] = 0.0;   // use default value for missing dimension vlaue
+            dim[i] = 0.0;   // use default value for missing dimension values
         }
     }
 }
@@ -626,7 +627,7 @@ double dot(double *a, double *b)
 /* scale a double value. Scaling is done using scale_min and scale_max values
  * with values min...max range
  */
-static double
+double
 scale_double(double value, double range, double scale_min, double min, double max)
 {
     if(max == min) return value;
@@ -815,6 +816,8 @@ void train_one_forest(int forest_idx)
 
     if(f->X_count < SAMPLES_MIN) f->filter = 1;  /*  check the resonable amount of samples */
 
+    if(!f->X_count) return;
+
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
 
     for(i = 0;i < dimensions;i++) 
@@ -941,8 +944,6 @@ train_forest(FILE *in_stream,int new,int make_tree)
         }
     }
 
-    if(!forest_count || !forest[0].X_count) panic("Can't process data with given parameters",NULL,NULL);
-
     filter_forests();
 
     // train only once, if new data is only added (!make_tree) no training is run and only new samples are collected
@@ -982,6 +983,14 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
 
     test_dimension = xmalloc(dimensions * sizeof(double));
     prev_dimension = xmalloc(dimensions * sizeof(double));
+    
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
+    {
+        if(!forest[forest_idx].filter)
+        {
+            calculate_forest_score(forest_idx);
+        }
+    }
 
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
     {
@@ -989,7 +998,6 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
         {
             f = &forest[forest_idx];
 
-            calculate_forest_score(forest_idx);
             forest_score = get_forest_score(forest_idx);
 
             for(i = 0;i < dimensions;i++) 

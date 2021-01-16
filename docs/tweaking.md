@@ -32,7 +32,7 @@ Now you have the anomaly score map in file 'pic.png'. Commands explained:
 ### Results
 
 #### Extended isolation forest with revised algorithm
-Following table presents some score maps using anomaly scores 0, 0.5, max and average score. Max score is calculated using the sample value having larges anonaly score. Average score is the sample average score adjusted by standard deviation. Sample values are printed using black.
+Following table presents some score maps using anomaly scores 0, 0.5, 0.5s (with scaling), max and average score. Max score is calculated using the sample value having larges anonaly score. Average score is the sample average score adjusted by standard deviation. Sample values are printed using black.
 Outlier area is printed using color and non outlier are is white.
 
 
@@ -41,12 +41,22 @@ Outlier area is printed using color and non outlier are is white.
 |training data|![](pics/2blob.png)|![](pics/square.png)|![](pics/circle.png)|
 |0|![](pics/2blob_O0.png)|![](pics/square_O0.png)|![](pics/circle_O0.png)|
 |0.5|![](pics/2blob_O05.png)|![](pics/square_O05.png)|![](pics/circle_O05.png)|
+|0.5s|![](pics/2blob_O05s.png)|![](pics/square_O05s.png)|![](pics/circle_O05s.png)|
 |max|![](pics/2blob_Oauto.png)|![](pics/square_Oauto.png)|![](pics/circle_Oauto.png)|
 |average|![](pics/2blob_Oavg.png)|![](pics/square_Oavg.png)|![](pics/circle_Oavg.png)|
 
 Outlier score 0.5 is not the same for all cases. In some cases (2blobs and square) it leaves some training data points in outlier area and in circle case it is too large. 
 max outlier score leaves all training data points in inlier area. Average score with default adjusting factor (1) leaves training data sample points in outlier area.
 Larger value (e.g. 5) yields same results as max score.
+
+On the other hand the scaled score 0.5s can be used as a good outlier limit for all cases.
+
+#### Scaled outlier score
+If suffix 's' is given with outlier score then the analyzed scores are scaled to range 0..1. Typically score range for normal case is something between 0.3 and 0.85. 
+When scaling the minimum score (e.g. 0.33) is scaled to 0 and maximum socre (e.g. 0.83) is scaled to 1 and respectively values between them. Forest min/max scores are found by testing. 
+Minimum socre is the lowest sample score and maximum score is got analysing huge dimension values.
+
+This gives more consistet score values between different forests and outlier have at least value 0.5. Scaling is used always when categorizing (option -c).
 
 #### Difference between max and average automatic outlier score
 Notable difference between max and average automatic score methods is that the max consideres all training data samples to be inliers. This can be used when it it known that training data has not outliers. If training data has outliers but they should not have major effect to automatic outlier score then average method could be used. Following maps show the difference. 
@@ -67,7 +77,7 @@ Average method was run with option -x 4, because default value leaves too much s
 |max|![](pics/square_no_max.png)|![](pics/square_o_max.png)|
 |average|![](pics/square_no_avg.png)|![](pics/square_o_avg.png)|
 
-Outlier case with -Omax causes the most distant outlier define the outlier score. This causes the inlier are to be quite large. In -Oaverage case the outliers cause the original inlier are to 
+Outlier case with -Omax causes the most distant outlier define the outlier score. This causes the inlier area to be quite large. In -Oaverage case the outliers cause the original inlier are to 
 be slightly enlarged.
 
 #### Tricky data maps

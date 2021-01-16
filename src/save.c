@@ -27,7 +27,7 @@
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f%s;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
 static char *W_sample = "S;%s\n";
 
@@ -52,7 +52,7 @@ void write_global_data(FILE *w,int f_count)
     weigth_str = auto_weigth ? "auto" : "";
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
+                input_separator,header,outlier_score,scale_score ? "s" : "",outlier_score == AVERAGE_SCORE ? average_score_factor : auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
                 decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "",\
                 weigth_str) < 0)
     {
@@ -151,7 +151,15 @@ int parse_G(char *l)
 
         outlier_score = atof(v[9]);
 
-        auto_score_factor = atof(v[10]);
+        if(v[9][strlen(v[9]) - 1] == 's')
+        {
+            scale_score = 1;
+        } else
+        {
+            scale_score = 0;
+        }
+
+        auto_score_factor = average_score_factor = atof(v[10]);
         ignore_dims = xstrdup(v[11]);
         ignore_idx_count = parse_dims(v[11],ignore_idx);
         include_dims = xstrdup(v[12]);
@@ -182,8 +190,15 @@ int parse_F(int forest_idx,char *l)
 {
     int value_count;
     char *v[100];
+    struct forest *f;
 
-    struct forest *f = &forest[forest_idx];
+    if(forest_idx >= forest_cap) {
+        if(forest_cap == 0) forest_cap = 128;
+        forest_cap *= 2;
+        forest = xrealloc(forest,forest_cap * sizeof(struct forest));
+    }
+
+    f = &forest[forest_idx];
 
     value_count = parse_csv_line(v,100,l,';');
 
@@ -213,6 +228,7 @@ int parse_F(int forest_idx,char *l)
         f->high_analyzed_rows = 0;
         f->auto_score = 0.0;
         f->average_score = 0.0;
+        f->min_score = 1.0;
         f->test_average_score = 0.0;
 
         add_forest_hash(forest_idx,f->category);
@@ -224,6 +240,17 @@ int parse_F(int forest_idx,char *l)
     return 0;
 }
 
+/* print forest file line number in case of error
+ * */
+static
+void forest_error(int linenumber)
+{
+    char sln[50];
+
+    sprintf(sln,"Error in forest file line number %d",linenumber);
+    info(sln,NULL,NULL);
+}
+
 
 /*
  * read saved forest structure to  memory
@@ -233,6 +260,7 @@ int
 read_forest_file(FILE *data_file)
 {
     int f_count,line,value_count;
+    int ln = 0;
     char *values[DIM_MAX];
     
 
@@ -240,24 +268,31 @@ read_forest_file(FILE *data_file)
     {
         if(fgets(input_line,INPUT_LEN_MAX,data_file) != NULL)
         {
+            ln++;
             if(input_line[0] == 'G')
             {
-                if(!parse_G(input_line)) return 0;
+                if(!parse_G(input_line))
+                {
+                    forest_error(ln);
+                    return 0;
+                }
             }
         } else
         {
+            forest_error(ln);
             return 0;
         }
     } while(input_line[0] != 'G');
 
-    if(!tree_count) return 0;
-
-    if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL || !forest_count) {
+    if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) {
         forest_count = 0;
         return 1;
     }
 
-    forest_cap = forest_count;
+    ln++;
+
+    forest_cap = forest_count + 1;
+    forest_count = 0;             /* get actual number from F lines */
 
     forest = xmalloc(forest_cap * sizeof(struct forest));
 
@@ -267,8 +302,14 @@ read_forest_file(FILE *data_file)
     {
         if(input_line[0] == 'F')
         {
-            if(!parse_F(f_count,input_line)) return 0;
+            if(!parse_F(f_count,input_line))
+            {
+                forest_error(ln);
+                return 0;
+            }
+
             line = 0;
+
             do
             {
                 if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) 
@@ -277,7 +318,9 @@ read_forest_file(FILE *data_file)
                     return 1;
                 }
 
-                if(input_line[0] == 'S')
+                ln++;
+
+                if(input_line[0] == 'S' && strlen(input_line) > 2)
                 {
                     line++;
                     value_count = parse_csv_line(values,dimensions,&input_line[2],'|');
@@ -287,9 +330,10 @@ read_forest_file(FILE *data_file)
             f_count++;
         } else
         {
+            forest_error(ln);
             return 0;
         }
-    } while(f_count < forest_count);
+    } while(1);
 
     return 1;
 }
