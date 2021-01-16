@@ -24,11 +24,11 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -o&nbsp;FILE | Print output to FILE. Default is to use stdout|
 | -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
 | -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
-| -z&nbsp;FILE | Read and write forest data from/to file. Forest data is read from file FILE and after any prcessing written back to FILE|
+| -z&nbsp;FILE | Read and write forest data from/to file. Forest data is read from file FILE and after any processing written back to FILE|
 | -O&nbsp;max | Outlier score for anomaly detection. If argument "max" is given then the outlier score is determined by the score from sample having maximum score. This process can be adjusted by option -x or rc-file variable MAX\_SCORE\_FACTOR, see section user rc-file for more details |
 | -O&nbsp;average | Outlier score for anomaly detection. If argument "average" is given then the outlier score is determined sample score average and stadars deviation. This process can be adjusted by option -x or rc-file variable AVERAGE\_SCORE\_FACTOR, see section user rc-file for more details |
 | -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
-| -O&nbsp;FLOATs| Outlier score for anomaly detection. If suffix 's' is given the actual anaylyzed score is scaled to range 0-1 using forest min/max scores. This ensures that best inlier has value zero and the farthest outlier will get value 1.0.  Use values 0.0s - 1.0s|
+| -O&nbsp;FLOATs| Outlier score for anomaly detection. If suffix 's' is given the actual analyzed score is scaled to range 0-1 using forest min/max scores. This ensures that the best inlier has value zero and the farthest outlier will get value 1.0.  Use values 0.0s - 1.0s|
 | -x&nbsp;FLOAT| Adjustment factor for automatic outlier score|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|

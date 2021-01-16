@@ -53,8 +53,8 @@ On the other hand the scaled score 0.5s can be used as a good outlier limit for 
 
 #### Scaled outlier score
 If suffix 's' is given with outlier score then the analyzed scores are scaled to range 0..1. Typically score range for normal case is something between 0.3 and 0.85. 
-When scaling the minimum score (e.g. 0.33) is scaled to 0 and maximum socre (e.g. 0.83) is scaled to 1 and respectively values between them. Forest min/max scores are found by testing. 
-Minimum socre is the lowest sample score and maximum score is got analysing huge dimension values.
+When scaling the minimum score (e.g. 0.33) is scaled to 0 and maximum score (e.g. 0.83) is scaled to 1 and respectively values between them. Forest min/max scores are found by testing. 
+Minimum score is the lowest sample score and maximum score is got analysing huge dimension values.
 
 This gives more consistet score values between different forests and outlier have at least value 0.5. Scaling is used always when categorizing (option -c).
 
