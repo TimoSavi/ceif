@@ -89,7 +89,7 @@ Following variables are supported:
 |----|----|----|
 |MAX\_SCORE\_FACTOR|When calculating the maximum score (option -Omax) the sample set can be expanded before finding the score for each sample. This value adjusts how much the sample set is expanded. More larger value causes more higher max score. Negative values can be used too, the max score will be lower than natural maximum sample score|5|
 |AVERAGE\_SCORE\_FACTOR|When calculating the average score (option -Oaverage). Average score is adjusted by formula average_score += stddev * AVERAGE\_SCORE\_FACTOR|1|
-|SAMPLES|Number of samples taken for each forest, same affect as option -s|256|
+|SAMPLES|Number of samples taken for each tree, same affect as option -s|256|
 |TREES|Number of trees for each forest, same affect as option -t|100|
 |DECIMALS|Number of decimals used when saving forest data. Affects also printing of sample values (option -d)|6|
 |PRANGE\_EXTENSION\_FACTOR|Interception point ***p*** range extension factor (option -R)|1|
@@ -98,6 +98,7 @@ Following variables are supported:
 |CATEGORY\_SEPARATOR|Char to be used as a separator when concatenating category fields|;|
 |LABEL\_SEPARATOR|Char to be used as a separator when concatenating label fields|-|
 |OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
+|MAX\_SAMPLES|Maximum number of samples for each forest|Default is calculated by number\_of\_trees * number\_of\_samples\_per\_tree|
 
 Example of rc-file:
 

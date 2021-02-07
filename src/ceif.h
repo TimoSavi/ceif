@@ -205,6 +205,7 @@ void init_fast_n_cache();
 void init_fast_c_cache();
 double *v_expand(double *,double *,double *,int);
 double scale_double(double,double,double,double,double);
+void v_copy(double *,double *);
 
 
 /* analyze.c prototypes */

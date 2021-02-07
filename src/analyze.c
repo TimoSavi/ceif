@@ -137,30 +137,74 @@ double _score(int forest_idx,double *dimension)
 
     path_length = path_length / tree_count;  // turn to average 
 
-    return (1/pow(2,path_length/f->c));
+    return (1.0/pow(2,path_length/f->c));
 }
 
 
 /* Calculates max score for a forest
- * This is done making a dimension with big value (which is probably "big" in almost every case)
- * returns score
+ * This is done making 3^dimensions combinations of +MAX_DIM,-MAX_DIM and 0 
+ * The  largest score is returned
+ * Number of tested dimensions is limited by LIMIT_DIM for performance reasons
  */
+#define MAX_DIM_VALUE (DBL_MAX / 1e+40)
+#define pwrtwo(x) (1 << (x))
+#define LIMIT_DIM 8
+
 double calculate_max_score(int forest_idx)
 {
-    static int i = 0;
-    static double max_dim[DIM_MAX];
-    double score;
+    unsigned int i,j,k;
+    unsigned int bitmap1,bitmap2,state,lim_dim; 
+    double *dim;
+    double score,max_score = 0.0;
     int save_auto_weigth = auto_weigth;
 
     auto_weigth = 0;  // no need for scaling
 
-    for(;i < dimensions;i++) max_dim[i] = DBL_MAX / 1e+40;
+    dim = xmalloc(dimensions * sizeof(double));
 
-    score = _score(forest_idx,max_dim);
+    lim_dim = (dimensions > LIMIT_DIM) ? LIMIT_DIM : dimensions;
+    
+    for(i = lim_dim;i < dimensions;i++) dim[i] = MAX_DIM_VALUE;   // Init possible rest values with +max
+
+    for(i = 0;i < pwrtwo(lim_dim);i++)
+    {
+        for(j = 0;j <  pwrtwo(lim_dim);j++)
+        {
+            bitmap1 = i;        // Two bitmaps in order to get state values 0..2, for 0, +max and -max
+            bitmap2 = j;
+
+            if(!(bitmap1 & bitmap2))  // skip cases where there is both bits set in the same position (meaning state value 3, which is not allowed here)
+            {
+                for(k = 0;k < lim_dim;k++)
+                {
+                    state = ((bitmap1 & 1) << 1) | (bitmap2 & 1);
+                    switch(state)
+                    {
+                        case 0:
+                            dim[k] = 0.0;
+                            break;
+                        case 1:
+                            dim[k] = MAX_DIM_VALUE;
+                            break;
+                        case 2:
+                            dim[k] = -MAX_DIM_VALUE;
+                            break;
+                    }
+                    bitmap1 >>= 1;
+                    bitmap2 >>= 1;
+                }
+
+                score = _score(forest_idx,dim);
+                if(score > max_score) max_score = score;
+            }
+        }
+    }
 
     auto_weigth = save_auto_weigth;
 
-    return score;
+    free(dim);
+
+    return max_score;
 }
 
 /* calculate scaled score. Forest min (from sample having lowest score) and max range (found using a dim with "big" values) 
@@ -508,8 +552,6 @@ void calculate_average_sample_score(int forest_idx)
         f->average_score += scores[i];
     }
 
-    f->max_score = calculate_max_score(forest_idx);
-
     f->average_score /= (double) f->X_count;
 
     for(i = 0;i < f->X_count;i++)
@@ -520,6 +562,10 @@ void calculate_average_sample_score(int forest_idx)
     stddev = sqrt(stddev / (double) f->X_count);
 
     f->average_score += stddev * average_score_factor;
+
+    f->max_score = calculate_max_score(forest_idx) + stddev / 2.0;   // add stddev/2 in order to make sure that scaled score remains always < 1.0
+
+    if(f->max_score > 1.0) f->max_score = 1.0;
 
     free(scores);
 }

@@ -380,7 +380,7 @@ print_forest_info(FILE *outs)
                 _3P("Adjusted average based outlier score: %f\n",f->average_score);
             } else if(scale_score)
             {
-                _3P("Sample score range is between %f and %f, this used to scale data scores to 0..1 range\n",f->min_score,f->max_score);
+                _3P("Forest score range is between %f and %f, this is used to scale data scores to 0..1 range\n",f->min_score,f->max_score);
             }
         }
 

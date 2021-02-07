@@ -196,7 +196,7 @@ int select_forest(int value_count,char **values)
    
 /* copy a vector
  */
-static
+
 void v_copy(double *t,double *s)
 {
     memcpy(t,s,dimensions * sizeof(double));
