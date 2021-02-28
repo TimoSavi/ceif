@@ -181,7 +181,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
    forest[forest_count].analyzed_rows = 0;
    forest[forest_count].high_analyzed_rows = 0;
-   forest[forest_count].trained_rows = 0;
+   forest[forest_count].extra_rows = 0;
    forest[forest_count].auto_score = 0.0;
    forest[forest_count].average_score = 0.0;
    forest[forest_count].min_score = 1.0;
@@ -318,8 +318,6 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
     }
 
-    if(!saved) f->trained_rows++;     // Number of new rows for this forest read from train file
-
     if(f->X_count < samples_total)    // check the samples table size
     {
         if(f->X_count == 0)
@@ -334,7 +332,8 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
         f->X_count++;
     } else
     {
-        sample_idx = ri(0,f->X_count + f->trained_rows);
+        if(!saved) f->extra_rows++;                  // Number of extra rows for this forest read from train file
+        sample_idx = ri(0,f->X_count + f->extra_rows);
         if(sample_idx >= samples_total) return;     // check if old sample should be replaced with this or not
     }
 

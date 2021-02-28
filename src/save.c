@@ -226,7 +226,7 @@ int parse_F(int forest_idx,char *l)
 
         f->analyzed_rows = 0;
         f->high_analyzed_rows = 0;
-        f->trained_rows = 0;
+        f->extra_rows = 0;
         f->auto_score = 0.0;
         f->average_score = 0.0;
         f->min_score = 1.0;
