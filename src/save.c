@@ -180,7 +180,7 @@ int parse_G(char *l)
 
         if(strcmp(v[22],"auto") == 0) auto_weigth = 1;
 
-        samples_total = tree_count * samples_max;
+        samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;   // total samples count is trees * samples/tree, this can be limited using config MAX_SAMPLES
         return 1;
     }
     return 0;
@@ -226,6 +226,7 @@ int parse_F(int forest_idx,char *l)
 
         f->analyzed_rows = 0;
         f->high_analyzed_rows = 0;
+        f->trained_rows = 0;
         f->auto_score = 0.0;
         f->average_score = 0.0;
         f->min_score = 1.0;
@@ -324,7 +325,7 @@ read_forest_file(FILE *data_file)
                 {
                     line++;
                     value_count = parse_csv_line(values,dimensions,&input_line[2],'|');
-                    add_to_X(&forest[f_count],values,value_count,line,1);
+                    add_to_X(&forest[f_count],values,value_count,1);
                 }
             } while(input_line[0] == 'S');
             f_count++;

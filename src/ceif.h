@@ -97,6 +97,7 @@ struct forest
     double test_average_score; // average score of tested data, can be compared with average_score
     int analyzed_rows;      // Number of rows used in analysis
     int high_analyzed_rows; // Number of rows having score higher than avaerage score
+    int trained_rows;       // Number of rows read from train file
     struct tree *t;         // Tree table, NULL if not initialized
 };
 
@@ -196,7 +197,7 @@ double dot(double *, double *);
 double wdot(double *, double *,int, double *,double *);
 double c(int);
 int dim_ok(int,int);
-void add_to_X(struct forest *,char **, int ,int ,int);
+void add_to_X(struct forest *,char **, int , int);
 void add_category_filter(char *);
 int search_forest_hash(char *); 
 void add_forest_hash(int, char *);

@@ -181,6 +181,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
    forest[forest_count].analyzed_rows = 0;
    forest[forest_count].high_analyzed_rows = 0;
+   forest[forest_count].trained_rows = 0;
    forest[forest_count].auto_score = 0.0;
    forest[forest_count].average_score = 0.0;
    forest[forest_count].min_score = 1.0;
@@ -296,7 +297,7 @@ int duplicate_sample(struct forest *f,double *new_dim)
  * saved == 1 means that values are from saved forest file and == 0 means that values are from user given data file.
  * indices are different in those two cases
    */
-void add_to_X(struct forest *f,char **values, int value_count,int sample_number,int saved)
+void add_to_X(struct forest *f,char **values, int value_count,int saved)
 {
     int i,sample_idx;
     int first = 0;
@@ -317,6 +318,8 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
     }
 
+    if(!saved) f->trained_rows++;     // Number of new rows for this forest read from train file
+
     if(f->X_count < samples_total)    // check the samples table size
     {
         if(f->X_count == 0)
@@ -331,7 +334,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int sample_number,
         f->X_count++;
     } else
     {
-        sample_idx = ri(0,sample_number);
+        sample_idx = ri(0,f->X_count + f->trained_rows);
         if(sample_idx >= samples_total) return;     // check if old sample should be replaced with this or not
     }
 
@@ -939,7 +942,7 @@ train_forest(FILE *in_stream,int new,int make_tree)
                 add_aggregate(&forest[forest_idx],values,value_count);
             } else
             {
-                add_to_X(&forest[forest_idx],values,value_count,(header ? (lines - 1) : lines) + (new ? 0 : forest[forest_idx].X_count),0);
+                add_to_X(&forest[forest_idx],values,value_count,0);
             }
         }
     }
