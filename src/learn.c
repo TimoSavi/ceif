@@ -332,7 +332,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
         f->X_count++;
     } else
     {
-        sample_idx = ri(0,f->X_count + f->extra_rows);
+        sample_idx = ri(0,f->X_count + f->extra_rows -1); // minus 1 in order to get first sample to be saved
 
         if(!saved) f->extra_rows++;                  // Number of extra rows for this forest read from train file
 
@@ -565,30 +565,44 @@ void v_subt(double *a, double *b)
 
 /* generate p from sample data.
  * returns pointer to p array.
- * p are taken from random sample point centered n-sphere having random diameter
- *
- * diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
- *
+ * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
+ * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree and hopefully donugh shaped data yields better results
  */
+#define CENTROID_TRESSHOLD 0.6  // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p
 static
 double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
 {
-    int i;
+    int i,j;
     int random_sample;
     double *n_vector;
     static double p[DIM_MAX];
 
-    // get a random sample point
-    random_sample = ri(0,sample_count - 1);
-    n_vector = calculate_n();
+    if(heigth_ratio < CENTROID_TRESSHOLD)  // In deeper nodes of tree use sample centroid as p, 
+    {
+        for(i = 0;i < dimensions;i++) p[i] = 0.0;
 
-    // copy random sample to p vector and add adjustment vector to it
-    v_copy(p,X[samples[random_sample]].dimension);
+        for(i = 0;i < sample_count;i++)
+        {
+            for(j = 0;j < dimensions;j++) p[j] += X[samples[i]].dimension[j];
+        }
 
+        for(i = 0;i < dimensions;i++) p[i] /= sample_count;  // turn to average
+    } else
+    {
+        printf("r\n");
+        // get a random sample point
+        random_sample = ri(0,sample_count - 1);
+        n_vector = calculate_n();
+
+        // copy random sample to p vector and add adjustment vector to it
+        v_copy(p,X[samples[random_sample]].dimension);
+    }
+     
     for(i = 0;i < dimensions;i++) {
         p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
     }
 
+        printf("%f %f\n",p[0],p[1]);
     return p;
 }
 
