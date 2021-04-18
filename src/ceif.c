@@ -50,7 +50,7 @@ int label_idx_count = 0;                 // number of labels fields
 char *cat_filter[FILTER_MAX];  // Category filters
 int cat_filter_count = 0;      // Category filter count
 
-int auto_weigth = 0;           // Should weigths be calculated automatically
+int auto_weigth = 1;           // Should weigths be calculated automatically
 
 char *print_string = NULL;     // How to print outlier data
 int tree_count = 100;             // trees / forest
@@ -71,6 +71,7 @@ int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
 double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
 int scale_score = 0;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
+int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -85,7 +86,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:Wqy::Ekg:Px:v:R:z:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Px:v:R:z:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -121,7 +122,6 @@ static struct option long_opts[] =
   {"new", 2, 0, 'N'},
   {"aggregate", 0, 0, 'A'},
   {"text-dims", 1, 0, 'X'},
-  {"weigth", 0, 0, 'W'},
   {"query", 0, 0, 'q'},
   {"sample-density", 2, 0, 'y'},
   {"sample-scores", 0, 0, 'E'},
@@ -502,9 +502,6 @@ main (int argc, char **argv)
                 case 'X':
                     text_dims = xstrdup(optarg);
                     text_idx_count = parse_dims(optarg,text_idx);
-                    break;
-                case 'W':
-                    auto_weigth = 1;
                     break;
                 case 'q':
                     make_query = 1;

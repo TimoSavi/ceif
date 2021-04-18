@@ -44,7 +44,6 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
 | -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
 | -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
-| -W | Scale dimensions attributes. All attribute ranges are scaled to largest attribute range. Use this if there is even minor difference between attribute scales|
 | -q | Print forest information in human readable form and exit|
 | -y | Print forest information ascii density map|
 | -yy | Print forest information ascii density map with common sample scale for all forests|
@@ -94,11 +93,12 @@ Following variables are supported:
 |DECIMALS|Number of decimals used when saving forest data. Affects also printing of sample values (option -d)|6|
 |PRANGE\_EXTENSION\_FACTOR|Interception point ***p*** range extension factor (option -R)|1|
 |MAX\_SCORE|Calculate max score, 1 = yes, 0 = no|0|
-|AUTO\_WEIGTH|Scale sample values before analysing the forest, 1 = yes, 0 = no|0|
+|AUTO\_SCALE|Scale sample values before analysing the forest, 1 = yes, 0 = no|1|
 |CATEGORY\_SEPARATOR|Char to be used as a separator when concatenating category fields|;|
 |LABEL\_SEPARATOR|Char to be used as a separator when concatenating label fields|-|
 |OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
 |MAX\_SAMPLES|Maximum number of samples for each forest|Default is calculated by number\_of\_trees * number\_of\_samples\_per\_tree|
+|NEAREST|Score is adjusted by the distance to nearest sample point in leaf nodes, 1 = yes, 0 = no|1|
 
 Example of rc-file:
 

@@ -551,6 +551,17 @@ void v_add(double *a, double *b)
     for(i = 0;i < dimensions;i++) a[i] += b[i];
 }
 
+/* calculate the distance of two samples  */
+double v_dist(double *a, double *b)
+{
+    int i;
+    double d = 0.0;
+
+    for(i = 0;i < dimensions;i++) d += POW2(a[i] - b[i]);
+
+    return sqrt(d);
+}
+
 
 /* vector subtract
    subtracts b from a
@@ -568,7 +579,7 @@ void v_subt(double *a, double *b)
  * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
  * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree and hopefully donugh shaped data yields better results
  */
-#define CENTROID_TRESSHOLD 0.6  // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p
+#define CENTROID_TRESSHOLD 0.4 // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p
 static
 double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
 {
@@ -589,20 +600,20 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
         for(i = 0;i < dimensions;i++) p[i] /= sample_count;  // turn to average
     } else
     {
-        printf("r\n");
         // get a random sample point
         random_sample = ri(0,sample_count - 1);
-        n_vector = calculate_n();
 
-        // copy random sample to p vector and add adjustment vector to it
+        // copy random sample to p vector 
         v_copy(p,X[samples[random_sample]].dimension);
     }
-     
+
+    n_vector = calculate_n();
+
+    // Add adjustment vector
     for(i = 0;i < dimensions;i++) {
         p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
     }
 
-        printf("%f %f\n",p[0],p[1]);
     return p;
 }
 
@@ -709,6 +720,16 @@ double *make_n_vector()
     return calculate_n();
 }
 
+/*  copy samples array */
+int *copy_samples(int sample_count,int *samples)
+{
+    int *new = xmalloc(sample_count * sizeof(int));
+
+    memcpy(new,samples,sample_count * sizeof(int));
+
+    return new;
+}
+
 
 /* add nodes to tree
  * returns the index of this node, -1 if end of tree
@@ -723,7 +744,8 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     int *left_samples;
     int *rigth_samples;
 
-    if(heigth >= heigth_limit || sample_count < 3) return -1;
+
+    if(heigth >= heigth_limit || sample_count < NODE_MIN_SAMPLE) return -1;
     
     left_samples = xmalloc(sample_count*sizeof(int));
     rigth_samples = xmalloc(sample_count*sizeof(int));
@@ -741,6 +763,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
 
     this->level = heigth;
     this->sample_count = sample_count;
+    this->samples = NULL;
 
     this->n = v_dup(make_n_vector());
 
@@ -776,6 +799,22 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
         new = add_node(f,t,rigth_count,rigth_samples,X,heigth + 1,heigth_limit);
         this = &t->n[node_index];
         this->rigth = new;
+    }
+
+
+    // Set c value using sample count 
+    if(this->left == -1 && this->rigth == -1)
+    {
+        if (nearest && f->avg_sample_dist > 0.0)
+        {
+            this->samples = copy_samples(sample_count,samples);  // copy samples for nearest distance calculation, c is calculated using the distance to nearest sample
+        } else
+        {
+            this->sample_c = c(this->sample_count);
+        }
+    } else
+    {
+        this->sample_c = 0;
     }
 
     free(left_samples);
@@ -827,6 +866,7 @@ void train_one_forest(int forest_idx)
     struct forest *f = &forest[forest_idx];
     static int *s = NULL; 
     int sample_count,total_samples = 0;
+    double volume;
     
     if(s == NULL) s = xmalloc(samples_max * sizeof(int));
 
@@ -838,13 +878,19 @@ void train_one_forest(int forest_idx)
 
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
 
+    volume = 1.0;
+
     for(i = 0;i < dimensions;i++) 
     {
         f->dim_density[i] = (f->max[i] - f->min[i]) / (double) f->X_count;              // calculate avg dimension density
         if(f->dim_density[i] == 0.0) f->dim_density[i] = 1.0 / (double) f->X_count;     // make sure that density is not zero
 
         f->avg[i] /= (double) f->X_count;              // turn to average
+        
+        if(f->max[i] > f->min[i]) volume *= f->max[i] - f->min[i];
     }
+
+    f->avg_sample_dist = sqrt(dimensions) * volume / ((f->X_count < samples_max) ? f->X_count : samples_max);   // Average sample distance / tree, distance is approximated with sqrt(dimensions)
 
     if(f->filter) return;
     
@@ -862,6 +908,7 @@ void train_one_forest(int forest_idx)
          f->t[i].node_count = 0;
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
+         f->t[i].sample_count = sample_count;
          populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)) + 1);
     }
 

@@ -30,6 +30,7 @@
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
+#define NODE_MIN_SAMPLE 3         // Minimum number of samples in node 
 
 /* Special outlier_scoire values for automatic and average based scores */
 #define AVERAGE_SCORE -1
@@ -57,8 +58,10 @@ struct node
 {
     int level;              // level count;
     int sample_count;       // number of samples
+    int *samples;           // samples index array for this node
     double *n;               // random normal vector having dimensions count of coordinates
     double pdotn;           // calculate p dot n for performance issues
+    double sample_c;        // c value for the rest of samples in tree high leaves
     int left;               // first left node, -1 if not existing
     int rigth;              // first rigth node, -1 if not existing
 };
@@ -67,6 +70,7 @@ struct tree
 {
     int node_count;         // number of nodes in n
     int node_cap;           // space reserved for node table
+    int sample_count;       // number of samples used
     struct node *n;         // table of nodes
     int first;              // index to first node in table.
 };
@@ -84,6 +88,7 @@ struct forest
     struct sample *X;       // samples for this forest
     double *min;            // learn data min values dimension
     double *max;            // learn data max values dimension
+    double avg_sample_dist; // Average sample distance in hypercube 
     int scale_range_idx;    // dimension index to range to be used in scaling (-W). Points tomin and max arrays, -1 if no ranges (all attributes have the same value)
     double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
@@ -147,6 +152,7 @@ extern int n_vector_adjust;
 extern int aggregate;
 extern double average_score_factor;
 extern int scale_score;
+extern int nearest;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -207,6 +213,7 @@ void init_fast_c_cache();
 double *v_expand(double *,double *,double *,int);
 double scale_double(double,double,double,double,double);
 void v_copy(double *,double *);
+double v_dist(double *,double *);
 
 
 /* analyze.c prototypes */

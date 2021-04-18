@@ -82,9 +82,37 @@ void populate_dimension(double *d,char **values,int value_count)
     }
 }
 
-/* search through nodes, 
- * returns the length from last node
+/* Search the nearest training sample for a analyzed point a
+   returns the shortest distance
  */
+double nearest_distance(double *a, int sample_count,int *samples,struct sample *X)
+{
+    int i;
+    double d,distance;
+
+    distance = v_dist(a,X[samples[0]].dimension);
+
+    for(i = 1;i < sample_count;i++)
+    {
+        d = v_dist(a,X[samples[i]].dimension);
+        if(d == 0.0) return d;
+        if(d < distance) distance = d;
+    }
+
+    return distance;
+}
+
+
+/* search through nodes, 
+ * returns the heigth from last node
+ *
+ * if nearest is true the shortes distance to node samples is calculated.
+ * The distance is used to adjust node sample count and node sample c value is recalculed
+ * Shortest the distance compared to forest average, the larger adjusted sample_cout is used 
+ *
+ * MIN_REL_DIST is used to limit adjustment divisor to 0.1
+ */
+#define MIN_REL_DIST 0.1
 static 
 double search_last_node(struct forest *f,int this_idx,struct node *n,double *dimension,int heigth)
 {
@@ -92,7 +120,11 @@ double search_last_node(struct forest *f,int this_idx,struct node *n,double *dim
 
     if(this->left == -1 && this->rigth == -1)
     {
-        return (double) heigth + c(this->sample_count);
+        if(nearest && f->avg_sample_dist > 0.0)
+        {
+            return (double) heigth + c((double) this->sample_count / (MIN_REL_DIST + nearest_distance(dimension,this->sample_count,this->samples,f->X) / f->avg_sample_dist));
+        }
+        return (double) heigth + this->sample_c;
     }
 
     if(wdot(dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
@@ -570,7 +602,7 @@ void calculate_average_sample_score(int forest_idx)
     free(scores);
 }
 
-/* Return score for a forest, spcial scores for auto and average socres are handled here
+/* Return score for a forest, special scores for auto and average socres are handled here
  */
 inline 
 double get_forest_score(int forest_idx)

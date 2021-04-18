@@ -264,6 +264,9 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"AUTO_WEIGTH")) != NULL)
         {
             auto_weigth = atoi(value);
+        } else if((value = parse_config_line(input_line,"AUTO_SCALE")) != NULL)
+        {
+            auto_weigth = atoi(value);
         } else if((value = parse_config_line(input_line,"CATEGORY_SEPARATOR")) != NULL)
         {
             category_separator = value[0];
@@ -284,6 +287,10 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"OUTLIER_SCORE")) != NULL)
         {
              parse_user_score(value);
+        } else if((value = parse_config_line(input_line,"NEAREST")) != NULL)
+        {
+             if(atoi(value)) nearest = 1;
+             else nearest = 0;
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
@@ -339,11 +346,13 @@ print_forest_info(FILE *outs)
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
     _2P("Header is %s\n",_O(header));
-    _2P("Auto weigth is %s\n",_O(auto_weigth));
+    _2P("Automatic data value scaling is %s\n",_O(auto_weigth));
     _2P("Aggregate is %s\n",_O(aggregate));
     _2P("Unigue samples is %s\n",_O(unique_samples));
+    _2P("Nearest distance analysis is %s\n",_O(nearest));
     _2P("Print string: \"%s\"\n",print_string);
 
+    _2P("\n");
 
     _D("Dimensions used in analysis: ",dimensions,dim_idx);
     _D("User ignored dimensions: ",ignore_idx_count,ignore_idx);

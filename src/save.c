@@ -46,15 +46,13 @@ static
 void write_global_data(FILE *w,int f_count)
 {
     char *filter_str;
-    char *weigth_str;
 
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
-    weigth_str = auto_weigth ? "auto" : "";
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,scale_score ? "s" : "",outlier_score == AVERAGE_SCORE ? average_score_factor : auto_score_factor,ignore_dims ? ignore_dims : "",include_dims ? include_dims : "",f_count,filter_str,\
-                decimals,unique_samples,printf_format ? printf_format : "",list_separator,n_vector_adjust,aggregate,text_dims ? text_dims : "",\
-                weigth_str) < 0)
+                input_separator,header,outlier_score,scale_score ? "s" : "",outlier_score == AVERAGE_SCORE ? average_score_factor : auto_score_factor,ignore_dims ? ignore_dims : "",\
+                include_dims ? include_dims : "",f_count,filter_str,decimals,unique_samples,printf_format ? printf_format : "",list_separator,\
+                n_vector_adjust,aggregate,text_dims ? text_dims : "","") < 0)
     {
         write_error();
     }
@@ -177,8 +175,6 @@ int parse_G(char *l)
         aggregate = atoi(v[20]);
         text_dims = xstrdup(v[21]);
         text_idx_count = parse_dims(v[21],text_idx);
-
-        if(strcmp(v[22],"auto") == 0) auto_weigth = 1;
 
         samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;   // total samples count is trees * samples/tree, this can be limited using config MAX_SAMPLES
         return 1;
