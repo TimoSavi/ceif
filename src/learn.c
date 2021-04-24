@@ -156,7 +156,7 @@ int select_forest(int value_count,char **values)
     }
 
     if(forest_count >= forest_cap) {
-       if(forest_cap == 0) forest_cap = 128;
+       if(forest_cap == 0) forest_cap = 64;
        forest_cap *= 2;
        forest = xrealloc(forest,forest_cap * sizeof(struct forest));
     }
@@ -720,12 +720,51 @@ double *make_n_vector()
     return calculate_n();
 }
 
-/*  copy samples array */
-int *copy_samples(int sample_count,int *samples)
-{
-    int *new = xmalloc(sample_count * sizeof(int));
 
-    memcpy(new,samples,sample_count * sizeof(int));
+/* scale a dim and return pointer to that
+ */
+double *scale_dimension(double *dim,struct forest *f)
+{
+    int i;
+    double range;
+    static double sd[DIM_MAX];
+
+    if(f->scale_range_idx == -1)
+    {
+        for(i = 0;i < dimensions;i++) sd[i] = dim[i];
+    } else
+    {
+        range = f->max[f->scale_range_idx] - f->min[f->scale_range_idx];
+
+        for(i = 0;i < dimensions;i++) sd[i] = scale_double(dim[i],range,f->min[f->scale_range_idx],f->min[i],f->max[i]);
+    }
+
+    return sd;
+}
+
+/*  copy samples array for leaf node
+ *  samples are scaled if auto scale is on
+ */
+struct sample *copy_samples(int sample_count,int *samples,struct forest *f)
+{
+    int i,j;
+    double *scaled;
+    struct sample *new = xmalloc(sample_count * sizeof(struct sample));
+
+    for(i = 0;i < sample_count;i++)
+    {
+        new[i].dimension = v_dup(f->X[samples[i]].dimension);
+
+        if(auto_weigth)
+        {
+            scaled = scale_dimension(new[i].dimension,f);
+
+            for(j = 0;j < dimensions;j++)
+            {
+                new[i].dimension[j] = scaled[j];
+            }
+        }
+    }
 
     return new;
 }
@@ -751,7 +790,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     rigth_samples = xmalloc(sample_count*sizeof(int));
 
     if(t->node_count >= t->node_cap) {
-        if(t->node_cap == 0) t->node_cap = 32;
+        if(t->node_cap == 0) t->node_cap = 16;
         t->node_cap *= 2;
         t->n = xrealloc(t->n,t->node_cap*sizeof(struct node));
     }
@@ -761,7 +800,6 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
 
     t->node_count++;
 
-    this->level = heigth;
     this->sample_count = sample_count;
     this->samples = NULL;
 
@@ -807,14 +845,8 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     {
         if (nearest && f->avg_sample_dist > 0.0)
         {
-            this->samples = copy_samples(sample_count,samples);  // copy samples for nearest distance calculation, c is calculated using the distance to nearest sample
-        } else
-        {
-            this->sample_c = c(this->sample_count);
-        }
-    } else
-    {
-        this->sample_c = 0;
+            this->samples = copy_samples(sample_count,samples,f);  // copy samples for nearest distance calculation, c is calculated using the distance to nearest sample
+        } 
     }
 
     free(left_samples);
@@ -877,6 +909,8 @@ void train_one_forest(int forest_idx)
     if(!f->X_count) return;
 
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
+    
+    if(auto_weigth) f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
 
     volume = 1.0;
 
@@ -887,16 +921,27 @@ void train_one_forest(int forest_idx)
 
         f->avg[i] /= (double) f->X_count;              // turn to average
         
-        if(f->max[i] > f->min[i]) volume *= f->max[i] - f->min[i];
+        if(auto_weigth && f->scale_range_idx > -1)  // if auto scaling, then the distance calculation is scaled too
+        {
+            if(f->max[f->scale_range_idx] > f->min[f->scale_range_idx]) volume *= f->max[f->scale_range_idx] - f->min[f->scale_range_idx];
+        } else
+        {
+            if(f->max[i] > f->min[i]) volume *= f->max[i] - f->min[i];
+        }
     }
 
-    f->avg_sample_dist = sqrt(dimensions) * volume / ((f->X_count < samples_max) ? f->X_count : samples_max);   // Average sample distance / tree, distance is approximated with sqrt(dimensions)
+    // Calculate the average distance from evenly distributed point to closest points in a hypercube. 
+    // This is estimated by dividing the volume by sample count and taking dimensions root, which yields the side length of a cube around 
+    // evently distributed points.
+    // Side length is multiplyed by sqrt(dimensions / 1.5 + 1 / (3 * dimensions))  in order to get app. average distance to all touching (nearest) points.
+    // sqrt(dimensions / 1.5 + 1 / (3 * dimensions)) is found to be quite good approximation when comparing real avg. distances to square root of the dimension (dimensions 1-19)
+    
+    f->avg_sample_dist = sqrt((double) dimensions / 1.5 + 1.0 / (3.0 * (double) dimensions)) *
+                         pow(volume / (double) ((f->X_count < samples_max) ? f->X_count : samples_max),1.0 / (double) dimensions);    
 
     if(f->filter) return;
     
     if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
-
-    if(auto_weigth) f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
 

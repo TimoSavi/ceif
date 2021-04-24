@@ -56,12 +56,10 @@ struct sample
 
 struct node
 {
-    int level;              // level count;
     int sample_count;       // number of samples
-    int *samples;           // samples index array for this node
+    struct sample *samples; // samples array for this node, samples are scaled if auto scale is on
     double *n;               // random normal vector having dimensions count of coordinates
     double pdotn;           // calculate p dot n for performance issues
-    double sample_c;        // c value for the rest of samples in tree high leaves
     int left;               // first left node, -1 if not existing
     int rigth;              // first rigth node, -1 if not existing
 };
@@ -214,6 +212,8 @@ double *v_expand(double *,double *,double *,int);
 double scale_double(double,double,double,double,double);
 void v_copy(double *,double *);
 double v_dist(double *,double *);
+double *scale_dimension(double *,struct forest *);
+
 
 
 /* analyze.c prototypes */

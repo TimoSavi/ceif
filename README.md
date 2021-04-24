@@ -13,6 +13,7 @@ It has practical extensions like:
 See more documents in [docs](docs).
 
 ### Algorithm change
+#### Selection of intercept point ***p***
 The original algorithm has some problems with certain types of datasets. This is due to the selection method of random intercept point ***p***. 
 Interception ***p*** is selected from rectangular area and if data is uniformly distributed over rectangular area then all sub-spaces divided by random slopes contain sample points.
 This causes all sub-spaces to infinity to have inliers. This gives a anomaly score to be app. 0.5 for the whole space.
@@ -31,5 +32,10 @@ This has following effects:
 2. Most ***p***s tend to accumulated where the data is already at beginning of the building of trees
 
 The ***p*** selection area is effectively an enlarged sample point area and not rectangular area which can cause anomalies.
+
+#### Nearest training point distance in leaf nodes
+The relative distance between analysed point and nearest node training data point is calculated in leaf nodes.
+The absolute distance is scaled to relative distance using average sample distance in tree. If relative distance is larger
+than average then the score is reduced and if distance is smaller the score is incremented.
 
 The scale of dimension attribute values can be adjusted too, see the [tweaking document](docs/tweaking.md) for details.

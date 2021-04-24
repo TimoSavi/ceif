@@ -32,7 +32,8 @@ Now you have the anomaly score map in file 'pic.png'. Commands explained:
 ### Results
 
 #### Extended isolation forest with revised algorithm
-Following table presents some score maps using anomaly scores 0, 0.5, 0.5s (with scaling), max and average score. Max score is calculated using the sample value having larges anonaly score. Average score is the sample average score adjusted by standard deviation. Sample values are printed using black.
+Following table presents some score maps using anomaly scores 0, 0.5, 0.5s (with scaling), max and average score. 
+Max score is calculated using the sample value having larges anonaly score. Average score is the sample average score adjusted by standard deviation. Sample values are printed using black.
 Outlier area is printed using color and non outlier are is white.
 
 
@@ -64,11 +65,11 @@ Few data lines from file circle.csv were added to square data as outliers.
 
 Command used in No outlier case:
 
-    cat square.csv | ceif -l - -W -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
+    cat square.csv | ceif -l - -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
 
 And command used in outlier case:
 
-    head -3 circle.csv | cat - square.csv | ceif -l - -W -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
+    head -3 circle.csv | cat - square.csv | ceif -l - -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
 
 Average method was run with option -x 4, because default value leaves too much samples in outlier area.
 
@@ -82,15 +83,17 @@ be slightly enlarged.
 
 #### Tricky data maps
 Here is an example of a difficult data map. Two nested circles causes problems because there are adjacent inlier and outlier areas and subareas of the algorithm tend to span over both areas. 
+The effect is nearest training data point distance analysis is clearly seen here.
 
 | Case | Two circles |
 |---|---|
 |Data map|![](pics/2circle.png)|
-|-O 0|![](pics/2circle_O0.png)|
-|-O 0.5|![](pics/2circle_O05.png)|
-|-O max|![](pics/2circle_Oauto.png)|
+|-O 0s and NEAREST 0|![](pics/2circle_O0.png)|
+|-O 0s and NEAREST 1|![](pics/2circle_O0n1.png)|
+|-O 0.21s and NEAREST 0|![](pics/2circle_O21sn0.png)|
+|-O 0.21s and NEAREST 1|![](pics/2circle_O21sn1.png)|
 
-It is hard to get two outlier circles inside right. There are no clear boundaries, selecting outlier score is not a simple task. 
+It is hard to get two outlier circles inside right without nearest training point analysis. the caveat is that the analysis time with nearest analysis gets longer.
 
 ### Saving and updating forest data
 The result of training phase can be saved to file to be used in later analysis. Data can also be updated with new training data. 
@@ -103,9 +106,7 @@ In following example a square map is updated with a small blob:
 
 Training and saving the square to file square.ceif:
 
-    ceif -l square.csv -Omax -W -w square.ceif 
-
-Using the option -W for dimension auto scaling. It is good to use in cases when the new data is unknown and can have significally larger values than old data. 
+    ceif -l square.csv -Omax -w square.ceif 
 
 Updating the square.ceif with small blob:
 
@@ -177,6 +178,7 @@ are printed with black color.
 #### No scaling
 If training dataset has dimension attribute value ranges with significant differences then the extended isolation forest method causes the attributes having smaller range values
 to yield poor results. This is due to the extended isolation forests dot product. The small scale attributes lose their significance if other attributes have much larger absolute values.
+As default ceif scales the dimension values, this can be disable by rc-file option AUTO_SCALE.
 
 In this example a data set having long line shape is used. Training dataset has two attributes having ranges 5...117 and 100 000...2 000 000. The second attribute is much larger that the first. 
 If a test data set is generated without dimension scaling the results shows that there is no clear border X attribute test values. All X values are considered equal:
@@ -189,16 +191,16 @@ The data points having score value 0.65 or larger are printed, note the scale of
 
 the whole X range is considered to have score less than 0.65. This probably not the result which was expected.
 
-#### Scale with option -W
-Running again with option -W:
+#### Run with scaling 
+Running again with rc-file option "NEAREST 1" (1 is the default value).
 
-    ceif -l Wtest.csv -T3  -p "%d,0x%x" -o plot_data.csv -O0.65 -W
+    ceif -l Wtest.csv -T3  -p "%d,0x%x" -o plot_data.csv -O0.65 
 
 Result is now better, there is clear 0.65 score range around the data line.
 
 ![](pics/lrangeW.png)
 
-The option -W causes all dimension attributes to be scaled according to the largest attribute range. In the example above the X range 5...117 is scaled 
+Values are scaled according to the largest attribute range. In the example above the X range 5...117 is scaled 
 to the Y range (100 000...2 000 000). This makes both attributes equal in score analysis.
 
 ### Using automatic outlier scores
@@ -248,7 +250,7 @@ the number of lines which had larger score that adjusted average training data s
 
 Example using square data and few lines from circle.csv as anomaly data:
 
-    ceif -l square.csv -W -w square.ceif
+    ceif -l square.csv -w square.ceif
     head -3 circle.csv | cat - square.csv | ceif -r square.ceif -a - -O1  -x4 -v "%s %S %r %h"
     0.500074 0.421726 253 3
 

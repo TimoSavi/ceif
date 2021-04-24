@@ -84,21 +84,34 @@ void populate_dimension(double *d,char **values,int value_count)
 
 /* Search the nearest training sample for a analyzed point a
    returns the shortest distance
+
+   Scale the a if auto scaling is in use
  */
-double nearest_distance(double *a, int sample_count,int *samples,struct sample *X)
+double nearest_distance(double *a, int sample_count,struct sample *samples,struct forest *f)
 {
     int i;
-    double d,distance;
+    double *dim;
+    double d,distance; 
 
-    distance = v_dist(a,X[samples[0]].dimension);
+    if(auto_weigth)
+    {
+        dim = scale_dimension(a,f);
+    } else
+    {
+        dim = a;
+    }
+
+    distance = v_dist(dim,samples[0].dimension);
 
     for(i = 1;i < sample_count;i++)
     {
-        d = v_dist(a,X[samples[i]].dimension);
-        if(d == 0.0) return d;
+        if(distance == 0.0) break;
+
+        d = v_dist(dim,samples[i].dimension);
+
         if(d < distance) distance = d;
     }
-
+    
     return distance;
 }
 
@@ -108,7 +121,7 @@ double nearest_distance(double *a, int sample_count,int *samples,struct sample *
  *
  * if nearest is true the shortes distance to node samples is calculated.
  * The distance is used to adjust node sample count and node sample c value is recalculed
- * Shortest the distance compared to forest average, the larger adjusted sample_cout is used 
+ * Shorter distance compared to forest average, the larger adjusted sample_count is used 
  *
  * MIN_REL_DIST is used to limit adjustment divisor to 0.1
  */
@@ -122,9 +135,9 @@ double search_last_node(struct forest *f,int this_idx,struct node *n,double *dim
     {
         if(nearest && f->avg_sample_dist > 0.0)
         {
-            return (double) heigth + c((double) this->sample_count / (MIN_REL_DIST + nearest_distance(dimension,this->sample_count,this->samples,f->X) / f->avg_sample_dist));
+            return (double) heigth + c((double) this->sample_count / (MIN_REL_DIST + nearest_distance(dimension,this->sample_count,this->samples,f) / f->avg_sample_dist));
         }
-        return (double) heigth + this->sample_c;
+        return (double) heigth + c(this->sample_count);
     }
 
     if(wdot(dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
@@ -178,7 +191,7 @@ double _score(int forest_idx,double *dimension)
  * The  largest score is returned
  * Number of tested dimensions is limited by LIMIT_DIM for performance reasons
  */
-#define MAX_DIM_VALUE (DBL_MAX / 1e+40)
+#define MAX_DIM_VALUE (1e+100)
 #define pwrtwo(x) (1 << (x))
 #define LIMIT_DIM 8
 

@@ -58,10 +58,10 @@ int samples_max = 256;            // max samples / tree
 int max_total_samples = 0;        // limit for samples_total, if zero use samples_max * trees
 int samples_total;                // max samples / forest
 char input_separator = ',';       // input separator for csv data
-char category_separator = ';';       // separator for category values
+char category_separator = ';';    // separator for category values
 char label_separator = '-';       // separator for category values
-int header = 0;                         // input data has a header row to skip
-double outlier_score = 0.75;            // outlier score
+int header = 0;                   // input data has a header row to skip
+double outlier_score = 0.5;      // outlier score
 double auto_score_factor = 5.0;   // How much to expand sample set when determining the auto score, larger value yields larger auto score
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
@@ -70,7 +70,7 @@ char list_separator = ',';         // seprator for dimension and average values 
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
 double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
-int scale_score = 0;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
+int scale_score = 1;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
 int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
 
 /* User given strings for dim ranges */

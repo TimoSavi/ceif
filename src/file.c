@@ -393,6 +393,11 @@ print_forest_info(FILE *outs)
             }
         }
 
+        if(nearest)
+        {
+            _3P("Average%ssample point distance for a single tree: %f\n",auto_weigth ? " scaled " : " ",f->avg_sample_dist);
+        }
+
         tmp = localtime(&f->last_updated);
         if(tmp != NULL)
         {
