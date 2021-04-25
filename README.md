@@ -36,6 +36,6 @@ The ***p*** selection area is effectively an enlarged sample point area and not 
 #### Nearest training point distance in leaf nodes
 The relative distance between analysed point and nearest node training data point is calculated in leaf nodes.
 The absolute distance is scaled to relative distance using average sample distance in tree. If relative distance is larger
-than average then the score is reduced and if distance is smaller the score is incremented.
+than average then the score is incremented and if distance is smaller the score is reduced.
 
 The scale of dimension attribute values can be adjusted too, see the [tweaking document](docs/tweaking.md) for details.
