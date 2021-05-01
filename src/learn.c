@@ -891,6 +891,7 @@ int find_weigth_scale_idx(double *min,double *max)
 
 /* train one forest
  */
+#define DIST_AVG(d) ((d) / 1.5 + 1.0 / (2.4 * (d)) - 1.0 / 12.0)
 static 
 void train_one_forest(int forest_idx)
 {
@@ -921,10 +922,7 @@ void train_one_forest(int forest_idx)
 
         f->avg[i] /= (double) f->X_count;              // turn to average
         
-        if(auto_weigth && f->scale_range_idx > -1)  // if auto scaling, then the distance calculation is scaled too
-        {
-            if(f->max[f->scale_range_idx] > f->min[f->scale_range_idx]) volume *= f->max[f->scale_range_idx] - f->min[f->scale_range_idx];
-        } else
+        if(!auto_weigth || f->scale_range_idx == -1)
         {
             if(f->max[i] > f->min[i]) volume *= f->max[i] - f->min[i];
         }
@@ -933,11 +931,18 @@ void train_one_forest(int forest_idx)
     // Calculate the average distance from evenly distributed point to closest points in a hypercube. 
     // This is estimated by dividing the volume by sample count and taking dimensions root, which yields the side length of a cube around 
     // evently distributed points.
-    // Side length is multiplyed by sqrt(dimensions / 1.5 + 1 / (3 * dimensions))  in order to get app. average distance to all touching (nearest) points.
-    // sqrt(dimensions / 1.5 + 1 / (3 * dimensions)) is found to be quite good approximation when comparing real avg. distances to square root of the dimension (dimensions 1-19)
+    // Side length is multiplyed by sqrt(dimensions / 1.5 + 1 / (2.4 * dimensions) - 1/12)  in order to get app. average distance to all touching (nearest) points.
+    // This equation is found to be quite good approximation when comparing real avg. distances to square root of the dimension (dimensions 1-19)
     
-    f->avg_sample_dist = sqrt((double) dimensions / 1.5 + 1.0 / (3.0 * (double) dimensions)) *
-                         pow(volume / (double) ((f->X_count < samples_max) ? f->X_count : samples_max),1.0 / (double) dimensions);    
+    if(!auto_weigth || f->scale_range_idx == -1)
+    {
+        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) *
+            pow(volume / (double) ((f->X_count < samples_max) ? f->X_count : samples_max),1.0 / (double) dimensions);    
+    } else // if autoscaling the hypercube side is the same as f->max[f->scale_range_idx] - f->min[f->scale_range_idx]
+    {
+        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) *
+            ((f->max[f->scale_range_idx] - f->min[f->scale_range_idx]) / pow((double) ((f->X_count < samples_max) ? f->X_count : samples_max),1.0 / (double) dimensions));
+    }
 
     if(f->filter) return;
     

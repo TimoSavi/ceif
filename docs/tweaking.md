@@ -93,7 +93,7 @@ The effect is nearest training data point distance analysis is clearly seen here
 |-O 0.21s and NEAREST 0|![](pics/2circle_O21sn0.png)|
 |-O 0.21s and NEAREST 1|![](pics/2circle_O21sn1.png)|
 
-It is hard to get two outlier circles inside right without nearest training point analysis. the caveat is that the analysis time with nearest analysis gets longer.
+It is hard to get two outlier circles inside right without nearest training point analysis. In the last example the area between circles could be indentified as outlier area. The caveat is that the processing time with nearest analysis gets longer.
 
 ### Saving and updating forest data
 The result of training phase can be saved to file to be used in later analysis. Data can also be updated with new training data. 

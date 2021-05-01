@@ -83,15 +83,20 @@ void populate_dimension(double *d,char **values,int value_count)
 }
 
 /* Search the nearest training sample for a analyzed point a
-   returns the shortest distance
+   returns the shortest relative distance
+
+   relative distance is 1 if the actual distance is the same as forersst average sample distance
+   relative distance < 1 if the actual distance is smaller as forerst average sample distance but never larger than MIN_REL_DIST
+   relative distance > 1 if the actual distance is larger as forersst average sample distance
 
    Scale the a if auto scaling is in use
  */
-double nearest_distance(double *a, int sample_count,struct sample *samples,struct forest *f)
+#define MIN_REL_DIST 0.05
+double nearest_rel_distance(double *a, int sample_count,struct sample *samples,struct forest *f)
 {
     int i;
     double *dim;
-    double d,distance; 
+    double distance,d,dlimit; 
 
     if(auto_weigth)
     {
@@ -101,16 +106,26 @@ double nearest_distance(double *a, int sample_count,struct sample *samples,struc
         dim = a;
     }
 
+    dlimit = MIN_REL_DIST * f->avg_sample_dist;
+
     distance = v_dist(dim,samples[0].dimension);
 
-    for(i = 1;i < sample_count;i++)
+    if(distance > dlimit)
     {
-        if(distance == 0.0) break;
+        for(i = 1;i < sample_count;i++)
+        {
+            d = v_dist(dim,samples[i].dimension);
 
-        d = v_dist(dim,samples[i].dimension);
-
-        if(d < distance) distance = d;
+            if(d < distance)
+            {
+                distance = d;
+                if(distance <= dlimit) break;
+            }
+        }
     }
+
+    distance /= f->avg_sample_dist;
+    distance += MIN_REL_DIST;
     
     return distance;
 }
@@ -123,9 +138,7 @@ double nearest_distance(double *a, int sample_count,struct sample *samples,struc
  * The distance is used to adjust node sample count and node sample c value is recalculed
  * Shorter distance compared to forest average, the larger adjusted sample_count is used 
  *
- * MIN_REL_DIST is used to limit adjustment divisor to 0.1
  */
-#define MIN_REL_DIST 0.1
 static 
 double search_last_node(struct forest *f,int this_idx,struct node *n,double *dimension,int heigth)
 {
@@ -135,7 +148,7 @@ double search_last_node(struct forest *f,int this_idx,struct node *n,double *dim
     {
         if(nearest && f->avg_sample_dist > 0.0)
         {
-            return (double) heigth + c((double) this->sample_count / (MIN_REL_DIST + nearest_distance(dimension,this->sample_count,this->samples,f) / f->avg_sample_dist));
+            return (double) heigth + c((double) this->sample_count / nearest_rel_distance(dimension,this->sample_count,this->samples,f));
         }
         return (double) heigth + c(this->sample_count);
     }
