@@ -211,8 +211,10 @@ void init_fast_c_cache();
 double *v_expand(double *,double *,double *,int);
 double scale_double(double,double,double,double,double);
 void v_copy(double *,double *);
+double v_dist_nosqrt(double *,double *);
 double v_dist(double *,double *);
 double *scale_dimension(double *,struct forest *);
+void parse_values(double *,char **, int, int);
 
 
 

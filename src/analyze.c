@@ -60,28 +60,6 @@ int find_forest(int value_count,char **values, int filter_on)
 } 
 
 
-/* Populates values from parsed input row
- */
-static
-void populate_dimension(double *d,char **values,int value_count)
-{
-    int i;
-
-    for(i = 0;i < dimensions;i++)
-    {
-        if(dim_idx[i] < value_count)
-        {
-            if(check_idx(dim_idx[i],text_idx_count,text_idx))
-            {
-                d[i] = parse_dim_hash_attribute(values[dim_idx[i]]);
-            } else
-            {
-                d[i] = parse_dim_attribute(values[dim_idx[i]]);
-            }
-        }
-    }
-}
-
 /* Search the nearest training sample for a analyzed point a
    returns the shortest relative distance
 
@@ -96,7 +74,7 @@ double nearest_rel_distance(double *a, int sample_count,struct sample *samples,s
 {
     int i;
     double *dim;
-    double distance,d,dlimit; 
+    double distance,d; 
 
     if(auto_weigth)
     {
@@ -106,27 +84,17 @@ double nearest_rel_distance(double *a, int sample_count,struct sample *samples,s
         dim = a;
     }
 
-    dlimit = MIN_REL_DIST * f->avg_sample_dist;
+    distance = v_dist_nosqrt(dim,samples[0].dimension);
 
-    distance = v_dist(dim,samples[0].dimension);
-
-    if(distance > dlimit)
+    for(i = 1;i < sample_count;i++)
     {
-        for(i = 1;i < sample_count;i++)
-        {
-            d = v_dist(dim,samples[i].dimension);
+        d = v_dist_nosqrt(dim,samples[i].dimension);
 
-            if(d < distance)
-            {
-                distance = d;
-                if(distance <= dlimit) break;
-            }
-        }
+        if(d < distance) distance = d;
     }
 
-    distance /= f->avg_sample_dist;
-    distance += MIN_REL_DIST;
-    
+    distance = sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
+
     return distance;
 }
 
@@ -205,7 +173,7 @@ double _score(int forest_idx,double *dimension)
  * Number of tested dimensions is limited by LIMIT_DIM for performance reasons
  */
 #define MAX_DIM_VALUE (1e+100)
-#define pwrtwo(x) (1 << (x))
+#define pwrtwo(x) ((unsigned int) 1 << (x))
 #define LIMIT_DIM 8
 
 double calculate_max_score(int forest_idx)
@@ -214,7 +182,7 @@ double calculate_max_score(int forest_idx)
     unsigned int bitmap1,bitmap2,state,lim_dim; 
     double *dim;
     double score,max_score = 0.0;
-    int save_auto_weigth = auto_weigth;
+    int l,save_auto_weigth = auto_weigth;
 
     auto_weigth = 0;  // no need for scaling
 
@@ -222,7 +190,7 @@ double calculate_max_score(int forest_idx)
 
     lim_dim = (dimensions > LIMIT_DIM) ? LIMIT_DIM : dimensions;
     
-    for(i = lim_dim;i < dimensions;i++) dim[i] = MAX_DIM_VALUE;   // Init possible rest values with +max
+    for(l = lim_dim;l < dimensions;k++) dim[l] = MAX_DIM_VALUE;   // Init possible rest values with +max
 
     for(i = 0;i < pwrtwo(lim_dim);i++)
     {
@@ -479,20 +447,23 @@ int check_idx(int index,int index_count, int *idx_table)
 void
 init_dims(int value_count)
 {
-    int i;
+    int i,d;
 
-    dimensions = 0;
+    d = 0;
 
     for(i = 0;i < value_count;i++) 
     {
         if((!check_idx(i,ignore_idx_count,ignore_idx) || check_idx(i,include_idx_count,include_idx)) &&
             !check_idx(i,category_idx_count,category_idx) && 
-            !check_idx(i,label_idx_count,label_idx))
+            !check_idx(i,label_idx_count,label_idx) &&
+            d < DIM_MAX)
         {
-            dim_idx[dimensions] = i;
-            dimensions++;
+            dim_idx[d] = i;
+            d++;
         }
     }
+
+    if(!dimensions) dimensions = d;   // If number of dims allready read from saved file, dont mess that
 }
 
 /* aggregate values to forest summary
@@ -687,7 +658,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 
         if(value_count)
         { 
-            populate_dimension(dimension,values,value_count);
+            parse_values(dimension,values,value_count,0);
 
             forest_idx = find_forest(value_count,values,1);
 
@@ -711,7 +682,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                         if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
                     }
 
-                    if(score >= get_forest_score(forest_idx))
+                    if(score > get_forest_score(forest_idx))
                     {
                         print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
                     }
@@ -741,7 +712,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                     if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
                 }
 
-                if(score >= get_forest_score(forest_idx))
+                if(score > get_forest_score(forest_idx))
                 {
                     print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCt");
                 }
@@ -808,7 +779,7 @@ categorize(FILE *in_stream, FILE *outs)
 
         if(value_count)
         { 
-            populate_dimension(dimension,values,value_count);
+            parse_values(dimension,values,value_count,0);
 
             if(aggregate)
             {

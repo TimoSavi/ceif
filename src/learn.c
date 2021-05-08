@@ -551,15 +551,23 @@ void v_add(double *a, double *b)
     for(i = 0;i < dimensions;i++) a[i] += b[i];
 }
 
-/* calculate the distance of two samples  */
-double v_dist(double *a, double *b)
+/* calculate the distance of two samples
+ * The sqrt is left out for performance reason
+ * */
+double v_dist_nosqrt(double *a, double *b)
 {
     int i;
     double d = 0.0;
 
     for(i = 0;i < dimensions;i++) d += POW2(a[i] - b[i]);
 
-    return sqrt(d);
+    return d;
+}
+
+/* calculate the distance of two samples  */
+double v_dist(double *a, double *b)
+{
+    return sqrt(v_dist_nosqrt(a,b));
 }
 
 
