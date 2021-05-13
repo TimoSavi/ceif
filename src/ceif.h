@@ -32,7 +32,7 @@
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in node 
 
-/* Special outlier_scoire values for automatic and average based scores */
+/* Special outlier_score values for automatic and average based scores */
 #define AVERAGE_SCORE -1
 #define AUTO_SCORE -2
 
@@ -95,6 +95,7 @@ struct forest
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     double auto_score;      // automatic socre calculated based on sample value having max score value
     double average_score;   // average score of all saved samples
+    double percentage_score;   // percentage based score of saved samples
     double min_score;       // Minimum score of all saved samples
     double max_score;       // Maximum score of all saved samples
     double test_average_score; // average score of tested data, can be compared with average_score
@@ -151,6 +152,7 @@ extern int aggregate;
 extern double average_score_factor;
 extern int scale_score;
 extern int nearest;
+extern int percentage_score;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -172,7 +174,7 @@ extern struct forest_hash fhash[];
 void panic(char *,char *,char *);
 void info(char *,char *,char *);
 int parse_dims(char *,int *);
-void parse_user_score(char *);
+void parse_user_score(char *,int);
 
 
 

@@ -71,6 +71,7 @@ int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
 double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
 int scale_score = 1;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
+int percentage_score = 0;          // outlier score is based on training data distribution, score is the largest score of the x% set of samples having the smallest score
 int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
 
 /* User given strings for dim ranges */
@@ -158,6 +159,8 @@ Options:\n\
   -o, --output FILE           outlier data is printed to FILE. Default is stdout\n\
   -w, --write-forest FILE     write forest data to FILE\n\
   -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0.0 - 1.0)\n\
+  -O, --outlier-score FLOATs  outlier data is printed if score is bigger that FLOAT (0.0 - 1.0), actual scores are scaled to range 0..1\n\
+  -O, --outlier-score FLOAT%%  outlier score is the score which covers FLOAT percent of samples, give value between 0..100\n\
   -O, --outlier-score max     outlier score is determined using sample value having the highest score\n\
   -O, --outlier-score average outlier score is determined using sample average score\n\
   -x, --score-factor FLOAT    set max and average outlier score factor to FLOAT\n\
@@ -167,7 +170,6 @@ Options:\n\
   -L, --label-dim LIST        comma separated list of dimensions to form a label string\n\
   -H, --header                input data file has a header\n\
   -S, --set-locale            locale information is read from environment\n\
-  -R, --prange-factor FLOAT   prange selection adjustment factor\n\
   -T, --test FLOAT            generate test data with adjustment factor FLOAT\n\
   -i, --test-interval INTEGER number of test points for each dimension, default is 256. Used with option -T\n\
   -F, --category-filter REGEXP regular expression to filter categories. Several option can be given. If REGEXP starts with \"-v \" the matching  is inverted\n\
@@ -179,7 +181,6 @@ Options:\n\
   -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
   -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
   -X, --text-dims STRING      comma separated list of dimensions in STRING to be used as text based input values, first is number 1. Ranges can be given using dash\n\
-  -W, --weigth                scale dimension attributes. Target range is the largest range of dimension attributes\n\
   -q, --query                 print forest info and exit\n\
   -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
@@ -188,7 +189,7 @@ Options:\n\
   -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
   -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
   -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
-  -R, --reset-forest STRING   Remove all samples for a forest read using option -r and having forest string STRING\n\
+  -R, --reset-forest STRING   remove all samples for a forest read using option -r and having forest string STRING\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -295,30 +296,41 @@ void init_forest_hash()
 
 /* parse outlier score
  */
-void parse_user_score(char *score_str)
+void parse_user_score(char *score_str,int saved)
 {
     char *endp;
 
     scale_score = 0;
+    percentage_score = 0;
 
-    if(strcmp(score_str,"auto") == 0 || strcmp(score_str,"max") == 0) 
+    outlier_score = strtod(score_str,&endp);
+
+    if(strcmp(score_str,"auto") == 0 || strcmp(score_str,"max") == 0 || (outlier_score == AUTO_SCORE && *endp == '\000' && saved)) 
     {
         outlier_score = AUTO_SCORE;
-    } else if(strcmp(score_str,"average") == 0)
+    } else if(strcmp(score_str,"average") == 0 || (outlier_score == AVERAGE_SCORE && *endp == '\000' && saved))
     {
         outlier_score = AVERAGE_SCORE;
     } else
     {
-        outlier_score = strtod(score_str,&endp);
-
         if(*endp == 's' && endp[1] == '\000') 
         {
             scale_score = 1;
             *endp = '\000';
+        } else if(*endp == '%' && endp[1] == '\000')
+        {
+            percentage_score = 1;
+            *endp = '\000';
         }
 
-        if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
-            panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required) or \"max\" or \"average\"",NULL,NULL);
+        if(percentage_score)
+        {
+            if(outlier_score < 0.0 || outlier_score > 100.0) 
+            {
+                panic("Give percentage based score between 0 and 100",NULL,NULL);
+            }
+        } else if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
+            panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required or with suffix \'%\' for percentage score) or \"max\" or \"average\"",NULL,NULL);
     }
 }
 
@@ -405,7 +417,7 @@ main (int argc, char **argv)
                     print_string = xstrdup(optarg);
                     break;
                 case 'O':
-                    parse_user_score(optarg);
+                    parse_user_score(optarg,0);
                     break;
                 case 'w':
                     save_file = xstrdup(optarg);

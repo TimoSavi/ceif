@@ -286,7 +286,7 @@ void read_config_file(char *config_file)
              max_total_samples = atoi(value);
         } else if((value = parse_config_line(input_line,"OUTLIER_SCORE")) != NULL)
         {
-             parse_user_score(value);
+             parse_user_score(value,0);
         } else if((value = parse_config_line(input_line,"NEAREST")) != NULL)
         {
              if(atoi(value)) nearest = 1;
@@ -330,7 +330,11 @@ print_forest_info(FILE *outs)
     } else if(outlier_score == AVERAGE_SCORE)
     {
         _2P("Outlier score is sample score average increased using stddev * average score factor: %s += stddev * %f\n","average",average_score_factor);
-    } else
+    } else if(percentage_score)
+    {
+        _2P("Outlier score is the score under which there are %.2f percent of sample scores\n",outlier_score); 
+    }
+    else
     {
         _2P("Outlier score: %f",outlier_score);
 
@@ -388,8 +392,11 @@ print_forest_info(FILE *outs)
             {
                 _3P("Adjusted average based outlier score: %f\n",f->average_score);
             } else if(scale_score)
-            {
+            { 
                 _3P("Forest score range is between %f and %f, this is used to scale data scores to 0..1 range\n",f->min_score,f->max_score);
+            } else if(percentage_score)
+            {
+                _3P("Percentage based score: %f, %.2f%% of samples have lower score\n",f->percentage_score,outlier_score);
             }
         }
 

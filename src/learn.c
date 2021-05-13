@@ -183,6 +183,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].high_analyzed_rows = 0;
    forest[forest_count].extra_rows = 0;
    forest[forest_count].auto_score = 0.0;
+   forest[forest_count].percentage_score = 0.0;
    forest[forest_count].average_score = 0.0;
    forest[forest_count].min_score = 1.0;
    forest[forest_count].test_average_score = 0.0;
@@ -1142,7 +1143,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score >= forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+                    if(score > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
 
                     v_copy(prev_dimension, test_dimension);
                 }

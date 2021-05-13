@@ -507,6 +507,43 @@ void calculate_forest_auto_score(int forest_idx)
     }
 }
 
+/* comparison function for score table sorting
+ */
+static
+int pscore_cmp(const void * a, const void * b)
+{
+    if(*(double*)a < *(double*)b) return -1;
+    if(*(double*)a > *(double*)b) return 1;
+    return 0;
+}
+
+/* calculate percentage based score for a forest
+ * first all sample scores are calculated and sorted
+ * the forest score is the score at point x% of sorted scores, 
+ */
+void calculate_forest_percentage_score(int forest_idx)
+{
+    double *all_scores;
+    int i;
+    struct forest *f;
+
+    f = &forest[forest_idx];
+        
+    if(f->filter) return;
+
+    all_scores = xmalloc(sizeof(double) *  f->X_count);
+
+    for(i = 0;i < f->X_count;i++) all_scores[i] = _score(forest_idx,f->X[i].dimension);
+
+    qsort(all_scores,f->X_count,sizeof(double),pscore_cmp);
+
+    f->percentage_score = all_scores[(size_t) ((double) (f->X_count - 1) * (outlier_score / 100.0))];
+
+    free(all_scores);
+}
+    
+    
+
 
 /* remove outlier
  * For each non filterd forest the sample with the highest  score is removed from 
@@ -606,6 +643,7 @@ double get_forest_score(int forest_idx)
 {
     if(outlier_score == AUTO_SCORE) return forest[forest_idx].auto_score;
     if(outlier_score == AVERAGE_SCORE) return forest[forest_idx].average_score;
+    if(percentage_score) return forest[forest_idx].percentage_score;
     return outlier_score;
 }
 
@@ -620,6 +658,9 @@ void calculate_forest_score(int forest_idx)
     } else if(forest[forest_idx].auto_score == 0.0 && outlier_score == AUTO_SCORE)
     {
         calculate_forest_auto_score(forest_idx);
+    } if(forest[forest_idx].percentage_score == 0.0 && percentage_score)
+    {
+        calculate_forest_percentage_score(forest_idx);
     }
 }
 
