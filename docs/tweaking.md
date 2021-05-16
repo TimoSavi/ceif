@@ -81,6 +81,13 @@ Average method was run with option -x 4, because default value leaves too much s
 Outlier case with -Omax causes the most distant outlier define the outlier score. This causes the inlier area to be quite large. In -Oaverage case the outliers cause the original inlier are to 
 be slightly enlarged.
 
+#### Percentage based outlier score
+Percentage based score is calculated sorting all sample scores and taking the score which covers x percent of scores starting from smallest score. 
+E.g. the percentage score 50% is the median of all sample scores and 100% is tha maximum score of all samples.
+
+Percentage based score can be used to identify bias of a sample set. If score is set to x% then the normal test data should have x% inliers.
+If inlier count is not near x% then tested data set might be have bias. Printing option -v can be used to print statistics analyzed data.
+
 #### Tricky data maps
 Here is an example of a difficult data map. Two nested circles causes problems because there are adjacent inlier and outlier areas and subareas of the algorithm tend to span over both areas. 
 The effect is nearest training data point distance analysis is clearly seen here.
@@ -238,27 +245,28 @@ Average based anomaly score is calculated by finding the training set average sc
 Where stddev is training set score standard deviation.
 
 ### Print analysed data average info
-Option -v can be used to print average calculated from analysed data (given by option -a). If option -v is used then ceif calculates the total number of anlysed lines and
-the number of lines which had larger score that adjusted average training data score. Option -v requires a printing mask, which can have following directives:
+Option -v can be used to print average score and other statistics calculated from analysed data (given by option -a). If option -v is used then ceif calculates the total number of analysed lines and
+the number of lines which had larger score that outlier score. Option -v requires a printing mask, which can have following directives:
 
 | Directive | Meaning |
 |----|----|
 | %r | Number of analysed rows|
-| %s | Adjusted average anomaly score|
-| %S | Average anomaly score for analysed data, this is not adjusted|
-| %h | Number of analysed rows having larger outlier score than average score|
+| %s | Anomaly score|
+| %S | Average data anomaly score|
+| %h | Number of analysed rows having larger outlier score than outlier score|
 
-Example using square data and few lines from circle.csv as anomaly data:
+Example using 2blob.csv:
 
-    ceif -l square.csv -w square.ceif
-    head -3 circle.csv | cat - square.csv | ceif -r square.ceif -a - -O1  -x4 -v "%s %S %r %h"
-    0.500074 0.421726 253 3
+    ceif -l 2blob.csv -O90% -w 2blob.ceif
+    ceif -r 2blob.ceif -a 2blob.csv -p "" -v "%r %h %s %S"
+    2000 200 0.373435 0.319595
 
-First training data from square.csv is saved to square.ceif. Then square data and three lines from circle.csc are analysed and only average data is printed (no outlier data lines are printed becaus anomaly score is set to 1). The adjusted average score is 0.500074, the analysed data average score is 0.421726, the total number of input lines is 253 and lines having score larger than 0.500074 is three (the anomalies from circle.csv). 
+Training data set is saved to 2blob.ceif with outlier score 90%. Then same data set is analyzed against the training data. Statistics is printed using option -v, single
+dataline printing is suppressed with option -p "". Output values:
 
-This can be used when analysing the input data as whole, if the number printed by %h is large to compared to %r then the whole analysed data set might be have bias.
+- 2000: Total number of input lines
+- 200: Number of lines having larger score than 90% of training data (expected value: 2000 * 10% = 200)
+- 0.373435: Percentage based anomaly score (means that 90% of training data have lower score than 0.373435)
+- 0.319595: Test data average score
 
- 
-
-
-
+This can be used when analysing the input data as whole, if the number printed by %h is large to compared to expected value (here 10% of samples) then the whole analysed data set might be have bias.

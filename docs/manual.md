@@ -29,6 +29,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -O&nbsp;average | Outlier score for anomaly detection. If argument "average" is given then the outlier score is determined sample score average and stadars deviation. This process can be adjusted by option -x or rc-file variable AVERAGE\_SCORE\_FACTOR, see section user rc-file for more details |
 | -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
 | -O&nbsp;FLOATs| Outlier score for anomaly detection. If suffix 's' is given the actual analyzed score is scaled to range 0-1 using forest min/max scores. This ensures that the best inlier has value zero and the farthest outlier will get value 1.0.  Use values 0.0s - 1.0s|
+| -O&nbsp;FLOAT%| Outlier score for anomaly detection is calculated using sample score distribution taking the score value under which FLOAT percent of samples have lower score. Use values  0 - 100|
 | -x&nbsp;FLOAT| Adjustment factor for automatic outlier score|
 | -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
@@ -52,6 +53,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
 | -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
 | -R&nbsp;STRING | Remove all samples for a forest having STRING as forest string.|
+| -v&nbsp;STRING | Print average score and other statistics calculated from analysed data using printing format STRING.|
 
 
 If FILE is "-" then standard input or output is read or written.
@@ -91,7 +93,6 @@ Following variables are supported:
 |SAMPLES|Number of samples taken for each tree, same affect as option -s|256|
 |TREES|Number of trees for each forest, same affect as option -t|100|
 |DECIMALS|Number of decimals used when saving forest data. Affects also printing of sample values (option -d)|6|
-|PRANGE\_EXTENSION\_FACTOR|Interception point ***p*** range extension factor (option -R)|1|
 |MAX\_SCORE|Calculate max score, 1 = yes, 0 = no|0|
 |AUTO\_SCALE|Scale sample values before analysing the forest, 1 = yes, 0 = no|1|
 |CATEGORY\_SEPARATOR|Char to be used as a separator when concatenating category fields|;|
@@ -116,14 +117,14 @@ Example of rc-file:
 #### Learn and analyze same field
 Learn and analyse file data.csv, use fields 1-3 (by ignoring fields 4-100) for analysis and print anomalies having score 0.6 or greater.
 
-    ceif -l data.csv -a data.csv -R30 -I4-100  -O0.6
+    ceif -l data.csv -a data.csv -I4-100  -O0.6
 
-#### Learn and write forest data to file data.f
+#### Learn and write forest data to file data.f, Use scaled sample score value 0.5, 
 
-    ceif -l data.csv -w data.f -R30 -I4-100 -O0.6
+    ceif -l data.csv -w data.f -I4-100 -O0.5s
 
 #### Read forest data from data.f and analyse data.csv
-Note that parameters like -R and -O are saved to forest file and need not be given again.  
+Note that parameters like -O are saved to forest file and need not be given again.  
 
     ceif -r data.f -a data.csv
 
@@ -135,7 +136,7 @@ Note that -w must given in order to save enhanced forest data.
 #### Learn and write forest data with category
 Use field number 5 as category field
 
-    ceif -l data.csv -w data.f -R30 -I4-100 -O0.6 -C 5
+    ceif -l data.csv -w data.f -I4-100 -O0.6 -C 5
 
 #### categorize data from data.csv using forest data from previous example
 Print analyzed category value (%C) and select fields as comma separated list (%v) for each input row from data.csv.
@@ -169,7 +170,7 @@ Example file of hourly samples of internet traffic:
 
 Making Hourly and traffic direction summaries, first two fields are category keys (-C1-2):
 
-    ceif -l traffic.csv -C1-2 -H -A -R10 -n -d0 -w traffic.ceif
+    ceif -l traffic.csv -C1-2 -H -A -d0 -w traffic.ceif
 
 Forest file contents below, for each hour and traffic type the number of bytes are summarized:
 

@@ -716,16 +716,12 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 
                     score = calculate_score(forest_idx,dimension);
 
-                    if(average_format != NULL)
-                    {
-                        if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
-                        forest[forest_idx].test_average_score += score;
-                        if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
-                    }
+                    if(average_format != NULL) forest[forest_idx].test_average_score += score;
 
                     if(score > get_forest_score(forest_idx))
                     {
                         print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+                        forest[forest_idx].high_analyzed_rows++;
                     }
                 }
              } else
@@ -746,16 +742,12 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                         
                 score = calculate_score(forest_idx,forest[forest_idx].summary);
                     
-                if(average_format != NULL)
-                {
-                    if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
-                    forest[forest_idx].test_average_score = score;
-                    if(score > forest[forest_idx].average_score) forest[forest_idx].high_analyzed_rows++;
-                }
-
+                if(average_format != NULL) forest[forest_idx].test_average_score = score;
+                
                 if(score > get_forest_score(forest_idx))
                 {
                     print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCt");
+                    forest[forest_idx].high_analyzed_rows++;
                 }
             }
         }
@@ -768,7 +760,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
             if(!forest[forest_idx].filter && forest[forest_idx].analyzed_rows > 0)
             {
                 forest[forest_idx].test_average_score /= forest[forest_idx].analyzed_rows;
-                print_(outs,forest[forest_idx].average_score,forest[forest_idx].analyzed_rows,forest_idx,0,NULL,NULL,average_format,"sraxCthS");
+                print_(outs,get_forest_score(forest_idx),forest[forest_idx].analyzed_rows,forest_idx,0,NULL,NULL,average_format,"sraxCthS");
             }
         }
     }
