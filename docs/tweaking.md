@@ -82,11 +82,11 @@ Outlier case with -Omax causes the most distant outlier define the outlier score
 be slightly enlarged.
 
 #### Percentage based outlier score
-Percentage based score is calculated sorting all sample scores and taking the score which covers x percent of scores starting from smallest score. 
-E.g. the percentage score 50% is the median of all sample scores and 100% is tha maximum score of all samples.
+Percentage based score is calculated by sorting all sample scores and taking the score which covers x percent of scores starting from smallest score. 
+E.g. the percentage score 50% is the median of all sample scores and 100% is the maximum score of all samples.
 
 Percentage based score can be used to identify bias of a sample set. If score is set to x% then the normal test data should have x% inliers.
-If inlier count is not near x% then tested data set might be have bias. Printing option -v can be used to print statistics analyzed data.
+If inlier count is not near x% then the tested data set might be have bias. Printing option -v can be used to print statistics analyzed data.
 
 #### Tricky data maps
 Here is an example of a difficult data map. Two nested circles causes problems because there are adjacent inlier and outlier areas and subareas of the algorithm tend to span over both areas. 
@@ -246,14 +246,14 @@ Where stddev is training set score standard deviation.
 
 ### Print analysed data average info
 Option -v can be used to print average score and other statistics calculated from analysed data (given by option -a). If option -v is used then ceif calculates the total number of analysed lines and
-the number of lines which had larger score that outlier score. Option -v requires a printing mask, which can have following directives:
+the number of lines which had higher score than outlier score. Option -v requires a printing mask, which can have following directives:
 
 | Directive | Meaning |
 |----|----|
 | %r | Number of analysed rows|
 | %s | Anomaly score|
 | %S | Average data anomaly score|
-| %h | Number of analysed rows having larger outlier score than outlier score|
+| %h | Number of analysed rows having high outlier score|
 
 Example using 2blob.csv:
 
@@ -269,4 +269,4 @@ dataline printing is suppressed with option -p "". Output values:
 - 0.373435: Percentage based anomaly score (means that 90% of training data have lower score than 0.373435)
 - 0.319595: Test data average score
 
-This can be used when analysing the input data as whole, if the number printed by %h is large to compared to expected value (here 10% of samples) then the whole analysed data set might be have bias.
+This can be used when analysing the input data as whole. If the number printed by %h is large compared to expected value (here 10% of samples) then the whole analysed data set might be have bias.

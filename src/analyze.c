@@ -190,7 +190,7 @@ double calculate_max_score(int forest_idx)
 
     lim_dim = (dimensions > LIMIT_DIM) ? LIMIT_DIM : dimensions;
     
-    for(l = lim_dim;l < dimensions;k++) dim[l] = MAX_DIM_VALUE;   // Init possible rest values with +max
+    for(l = lim_dim;l < dimensions;l++) dim[l] = MAX_DIM_VALUE;   // Init possible rest values with +max
 
     for(i = 0;i < pwrtwo(lim_dim);i++)
     {
