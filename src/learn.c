@@ -1099,14 +1099,17 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
     int forest_idx;
     int samples = 0;
     double score, forest_score;
+    double zero_len_divisor;
     double *test_dimension;
     double *prev_dimension;
-    static double len[DIM_MAX];             // precalculated max - min value
-    static int sidx[DIM_MAX];               // contains sample number (between 0 - test_sample_interval) for each dimension value, all combinations are processed
+    double *len;             // precalculated max - min value
+    double *sidx;            // contains sample number (between 0 - test_sample_interval) for each dimension value, all combinations are processed
     struct forest *f;
 
     test_dimension = xmalloc(dimensions * sizeof(double));
     prev_dimension = xmalloc(dimensions * sizeof(double));
+    len = xmalloc(dimensions * sizeof(double));
+    sidx = xmalloc(dimensions * sizeof(double));
     
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)
     {
@@ -1124,19 +1127,32 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
 
             forest_score = get_forest_score(forest_idx);
 
+            zero_len_divisor = 0.0;         // This is used in test range calculation for dimensions having no variation (max == min), the narrowest range in
+                                            // data is used in case the narrowest range is below 1 (max - min < 1)
+
             for(i = 0;i < dimensions;i++) 
             {
                 sidx[i] = 0;
-                prev_dimension[i] = 0;
+                prev_dimension[i] = (double) rand();
                 len[i] = f->max[i] - f->min[i];
-                if(len[i] == 0.0) len[i] = 1.0;
+                if(len[i] > 0.0 && 2.0 / len[i] > zero_len_divisor) zero_len_divisor = 2.0 / len[i];
             }
+
+            if(zero_len_divisor < 2.0) zero_len_divisor = 2.0;
 
             while(sidx[0] <= test_sample_interval)
             {
                 for(i = 0;i < dimensions;i++) 
                 {
-                    test_dimension[i] = (1.0 + test_extension_factor) * ((double) sidx[i] / (double) test_sample_interval) * len[i] + (f->min[i] - (test_extension_factor * len[i]) / 2.0);
+                    if(len[i] == 0.0)
+                    {
+                        test_dimension[i] = (1.0 + test_extension_factor) * (2.0 * (double) sidx[i] / (double) test_sample_interval / zero_len_divisor) +
+                                            (f->min[i] - ((1.0 + test_extension_factor) / zero_len_divisor));
+                    } else
+                    {
+                        test_dimension[i] = (1.0 + test_extension_factor) * ((double) sidx[i] / (double) test_sample_interval) * len[i] + 
+                                            (f->min[i] - (test_extension_factor * len[i]) / 2.0);
+                    }
                 }
 
                 if(v_cmp(test_dimension,prev_dimension) != 0)
@@ -1170,6 +1186,8 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
     }
     free(test_dimension);
     free(prev_dimension);
+    free(len);
+    free(sidx);
 }
 
 
