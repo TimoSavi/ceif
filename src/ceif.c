@@ -73,6 +73,7 @@ double average_score_factor = 1.0; // sample set average score will by adjust by
 int scale_score = 1;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
 int percentage_score = 0;          // outlier score is based on training data distribution, score is the largest score of the x% set of samples having the smallest score
 int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
+int analyze_sampling_count = 0;    // number of lines / forest after sampling of analyzed lines is started, 0 = sampling disabled
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -355,6 +356,7 @@ main (int argc, char **argv)
     char *average_format = NULL;
     char *not_found_format = NULL;
     double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
+    int score_option_given = 0;
     char *learn_file = NULL;
     char *analyze_file = NULL;
     char *categorize_file = NULL;
@@ -418,6 +420,7 @@ main (int argc, char **argv)
                     break;
                 case 'O':
                     parse_user_score(optarg,0);
+                    score_option_given = 1;
                     break;
                 case 'w':
                     save_file = xstrdup(optarg);
@@ -614,7 +617,7 @@ main (int argc, char **argv)
     if(categorize_file !=  NULL)
     {
         categorizes = xfopen(categorize_file,"r",'a');
-        categorize(categorizes,outs);
+        categorize(categorizes,score_option_given,outs);
         fclose(categorizes);
     }
 

@@ -664,7 +664,17 @@ void calculate_forest_score(int forest_idx)
     }
 }
 
-
+/* Check if analyzed rows should be sampled and 
+ * implement reservoir sampling if number of rows read is
+ * larger than analyze_sampling_count
+ * return true if row should be analyzed
+ */
+static
+int take_this_row(int analyzed_rows)
+{
+    if(analyze_sampling_count && analyzed_rows > analyze_sampling_count && ri(1,analyzed_rows) > analyze_sampling_count) return 0;
+    return 1;
+}
 
 /* analyze data from file. 
  * All lines are analyzed against loaded forest/tree data
@@ -712,22 +722,25 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                     aggregate_values(forest_idx,dimension);
                 } else
                 {
-                    forest[forest_idx].analyzed_rows++;
-
-                    score = calculate_score(forest_idx,dimension);
-
-                    if(average_format != NULL) forest[forest_idx].test_average_score += score;
-
-                    if(score > get_forest_score(forest_idx))
+                    if(take_this_row(forest[forest_idx].analyzed_rows))   // check if analyzed rows are reservoir sampled
                     {
-                        print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
-                        forest[forest_idx].high_analyzed_rows++;
+                        forest[forest_idx].analyzed_rows++;
+
+                        score = calculate_score(forest_idx,dimension);
+
+                        if(average_format != NULL) forest[forest_idx].test_average_score += score;
+
+                        if(score > get_forest_score(forest_idx))
+                        {
+                            print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+                            forest[forest_idx].high_analyzed_rows++;
+                        }
                     }
                 }
-             } else
-             {
-                 if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,dimension,not_found_format,"dvcl");
-             }
+            } else
+            {
+                if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,dimension,not_found_format,"dvcl");
+            }
 
         }
     }
@@ -772,9 +785,10 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 /* Categorize dimensions
  * All lines are analyzed against loaded forest/tree data
  * All forests are analyzed and a forest having lowest anomaly score is selected as category forest
+ * If score_limit then do not print cases where lowest score is higher than forest outlier score
  */
 void
-categorize(FILE *in_stream, FILE *outs)
+categorize(FILE *in_stream, int score_limit, FILE *outs)
 {
     int i,j;
     int value_count;
@@ -836,7 +850,8 @@ categorize(FILE *in_stream, FILE *outs)
                     }
                 }
 
-                if(best_forest_idx >= 0) print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
+                if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
+                    print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCt");
             }
         }
     }
@@ -861,7 +876,8 @@ categorize(FILE *in_stream, FILE *outs)
                     }
                 }
             }
-            if(best_forest_idx >= 0) print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCt");
+            if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
+                print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCt");
         }
     }
 

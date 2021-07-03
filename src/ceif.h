@@ -153,6 +153,7 @@ extern double average_score_factor;
 extern int scale_score;
 extern int nearest;
 extern int percentage_score;
+extern int analyze_sampling_count;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -217,12 +218,13 @@ double v_dist_nosqrt(double *,double *);
 double v_dist(double *,double *);
 double *scale_dimension(double *,struct forest *);
 void parse_values(double *,char **, int, int);
+int ri(int, int);
 
 
 
 /* analyze.c prototypes */
 void analyze(FILE *, FILE *,char *,char *);
-void categorize(FILE *, FILE *);
+void categorize(FILE *, int, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);
 double calculate_score(int ,double *);

@@ -116,7 +116,6 @@ char *make_category_string(int value_count,char **values)
 
 /* generate a random integer from range min...max
  */ 
-static 
 inline int ri(int min, int max)
 {
     return ((rand() % (max - min + 1)) + min);

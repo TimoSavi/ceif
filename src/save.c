@@ -49,6 +49,12 @@ void write_global_data(FILE *w,int f_count)
 
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
 
+    if(outlier_score < 0) 
+    {
+        scale_score = 0;
+        percentage_score = 0;
+    }
+
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
                 input_separator,header,outlier_score,scale_score ? "s" : (percentage_score ? "%" : ""),outlier_score == AVERAGE_SCORE ? average_score_factor : auto_score_factor,\
                 ignore_dims ? ignore_dims : "",\

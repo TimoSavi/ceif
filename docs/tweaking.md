@@ -270,3 +270,36 @@ dataline printing is suppressed with option -p "". Output values:
 - 0.319595: Test data average score
 
 This can be used when analysing the input data as whole. If the number printed by %h is large compared to expected value (here 10% of samples) then the whole analysed data set might be have bias.
+
+### How to categorize
+ceif can be used to categorize data having several categories. If training data has several categories then the data to be categorized is analyzed using all forests (categories) and the forest giving the lowest
+outlier score is considered to be the best category for the data. If scaled outlier score is given by option -O then the results are limited by this value. Category with lowest score is accepted (and printed)
+only if the lowest score found is lower than the score given by option -O. 
+
+Following examples are based on training data in file [3cat\_samples.csv](../test/3cat_samples.csv). File has two dimension data (fields 1-2) with category field (field number 3).
+
+Training data map:
+
+![](pics/3c_samples.png)
+
+Category strings are gnuplot rgb values for red, green and blue. They are handy in printing. category jos is run using [3cat\_test.csv](../test/3cat_test.csv), category string here is X, because it is unknown.
+Tests are run with different outlier score values and with different NEAREST value in ~/.ceifrc.
+
+Example of making the training data, field number 3 is the category string field, no decimals are needed for saving the data:
+    ceif -l 3cat_samples.csv -C3 -d0 -w 3cat.ceif
+
+Example of running the category analysis with score value 0.5s, results are saved in plot\_data.csv:
+    ceif -r 3cat.ceif -c 3cat_test.csv -p "%d,%C" -O0.5s -o plot_data.csv
+
+Category value maps with different run options:
+
+|Outlier score/NEAREST value|NEAREST 1|NEAREST 0|
+|---|---|---|
+|no outlier score given|![](pics/3c_n1_s100.png)|![](pics/3c_n0_s100.png)|
+|0.5s|![](pics/3c_n1_s50.png)|![](pics/3c_n0_s50.png)|
+|0.3s|![](pics/3c_n1_s30.png)|![](pics/3c_n0_s30.png)|
+
+Following effects are seen:
+
+- With NEAREST 1 the boundaries between different categories are more accurate.
+- Lower the outlier score means more data points are not associated with any category (white areas)

@@ -291,6 +291,9 @@ void read_config_file(char *config_file)
         {
              if(atoi(value)) nearest = 1;
              else nearest = 0;
+        } else if((value = parse_config_line(input_line,"ANALYZE_SAMPLING")) != NULL)
+        {
+             analyze_sampling_count = atoi(value);
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
@@ -376,7 +379,7 @@ print_forest_info(FILE *outs)
 
         calculate_forest_score(forest_idx);
 
-        _2P("\nForest category string: %s\n",f->category);
+        _2P("\nForest category string: \'%s\'\n",f->category);
         _3P("Filter is %s\n",_O(f->filter));
         _3P("Number of samples: %d\n",f->X_count);
 
