@@ -282,18 +282,20 @@ Training data map:
 
 ![](pics/3c_samples.png)
 
-Category strings are gnuplot rgb values for red, green and blue. They are handy in printing. category jos is run using [3cat\_test.csv](../test/3cat_test.csv), category string here is X, because it is unknown.
+Category strings are gnuplot rgb values for red, green and blue. They are handy in printing. Category job is run using [3cat\_test.csv](../test/3cat_test.csv) (100 * 100 data points), category string here is X, because it is unknown and to be found.
 Tests are run with different outlier score values and with different NEAREST value in ~/.ceifrc.
 
 Example of making the training data, field number 3 is the category string field, no decimals are needed for saving the data:
+
     ceif -l 3cat_samples.csv -C3 -d0 -w 3cat.ceif
 
 Example of running the category analysis with score value 0.5s, results are saved in plot\_data.csv:
+
     ceif -r 3cat.ceif -c 3cat_test.csv -p "%d,%C" -O0.5s -o plot_data.csv
 
 Category value maps with different run options:
 
-|Outlier score/NEAREST value|NEAREST 1|NEAREST 0|
+|Outlier score / NEAREST value|NEAREST 1|NEAREST 0|
 |---|---|---|
 |no outlier score given|![](pics/3c_n1_s100.png)|![](pics/3c_n0_s100.png)|
 |0.5s|![](pics/3c_n1_s50.png)|![](pics/3c_n0_s50.png)|
@@ -303,3 +305,26 @@ Following effects are seen:
 
 - With NEAREST 1 the boundaries between different categories are more accurate.
 - Lower the outlier score means more data points are not associated with any category (white areas)
+
+### Sampling large data sets to be analyzed for outliers
+If data sets for outlier detection is very large and sampling does not effect results too much then the configuration variable ANALYZE\_SAMPLING can be used to reduce prosessing time.
+ANALYZE\_SAMPLING tells the minimum number of rows to be analysed (using option -a, default is take all input rows). If there are more rows than ANALYZE\_SAMPLING, 
+then reservoir sampling type method is used to select the rest of the rows. 
+
+Total number of rows to be analysed is app.:
+
+    k * (ln(x/k) + 1)
+
+where
+
+    k = ANALYZE\_SAMPLING value
+    x = Total number of input rows.
+
+As an example the following table gives an idea how many input rows will be approximately analysed when ANALYZE\_SAMPLING is set to value 10 000.
+
+|Total number of input rows|Rows analyzed when ANALYZE\_SAMPLING is set to 10 000|
+|---|---|
+|    50 000|26094|
+|   500 000|49120|
+| 2 000 000|62983|
+|20 000 000|86009|

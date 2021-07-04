@@ -294,6 +294,7 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"ANALYZE_SAMPLING")) != NULL)
         {
              analyze_sampling_count = atoi(value);
+             if(analyze_sampling_count < 0) analyze_sampling_count = 0;
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
