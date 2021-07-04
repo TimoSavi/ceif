@@ -317,14 +317,14 @@ Total number of rows to be analysed is app.:
 
 where
 
-    k = ANALYZE\_SAMPLING value
+    k = ANALYZE_SAMPLING value
     x = Total number of input rows.
 
-As an example the following table gives an idea how many input rows will be approximately analysed when ANALYZE\_SAMPLING is set to value 10 000.
+As an example the following table gives an idea how many input rows will be approximately analyzed when ANALYZE\_SAMPLING is set to value 10 000.
 
 |Total number of input rows|Rows analyzed when ANALYZE\_SAMPLING is set to 10 000|
 |---|---|
-|    50 000|26094|
-|   500 000|49120|
-| 2 000 000|62983|
-|20 000 000|86009|
+|50 000|26 094|
+|500 000|49 120|
+|2 000 000|62 983|
+|20 000 000|86 009|
