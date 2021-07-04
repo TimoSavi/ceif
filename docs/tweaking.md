@@ -55,7 +55,7 @@ On the other hand the scaled score 0.5s can be used as a good outlier limit for 
 #### Scaled outlier score
 If suffix 's' is given with outlier score then the analyzed scores are scaled to range 0..1. Typically score range for normal case is something between 0.3 and 0.85. 
 When scaling the minimum score (e.g. 0.33) is scaled to 0 and maximum score (e.g. 0.83) is scaled to 1 and respectively values between them. Forest min/max scores are found by testing. 
-Minimum score is the lowest sample score and maximum score is got analysing huge dimension values.
+Minimum score is the lowest sample score and maximum score is got analyzing huge dimension values.
 
 This gives more consistet score values between different forests and outlier have at least value 0.5. Scaling is used always when categorizing (option -c).
 
@@ -90,7 +90,7 @@ If inlier count is not near x% then the tested data set might be have bias. Prin
 
 #### Tricky data maps
 Here is an example of a difficult data map. Two nested circles causes problems because there are adjacent inlier and outlier areas and subareas of the algorithm tend to span over both areas. 
-The effect is nearest training data point distance analysis is clearly seen here.
+The effect of the nearest training data point distance analysis is clearly seen here.
 
 | Case | Two circles |
 |---|---|
@@ -244,16 +244,16 @@ Average based anomaly score is calculated by finding the training set average sc
 
 Where stddev is training set score standard deviation.
 
-### Print analysed data average info
-Option -v can be used to print average score and other statistics calculated from analysed data (given by option -a). If option -v is used then ceif calculates the total number of analysed lines and
+### Print analyzed data average info
+Option -v can be used to print average score and other statistics calculated from analyzed data (given by option -a). If option -v is used then ceif calculates the total number of analyzed lines and
 the number of lines which had higher score than outlier score. Option -v requires a printing mask, which can have following directives:
 
 | Directive | Meaning |
 |----|----|
-| %r | Number of analysed rows|
+| %r | Number of analyzed rows|
 | %s | Anomaly score|
 | %S | Average data anomaly score|
-| %h | Number of analysed rows having high outlier score|
+| %h | Number of analyzed rows having high outlier score|
 
 Example using 2blob.csv:
 
@@ -269,7 +269,7 @@ dataline printing is suppressed with option -p "". Output values:
 - 0.373435: Percentage based anomaly score (means that 90% of training data have lower score than 0.373435)
 - 0.319595: Test data average score
 
-This can be used when analysing the input data as whole. If the number printed by %h is large compared to expected value (here 10% of samples) then the whole analysed data set might be have bias.
+This can be used when analyzing the input data as whole. If the number printed by %h is large compared to expected value (here 10% of samples) then the whole analyzed data set might be have bias.
 
 ### How to categorize
 ceif can be used to categorize data having several categories. If training data has several categories then the data to be categorized is analyzed using all forests (categories) and the forest giving the lowest
@@ -308,10 +308,10 @@ Following effects are seen:
 
 ### Sampling large data sets to be analyzed for outliers
 If data sets for outlier detection is very large and sampling does not effect results too much then the configuration variable ANALYZE\_SAMPLING can be used to reduce prosessing time.
-ANALYZE\_SAMPLING tells the minimum number of rows to be analysed (using option -a, default is take all input rows). If there are more rows than ANALYZE\_SAMPLING, 
+ANALYZE\_SAMPLING tells the minimum number of rows to be analyzed (using option -a, default is take all input rows). If there are more rows than ANALYZE\_SAMPLING, 
 then reservoir sampling type method is used to select the rest of the rows. 
 
-Total number of rows to be analysed is app.:
+Total number of rows to be analyzed is app.:
 
     k * (ln(x/k) + 1)
 
