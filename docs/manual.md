@@ -100,8 +100,7 @@ Following variables are supported:
 |OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
 |MAX\_SAMPLES|Maximum number of samples for each forest|Default is calculated by number\_of\_trees * number\_of\_samples\_per\_tree|
 |NEAREST|Score is adjusted by the distance to nearest sample point in leaf nodes, 1 = yes, 0 = no|1|
-|ANALYZE_SAMPLING|If the data to be analyzed is expected to be unpractical large it can be sampled. If the analyzed row count reaches the value defined by this variable then the sampling begins. Sampling is implement using reservoir
-sampling method. The estimated number of analyzed rows is estimated to be k * (ln(n/k) + 1), where k = this parameter value, n = total analyzed row count|0 (default value, no sampling)|
+|ANALYZE_SAMPLING|If the data to be analyzed is expected to be inpractical large it can be sampled. If the analyzed row count reaches the value defined by this variable then the sampling starts. Sampling is implement using reservoir sampling method. The number of analyzed rows is estimated to be k * (ln(x/k) + 1), where k = this parameter value, x = total row count|0 (default value, no sampling)|
 
 Example of rc-file:
 
