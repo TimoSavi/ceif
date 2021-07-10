@@ -99,6 +99,7 @@ struct forest
     double min_score;       // Minimum score of all saved samples
     double max_score;       // Maximum score of all saved samples
     double test_average_score; // average score of tested data, can be compared with average_score
+    int total_rows;         // Number of rows read from input
     int analyzed_rows;      // Number of rows used in analysis
     int high_analyzed_rows; // Number of rows having score higher than avaerage score
     int extra_rows;         // Number of rows read after train file after max number of samples reached

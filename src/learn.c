@@ -178,6 +178,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].last_updated = now;
    forest[forest_count].avg = xmalloc(dimensions * sizeof(double));
    forest[forest_count].dim_density = xmalloc(dimensions * sizeof(double));
+   forest[forest_count].total_rows = 0;
    forest[forest_count].analyzed_rows = 0;
    forest[forest_count].high_analyzed_rows = 0;
    forest[forest_count].extra_rows = 0;
@@ -226,10 +227,15 @@ int v_cmp(double *t,double *s)
 
 
 /* parse single numeric sample attribute 
+   return 0 in case number cannot be parsed
    */
 double parse_dim_attribute(char *value)
 {
-    return atof(value);
+    double d;
+
+    d = atof(value);
+
+    return isnan(d) ? 0.0 : d;
 }
 
 /* parse single text attribute 

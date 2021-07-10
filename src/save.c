@@ -219,6 +219,7 @@ int parse_F(int forest_idx,char *l)
         f->X_cap = atoi(v[4]) + 1;
         f->X = xmalloc(f->X_cap * sizeof(struct sample));
 
+        f->total_rows = 0;
         f->analyzed_rows = 0;
         f->high_analyzed_rows = 0;
         f->extra_rows = 0;

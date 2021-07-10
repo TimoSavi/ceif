@@ -63,22 +63,25 @@ If FILE is "-" then standard input or output is read or written.
 | Directive | Meaning |
 |----|----|
 | %r | Current input file row number|
-| %s | Anomaly score |
-| %S | Average anomaly score for analysed data |
-| %h | Number of analysed rows having larger outlier score than average score|
-| %c | Category values separated by semicolon|
-| %l | Label values separated by dash|
+| %s | Anomaly score|
+| %S | Average anomaly score for analysed data|
+| %n | Number of rows for a forest|
+| %o | Number of analyzed rows for a forest. This might be lower than %n value if data sampling is used (see ANALYZE\_SAMPLING in next section)|
+| %h | Number of analysed rows having larger score than outlier score value|
+| %c | Category string from input data. The original category when categorizing data|
+| %C | Forest category string. The best matching category when categorizing data|
+| %l | Label values|
 | %d | Separated list of dimension values|
 | %a | Separated list of dimension average values|
 | %v | Current input row values|
 | %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Note that value zero is printed as black|
-| %C | Found category values separated by semicolon when categorizing data|
 | %t | Time when category has been last updated. In human readable form using current locale|
 | %: | Category value separator|
 | %. | Label value separator|
 | %% | Percent sign|
 
 Value separator for d,a and v can be given by option -e.
+Category value separator is semicolon and label value separator is dash. These can be changed in rc-file.
 
 ### User rc-file
 Some defaults can be read from user specific rc-file ~/.ceifrc. File has variable-value pairs separated by whitespace. Comments start with #. 
@@ -100,7 +103,7 @@ Following variables are supported:
 |OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
 |MAX\_SAMPLES|Maximum number of samples for each forest|Default is calculated by number\_of\_trees * number\_of\_samples\_per\_tree|
 |NEAREST|Score is adjusted by the distance to nearest sample point in leaf nodes, 1 = yes, 0 = no|1|
-|ANALYZE_SAMPLING|If the data to be analyzed is expected to be inpractical large it can be sampled. If the analyzed row count reaches the value defined by this variable then the sampling starts. Sampling is implement using reservoir sampling method. The number of analyzed rows is estimated to be k * (ln(x/k) + 1), where k = this parameter value, x = total row count|0 (default value, no sampling)|
+|ANALYZE\_SAMPLING|If the data to be analyzed is expected to be inpractical large it can be sampled. If the analyzed row count reaches the value defined by this variable then the sampling starts. Sampling is implement using reservoir sampling method. The number of analyzed rows is estimated to be k * (ln(x/k) + 1), where k = this parameter value, x = total row count|0 (default value, no sampling)|
 
 Example of rc-file:
 
@@ -115,12 +118,12 @@ Example of rc-file:
 
 ### Examples
 
-#### Learn and analyze same field
+#### Learn and analyze same file
 Learn and analyse file data.csv, use fields 1-3 (by ignoring fields 4-100) for analysis and print anomalies having score 0.6 or greater.
 
     ceif -l data.csv -a data.csv -I4-100  -O0.6
 
-#### Learn and write forest data to file data.f, Use scaled sample score value 0.5, 
+#### Learn and write forest data to file data.f. Use scaled sample score value 0.5, 
 
     ceif -l data.csv -w data.f -I4-100 -O0.5s
 
@@ -134,7 +137,11 @@ Note that -w must given in order to save enhanced forest data.
 
     ceif -r data.f -l data2.csv -w data.f
 
-#### Learn and write forest data with category
+Option -z reads and saves to same file:
+
+    ceif -z data.f -l data2.csv 
+
+#### Learn and write categorized forest data 
 Use field number 5 as category field
 
     ceif -l data.csv -w data.f -I4-100 -O0.6 -C 5
@@ -146,7 +153,7 @@ Print analyzed category value (%C) and select fields as comma separated list (%v
 
 #### Generate test data set using forest data file
 Generate data set around sample data points by enlarging the area with factor 1. Every dimension value range consists of 512 test values. 
-Test data sample values and outlier score value in RGB value separated by semicolon are printed to file plot_data.csv.
+Test data sample values and outlier score value in RGB value separated by semicolon are printed to file plot\_data.csv.
 
     ceif -r data.f -T1 -i512 -e";" -p"%d;0x%x" -o plot_data.csv
 
