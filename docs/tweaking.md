@@ -308,11 +308,7 @@ Following effects are seen:
 
 A mp4 movie using the same dataset. Movies shows results when score is decrement from 0.99 to 0.0 with 0.01 increments. White areas starts to be seen after score value 0.7.
 
-<!-- blank line -->
-<figure class="video_container">
-  <iframe src="pics/cat.mp4" frameborder="0" allowfullscreen="true"> </iframe>
-</figure>
-<!-- blank line -->
+https://user-images.githubusercontent.com/50619541/126327929-b68fc5e0-c229-4c61-aa10-a79a87ebd19b.mp4
 
 ### Sampling large data sets to be analyzed for outliers
 If data sets for outlier detection is very large and sampling does not effect results too much then the configuration variable ANALYZE\_SAMPLING can be used to reduce prosessing time.
