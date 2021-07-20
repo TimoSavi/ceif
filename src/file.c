@@ -31,6 +31,41 @@
 
 #define VALUES_MAX (2*DIM_MAX)             // Max values for parsing a csv line
 
+/* Make separated string. String is initialized with NULL item
+ * Every call adds single item to string
+ * string is returned for every call
+ */
+char *
+make_separated_string(char *item, char separator)
+{
+    static char string[10240];
+    static size_t write_pos = 0;
+    char *p;
+
+    if(item == NULL)
+    {
+        write_pos = 0;
+        string[0] = '\000';
+    } else
+    {
+        p = item;
+
+        while(*p) string[write_pos++] = *p++;
+
+        if(separator)
+        {
+            string[write_pos++] = separator;
+        } else
+        {
+            string[write_pos] = '\000';
+        }
+    }
+
+    return string;
+}
+
+
+
 /* make a csv line from strings 
    return pointer to string
  */

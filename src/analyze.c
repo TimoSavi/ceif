@@ -288,25 +288,49 @@ static
 char *make_label_string(int value_count,char **values)
 {
     int i;
-    char *end;
-    static char l[10240];
+    char *label;
 
-    l[0] = '\000';
+    label = make_separated_string(NULL,0);
 
-    for(i = 0;i < label_idx_count;i++)
+    if(label_idx_count)
     {
-        if(label_idx[i] < value_count)
+        for(i = 0;i < label_idx_count - 1;i++)
         {
-            strcat(l,values[label_idx[i]]);
-            if(i < label_idx_count - 1)
+            if(label_idx[i] < value_count)
             {
-                end = &l[strlen(l)];
-                *end++ = label_separator;
-                *end = '\000';
+                make_separated_string(values[label_idx[i]],label_separator);
             }
         }
+        make_separated_string(values[label_idx[label_idx_count - 1]],0);
     }
-    return l;
+
+    return label;
+}
+
+/* make category sring using values from file and category_idx
+ * values are concatenad with category_separator
+ * return pointer to string
+ */
+char *make_category_string(int value_count,char **values)
+{
+    int i;
+    char *category;
+
+    category = make_separated_string(NULL,0);
+
+    if(category_idx_count)
+    {
+        for(i = 0;i < category_idx_count - 1;i++)
+        {
+            if(category_idx[i] < value_count)
+            {
+                make_separated_string(values[category_idx[i]],category_separator);
+            }
+        }
+        make_separated_string(values[category_idx[category_idx_count - 1]],0);
+    }
+
+    return category;
 }
 
 

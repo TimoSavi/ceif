@@ -83,37 +83,6 @@ void add_forest_hash(int idx, char *category_string)
     fhash[h].idx_count++;
 }
 
-
-
-/* make category sring using values from file and category_idx
- * values are concatenad with category_separator
- * return pointer to string
- */
-char *make_category_string(int value_count,char **values)
-{
-    int i;
-    char *end;
-    static char c[10240];
-
-    c[0] = '\000';
-
-    for(i = 0;i < category_idx_count;i++)
-    {
-        if(category_idx[i] < value_count)
-        {
-            strcat(c,values[category_idx[i]]);
-            if(i < category_idx_count - 1)
-            {
-                end = &c[strlen(c)];
-                *end++ = category_separator;
-                *end = '\000';
-            } 
-        }
-    }
-    return c;
-}
-
-
 /* generate a random integer from range min...max
  */ 
 inline int ri(int min, int max)

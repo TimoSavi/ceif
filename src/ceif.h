@@ -196,6 +196,8 @@ void print_sample_density(FILE *,int);
 void print_sample_scores(FILE *);
 void print_correlation_coefficent(FILE *);
 void read_config_file(char *);
+char * make_separated_string(char *, char);
+
 
 /* learn.c prototypes */
 void train_forest(FILE *,int,int);

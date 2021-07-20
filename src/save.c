@@ -318,7 +318,7 @@ read_forest_file(FILE *data_file)
 
                 ln++;
 
-                if(input_line[0] == 'S' && strlen(input_line) > 2)
+                if(input_line[0] == 'S' && input_line[1] && input_line[2])
                 {
                     line++;
                     value_count = parse_csv_line(values,dimensions,&input_line[2],'|');

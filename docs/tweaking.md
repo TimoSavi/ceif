@@ -306,6 +306,14 @@ Following effects are seen:
 - With NEAREST 1 the boundaries between different categories are more accurate.
 - Lower the outlier score means more data points are not associated with any category (white areas)
 
+A mp4 movie using the same dataset. Movies shows results when score is decrement from 0.99 to 0.0 with 0.01 increments. White areas starts to be seen after score value 0.7.
+
+<!-- blank line -->
+<figure class="video_container">
+  <iframe src="pics/cat.mp4" frameborder="0" allowfullscreen="true"> </iframe>
+</figure>
+<!-- blank line -->
+
 ### Sampling large data sets to be analyzed for outliers
 If data sets for outlier detection is very large and sampling does not effect results too much then the configuration variable ANALYZE\_SAMPLING can be used to reduce prosessing time.
 ANALYZE\_SAMPLING tells the minimum number of rows to be analyzed (using option -a, default is take all input rows). If there are more rows than ANALYZE\_SAMPLING, 
