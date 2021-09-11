@@ -34,6 +34,8 @@ VOID *realloc ();
 void free ();
 #endif
 
+static size_t total_allocation = 0;
+
 
 static VOID *
 fixup_null_alloc (n)
@@ -65,6 +67,7 @@ xmalloc (n)
   p = malloc (n);
   if (p == 0)
     p = fixup_null_alloc (n);
+  total_allocation += n;
   return p;
 }
 
@@ -79,6 +82,7 @@ xcalloc (n, s)
   p = calloc (n, s);
   if (p == 0)
     p = fixup_null_alloc (n);
+  total_allocation += n * s;
   return p;
 }
 
@@ -89,11 +93,15 @@ xcalloc (n, s)
 VOID *
 xrealloc (VOID *p, size_t n)
 {
+  size_t old;
+
   if (p == 0)
     return xmalloc (n);
+  old = sizeof(p);
   p = realloc (p, n);
   if (p == 0)
     p = fixup_null_alloc (n);
+  total_allocation += n - old;
   return p;
 }
 
@@ -104,32 +112,34 @@ xstrdup (str)
      char *str;
 {
   VOID *p;
+  size_t len = strlen (str);
 
-  p = xmalloc (strlen (str) + 1);
+  p = xmalloc (len + 1);
   strcpy (p, str);
+  total_allocation += len;
   return p;
 }
 
 FILE *
 xfopen(char *name, char *mode, char bin_asc)
 {
-   register FILE *ret;
-   static int stdin_opened = 0;
-   static int stdout_opened = 0;
+    register FILE *ret;
+    static int stdin_opened = 0;
+    static int stdout_opened = 0;
 
-   if(name[0] == '-' && name[1] == '\000')
-   {
-       if( mode[0] == 'r' &&  mode[1] == '\000') 
-       {
-       if(stdin_opened) panic("stdin allready open",NULL,NULL);
-       stdin_opened = 1;
-       return stdin;
-       } else 
-       {
-       if(stdout_opened) panic("stdout allready open",NULL,NULL);
-       stdout_opened = 1;
-       return stdout;
-       }
+    if(name[0] == '-' && name[1] == '\000')
+    {
+        if( mode[0] == 'r' &&  mode[1] == '\000') 
+        {
+            if(stdin_opened) panic("stdin allready open",NULL,NULL);
+            stdin_opened = 1;
+            return stdin;
+        } else 
+        {
+            if(stdout_opened) panic("stdout allready open",NULL,NULL);
+            stdout_opened = 1;
+            return stdout;
+        }
 
    }
 
@@ -157,4 +167,10 @@ xfopen_test(char *name, char *mode, char bin_asc)
    if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
 #endif
    return ret;
+}
+
+void
+print_alloc_debug()
+{
+    DEBUG("Total dynamic memory allocation = %u\n",(unsigned int) total_allocation);
 }

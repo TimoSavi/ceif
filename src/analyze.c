@@ -62,32 +62,23 @@ int find_forest(int value_count,char **values, int filter_on)
 /* Search the nearest training sample for a analyzed point a
    returns the shortest relative distance
 
-   relative distance is 1 if the actual distance is the same as forersst average sample distance
-   relative distance < 1 if the actual distance is smaller as forerst average sample distance but never larger than MIN_REL_DIST
-   relative distance > 1 if the actual distance is larger as forersst average sample distance
+   relative distance is 1 if the actual distance is the same as forest average sample distance
+   relative distance < 1 if the actual distance is smaller than forest average sample distance but never smaller than MIN_REL_DIST
+   relative distance > 1 if the actual distance is larger than forest average sample distance
 
-   Scale the a if auto scaling is in use
+   a is assumed be scaled in case auto scaling (auto_weigth)
  */
 #define MIN_REL_DIST 0.05
-double nearest_rel_distance(double *a, int sample_count,struct sample *samples,struct forest *f)
+double nearest_rel_distance(double *a, int sample_count,int *samples,struct forest *f)
 {
     int i;
-    double *dim;
     double distance,d; 
 
-    if(auto_weigth)
-    {
-        dim = scale_dimension(a,f);
-    } else
-    {
-        dim = a;
-    }
-
-    distance = v_dist_nosqrt(dim,samples[0].dimension);
+    distance = v_dist_nosqrt(a,sample_dimension(&f->X[samples[0]]));
 
     for(i = 1;i < sample_count;i++)
     {
-        d = v_dist_nosqrt(dim,samples[i].dimension);
+        d = v_dist_nosqrt(a,sample_dimension(&f->X[samples[i]]));
 
         if(d < distance) distance = d;
     }
@@ -113,14 +104,21 @@ double search_last_node(struct forest *f,int this_idx,struct node *n,double *dim
 
     if(this->left == -1 && this->rigth == -1)
     {
+        DEBUG("\n    Reached a leaf node at heigth %d with %d samples",heigth,this->sample_count);
         if(nearest && f->avg_sample_dist > 0.0)
         {
-            return (double) heigth + c((double) this->sample_count / nearest_rel_distance(dimension,this->sample_count,this->samples,f));
+            double rel_dist = nearest_rel_distance(dimension,this->sample_count,this->samples,f);
+
+            DEBUG(", Calculated nearest relative distance to be: %f\n",rel_dist); 
+            return (double) heigth + c((double) this->sample_count / rel_dist);
         }
+        DEBUG("\n");
         return (double) heigth + c(this->sample_count);
     }
 
-    if(wdot(dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
+    DEBUG("    Reached a node at heigth %d with %d samples\n",heigth,this->sample_count);
+
+    if(dot(dimension,this->n) < this->pdotn)
     {
         if(this->left == -1) return (double) heigth;
         return search_last_node(f,this->left,n,dimension,heigth + 1);
@@ -150,13 +148,19 @@ double _score(int forest_idx,double *dimension)
 {
     int i;
     struct forest *f = &forest[forest_idx];
-    double path_length = 0;
+    double path_length = 0.0;
+
+    DEBUG("\n Calculating score in forest %s for values: ",f->category);
+    DEBUG_ARRAY(dimensions,dimension);
+    DEBUG("\n");
 
     if(f->t != NULL)
     {
         for(i = 0;i < tree_count;i++)
         {
+            DEBUG("\n    Scan tree %d\n",i + 1);
             path_length += calculate_path_length(f,&f->t[i],dimension);
+            DEBUG("    Average path length now: %f\n",path_length / (i + 1));
         }
     }
 
@@ -181,9 +185,7 @@ double calculate_max_score(int forest_idx)
     unsigned int bitmap1,bitmap2,state,lim_dim; 
     double *dim;
     double score,max_score = 0.0;
-    int l,save_auto_weigth = auto_weigth;
-
-    auto_weigth = 0;  // no need for scaling
+    int l;
 
     dim = xmalloc(dimensions * sizeof(double));
 
@@ -225,8 +227,6 @@ double calculate_max_score(int forest_idx)
         }
     }
 
-    auto_weigth = save_auto_weigth;
-
     free(dim);
 
     return max_score;
@@ -252,10 +252,29 @@ double calculate_score_scale(int forest_idx,double *dimension)
  */
 double calculate_score(int forest_idx,double *dimension)
 {
-    if(scale_score) return calculate_score_scale(forest_idx,dimension);
+    struct forest *f = &forest[forest_idx];
+    double *dim = auto_weigth ? scale_dimension(dimension,f) : dimension;
 
-    return _score(forest_idx,dimension);
+    return scale_score ? calculate_score_scale(forest_idx,dim) : _score(forest_idx,dim);
 }
+
+/* calculate sample score. Select right dimension using auto_weigth and scale score
+ */
+double sample_score_scale(int forest_idx,struct sample *s)
+{
+    double *dim = sample_dimension(s);
+
+    return scale_score ? calculate_score_scale(forest_idx,dim) :  _score(forest_idx,dim);
+}
+
+
+/* calculate sample score. Select right dimension using auto_weigth. Do not implement score scaling
+ */
+double sample_score(int forest_idx,struct sample *s)
+{
+    return _score(forest_idx,sample_dimension(s));
+}
+
 
 /* make a RGB value using score.
  * can be used for plotting the results
@@ -519,7 +538,7 @@ void aggregate_values(int forest_idx,double *sample)
  * */
 void calculate_forest_auto_score(int forest_idx)
 {
-    double score;
+    double score,*d;
     int i;
     struct forest *f;
 
@@ -531,7 +550,11 @@ void calculate_forest_auto_score(int forest_idx)
 
     for(i = 0;i < f->X_count;i++)
     {
-        score = _score(forest_idx,v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count));
+        d = v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count);
+
+        if(auto_weigth) d = scale_dimension(d,f);
+
+        score = _score(forest_idx,d);
         if(score > f->auto_score) f->auto_score = score;
     }
 }
@@ -562,7 +585,7 @@ void calculate_forest_percentage_score(int forest_idx)
 
     all_scores = xmalloc(sizeof(double) *  f->X_count);
 
-    for(i = 0;i < f->X_count;i++) all_scores[i] = _score(forest_idx,f->X[i].dimension);
+    for(i = 0;i < f->X_count;i++) all_scores[i] = sample_score(forest_idx,&f->X[i]);
 
     qsort(all_scores,f->X_count,sizeof(double),pscore_cmp);
 
@@ -597,7 +620,7 @@ void remove_outlier()
 
         for(i = 0;i < f->X_count;i++)
         {
-            score = calculate_score(forest_idx,f->X[i].dimension);
+            score = sample_score(forest_idx,&f->X[i]);
             if(score > max_score)
             {
                 max_score = score;
@@ -640,7 +663,7 @@ void calculate_average_sample_score(int forest_idx)
 
     for(i = 0;i < f->X_count;i++)
     {
-        scores[i] = _score(forest_idx,f->X[i].dimension);
+        scores[i] = sample_score(forest_idx,&f->X[i]);
 
         if(scores[i] < f->min_score) f->min_score = scores[i];
 
@@ -658,6 +681,7 @@ void calculate_average_sample_score(int forest_idx)
 
     f->average_score += stddev * average_score_factor;
 
+    DEBUG(" Calculating maximum score for forest %s\n",f->category);
     f->max_score = calculate_max_score(forest_idx) + stddev / 2.0;   // add stddev/2 in order to make sure that scaled score remains always < 1.0
 
     if(f->max_score > 1.0) f->max_score = 1.0;
@@ -681,6 +705,8 @@ double get_forest_score(int forest_idx)
 inline 
 void calculate_forest_score(int forest_idx)
 {
+    if(!forest[forest_idx].filter) DEBUG("\n** Calculating forest score\n");
+
     if(forest[forest_idx].average_score == 0.0 && (outlier_score == AVERAGE_SCORE || scale_score)) 
     {
         calculate_average_sample_score(forest_idx);
@@ -720,6 +746,8 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
     double score;
     
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
+
+    DEBUG("*** Starting analysis\n");
         
     while(fgets(input_line,INPUT_LEN_MAX,in_stream) != NULL) 
     {
@@ -756,6 +784,8 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                     if(take_this_row(forest[forest_idx].total_rows))   // check if analyzed rows are reservoir sampled
                     {
                         forest[forest_idx].analyzed_rows++;
+                        
+                        DEBUG("\n *Calculate score for a test dimension\n");
 
                         score = calculate_score(forest_idx,dimension);
 
@@ -817,6 +847,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
  * All lines are analyzed against loaded forest/tree data
  * All forests are analyzed and a forest having lowest anomaly score is selected as category forest
  * If score_limit then do not print cases where lowest score is higher than forest outlier score
+ * Note that scaled score is used in order to get more comparable scores between forests
  */
 void
 categorize(FILE *in_stream, int score_limit, FILE *outs)
@@ -826,11 +857,16 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
     int lines = 0;
     int forest_idx;
     int best_forest_idx;
+    int save_scale_score = scale_score;
     char *values[DIM_MAX];
     double *dimension = NULL;
     double score,min_score;
 
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
+    
+    DEBUG("*** Starting categorizing\n");
+
+    scale_score = 1;
 
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)  /* Get forest sample score min ... max range */
     {
@@ -875,7 +911,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 {
                     if(!forest[forest_idx].filter)
                     {
-                            score = calculate_score_scale(forest_idx,dimension);
+                            score = calculate_score(forest_idx,dimension);
 
                             if(best_forest_idx == -1 || score <= min_score)
                             {
@@ -903,7 +939,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 {
                     if(!forest[j].filter)
                     {
-                        score = calculate_score_scale(j,forest[i].summary);
+                        score = calculate_score(j,forest[i].summary);
                         if(best_forest_idx == -1 || score < min_score)
                         {
                             min_score = score;
@@ -916,6 +952,8 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCtn");
         }
     }
+
+    scale_score = save_scale_score;
 
     if(dimension != NULL) free(dimension);
 }

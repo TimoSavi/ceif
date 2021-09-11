@@ -25,8 +25,8 @@
 #include <regex.h>
 #include <time.h>
 
-double fast_n_cache[FAST_N_SAMPLES];
-double fast_c_cache[FAST_C_SAMPLES];
+static double fast_n_cache[FAST_N_SAMPLES];
+static double fast_c_cache[FAST_C_SAMPLES];
 
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
@@ -264,6 +264,14 @@ int duplicate_sample(struct forest *f,double *new_dim)
     return 0;
 }
 
+/* return scaled or non scaled sample dimension. Select dim using auto_weigth
+ */
+inline double *
+sample_dimension(struct sample *s)
+{
+    return auto_weigth ? s->scaled_dimension : s->dimension;
+}
+
 
 /* add one sample to X in selected forest.
   if X is full (== samples_total) implement  reservoir sampling 
@@ -281,32 +289,46 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
 
     parse_values(new,values,value_count,saved); 
 
-    // check if this is duplicate sample. Unique_samples is a value bweteen 0..100. 
+    DEBUG("Adding %sdimension to forest %s: ",saved ? "saved " : "",f->category);
+    DEBUG_ARRAY(value_count,new);
+
+    // check if this is duplicate sample. Unique_samples is a value between 0..100. 
     // if value is .e.g 10 then 10 percent of samples are checked for uniqueness
     // check is not done for saved values, only new values are checked
 
-    if(!saved && unique_samples > 0 && ri(0,100) <= unique_samples && duplicate_sample(f,new)) return;
+    if(!saved && unique_samples > 0 && ri(0,100) <= unique_samples && duplicate_sample(f,new))
+    {
+        DEBUG(" Not added to sample table due to the duplicate check\n");
+        return;
+    }
+
+    DEBUG(", Not a duplicate,");
 
     if(f->X_count >= f->X_cap) {
         if(f->X_cap == 0) f->X_cap = 32;
         f->X_cap *= 2;
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
+        DEBUG(" Reallocating sample table size to %u, ",f->X_cap);
     }
 
     if(f->X_count < samples_total)    // check the samples table size
     {
+        DEBUG(" Adding as a new item to sample table");
         if(f->X_count == 0)
         {
             sample_idx = f->X_count;
             f->X[sample_idx].dimension = xmalloc(dimensions * sizeof(double));
+            f->X[sample_idx].scaled_dimension = NULL;                            
         } else
         {
             sample_idx = ri(0,f->X_count - 1);             // ceif does not work well with sorted samples, make sure that  samples are shuffled
             f->X[f->X_count].dimension = v_dup(f->X[sample_idx].dimension);
+            f->X[f->X_count].scaled_dimension = NULL;
         }
         f->X_count++;
     } else
     {
+        DEBUG(" Replacing an existing item in sample table");
         sample_idx = ri(0,f->X_count + f->extra_rows -1); // minus 1 in order to get first sample to be saved
 
         if(!saved) f->extra_rows++;                  // Number of extra rows for this forest read from train file
@@ -344,6 +366,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
             }
         }
     }
+    DEBUG("\n");
 }
 
 /* Aggregate new values for a certain sample item in a forest.
@@ -359,11 +382,14 @@ add_aggregate(struct forest *f,char **values, int value_count)
     static double new[DIM_MAX];
 
     parse_values(new,values,value_count,0); 
+    DEBUG("Adding dimension to be aggregated to forest %s: ",f->category);
+    DEBUG_ARRAY(value_count,new);
 
     if(f->X_count >= f->X_cap) {
         if(f->X_cap == 0) f->X_cap = 32;
         f->X_cap *= 2;
         f->X = xrealloc(f->X,f->X_cap * sizeof(struct sample));
+        DEBUG(" Reallocating sample table size to %u,",f->X_cap);
     }
 
     if(f->X_summary > -1)
@@ -373,11 +399,14 @@ add_aggregate(struct forest *f,char **values, int value_count)
     {
         if(f->X_count < samples_total)    // check the samples table size
         {
+            DEBUG(" Adding as a new item to sample table,");
             sample_idx = f->X_count;
             f->X[sample_idx].dimension = xmalloc(dimensions * sizeof(double));
+            f->X[sample_idx].scaled_dimension = NULL;
             f->X_count++;
         } else                                          // max number of samples in X
         {
+            DEBUG(" Replacing an existing item in sample table,");
             sample_idx = ri(0,f->X_count - 1);          // replace a random sample with this new one
         }
 
@@ -389,6 +418,10 @@ add_aggregate(struct forest *f,char **values, int value_count)
     s = f->X[sample_idx].dimension;
 
     for(i = 0;i < dimensions;i++) s[i] += new[i];
+
+    DEBUG(" Aggegated values so far: ");
+    DEBUG_ARRAY(dimensions,f->X[sample_idx].dimension);
+    DEBUG("\n");
 }
 
 /* calculate min,max and avg values after aggregated data is added
@@ -560,7 +593,7 @@ void v_subt(double *a, double *b)
 /* generate p from sample data.
  * returns pointer to p array.
  * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
- * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree and hopefully donugh shaped data yields better results
+ * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree (hopefully)
  */
 #define CENTROID_TRESSHOLD 0.4 // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p
 static
@@ -573,6 +606,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
 
     if(heigth_ratio < CENTROID_TRESSHOLD)  // In deeper nodes of tree use sample centroid as p, 
     {
+        DEBUG("(centroid)");
         for(i = 0;i < dimensions;i++) p[i] = 0.0;
 
         for(i = 0;i < sample_count;i++)
@@ -583,19 +617,23 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
         for(i = 0;i < dimensions;i++) p[i] /= sample_count;  // turn to average
     } else
     {
+        DEBUG("(random)");
         // get a random sample point
         random_sample = ri(0,sample_count - 1);
 
         // copy random sample to p vector 
         v_copy(p,X[samples[random_sample]].dimension);
-    }
+    
+    
+        n_vector = calculate_n();
 
-    n_vector = calculate_n();
+        // Add adjustment vector
 
-    // Add adjustment vector
-    for(i = 0;i < dimensions;i++) {
-        p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
+        for(i = 0;i < dimensions;i++) {
+            p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
+        }
     }
+    
 
     return p;
 }
@@ -647,27 +685,6 @@ scale_double(double value, double range, double scale_min, double min, double ma
     return range * (value - min) / (max - min) + scale_min;
 }
 
-/* calculate dot from two arrays by scaling the array a if auto_weigth == 1
- * Scaling is done using the largest range (pointed by scale_range_idx and min/max values)
- */
-double wdot(double *a, double *b, int scale_range_idx, double *min, double *max)
-{
-    int i;
-    double range;
-    double d = 0.0;
-
-    if (!auto_weigth || scale_range_idx == -1) return dot(a,b);
-
-    range = max[scale_range_idx] - min[scale_range_idx];
-
-    for(i = 0;i < dimensions;i++)      
-    {
-        d += scale_double(a[i],range,min[scale_range_idx],min[i],max[i]) * b[i];
-    }
- 
-    return d;
-}
-
 
 /* calculate average tree height for given sample size n
  *  */
@@ -714,7 +731,7 @@ double *scale_dimension(double *dim,struct forest *f)
 
     if(f->scale_range_idx == -1)
     {
-        for(i = 0;i < dimensions;i++) sd[i] = dim[i];
+        v_copy(sd,dim);
     } else
     {
         range = f->max[f->scale_range_idx] - f->min[f->scale_range_idx];
@@ -726,28 +743,13 @@ double *scale_dimension(double *dim,struct forest *f)
 }
 
 /*  copy samples array for leaf node
- *  samples are scaled if auto scale is on
  */
-struct sample *copy_samples(int sample_count,int *samples,struct forest *f)
+static 
+int *copy_samples(int sample_count,int *samples)
 {
-    int i,j;
-    double *scaled;
-    struct sample *new = xmalloc(sample_count * sizeof(struct sample));
+    int *new = xmalloc(sample_count * sizeof(int));
 
-    for(i = 0;i < sample_count;i++)
-    {
-        new[i].dimension = v_dup(f->X[samples[i]].dimension);
-
-        if(auto_weigth)
-        {
-            scaled = scale_dimension(new[i].dimension,f);
-
-            for(j = 0;j < dimensions;j++)
-            {
-                new[i].dimension[j] = scaled[j];
-            }
-        }
-    }
+    memcpy(new,samples,sample_count * sizeof(int));
 
     return new;
 }
@@ -766,8 +768,9 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     int *left_samples;
     int *rigth_samples;
 
-
     if(heigth >= heigth_limit || sample_count < NODE_MIN_SAMPLE) return -1;
+    
+    DEBUG("    Adding a node with %d samples at heigth %d,",sample_count,heigth);
     
     left_samples = xmalloc(sample_count*sizeof(int));
     rigth_samples = xmalloc(sample_count*sizeof(int));
@@ -791,13 +794,19 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     this->left = -1;
     this->rigth = -1;
 
+    DEBUG(" interception point ");
     p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->max,f->min);
 
-    this->pdotn = wdot(p,this->n,f->scale_range_idx,f->min,f->max);
+    if(auto_weigth) p = scale_dimension(p,f);
+
+    DEBUG(" p: ");
+    DEBUG_ARRAY(dimensions,p);
+
+    this->pdotn = dot(p,this->n);
 
     for(i = 0;i < sample_count;i++)
     {
-        if(wdot(X[samples[i]].dimension,this->n,f->scale_range_idx,f->min,f->max) < this->pdotn)
+        if(dot(sample_dimension(&X[samples[i]]),this->n) < this->pdotn)
         {
             left_samples[left_count] = samples[i];
             left_count++;
@@ -807,6 +816,8 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
             rigth_count++;
         }
     }
+
+    DEBUG(" left samples: %d, rigth samples: %d\n",left_count,rigth_count);
 
     if(left_count > 1) 
     {
@@ -823,13 +834,16 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     }
 
 
-    // Set c value using sample count 
+    // copy leaf node sample indices for 1-nearest analysis  
     if(this->left == -1 && this->rigth == -1)
     {
+        DEBUG("\n    Reached a leaf node at heigth %d",heigth);
         if (nearest && f->avg_sample_dist > 0.0)
         {
-            this->samples = copy_samples(sample_count,samples,f);  // copy samples for nearest distance calculation, c is calculated using the distance to nearest sample
+            DEBUG(", copying %d samples for nearest distance analysis",sample_count);
+            this->samples = copy_samples(sample_count,samples);  // copy samples for nearest distance calculation, c is calculated using sample count adjusted by the distance to nearest sample
         } 
+        DEBUG("\n");
     }
 
     free(left_samples);
@@ -872,6 +886,26 @@ int find_weigth_scale_idx(double *min,double *max)
     return idx;
 }
 
+/* calculate sclaed dimension values to be used later
+ */
+static
+void calculate_scaled_dimensions(struct forest *f)
+{
+    int i;
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        f->X[i].scaled_dimension = v_dup(scale_dimension(f->X[i].dimension,f));
+        DEBUG("   Dimension: ");
+        DEBUG_ARRAY(dimensions,f->X[i].dimension);
+        DEBUG(" scaled values are: ");
+        DEBUG_ARRAY(dimensions,f->X[i].scaled_dimension);
+        DEBUG("\n");
+    }
+}
+
+
+
 /* train one forest
  */
 #define DIST_AVG(d) ((d) / 1.5 + 1.0 / (2.4 * (d)) - 1.0 / 12.0)
@@ -883,6 +917,8 @@ void train_one_forest(int forest_idx)
     static int *s = NULL; 
     int sample_count,total_samples = 0;
     double volume;
+
+    DEBUG(" *Training forest %s\n",f->category);
     
     if(s == NULL) s = xmalloc(samples_max * sizeof(int));
 
@@ -894,7 +930,12 @@ void train_one_forest(int forest_idx)
 
     if(f->dim_density == NULL) f->dim_density = xmalloc(dimensions * sizeof(double));
     
-    if(auto_weigth) f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
+    if(auto_weigth)
+    {
+        f->scale_range_idx = find_weigth_scale_idx(f->min,f->max);              // find larges attribute range
+        DEBUG("  Dimension %d has largest value range to be used in value scaling\n",f->scale_range_idx + 1);
+        calculate_scaled_dimensions(f);
+    }
 
     volume = 1.0;
 
@@ -915,7 +956,7 @@ void train_one_forest(int forest_idx)
     // This is estimated by dividing the volume by sample count and taking dimensions root, which yields the side length of a cube around 
     // evently distributed points.
     // Side length is multiplyed by sqrt(dimensions / 1.5 + 1 / (2.4 * dimensions) - 1/12)  in order to get app. average distance to all touching (nearest) points.
-    // This equation is found to be quite good approximation when comparing real avg. distances to square root of the dimension (dimensions 1-19)
+    // This equation is found to be quite good approximation when comparing real avg. distances to square root of the dimension (tested dimensions 1-19)
     
     if(!auto_weigth || f->scale_range_idx == -1)
     {
@@ -942,6 +983,7 @@ void train_one_forest(int forest_idx)
          f->t[i].node_cap = 0;
          f->t[i].n = NULL;
          f->t[i].sample_count = sample_count;
+         DEBUG("\n   Populating tree %d with %d samples\n",i,sample_count);
          populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)) + 1);
     }
 
@@ -999,7 +1041,7 @@ void filter_forests()
 
 
 /* build a new forest structure (new=1) or add new samples to existing forest (new=0)
- * make tree acorrding make_tree. Tree is need only if analysing/categorizing or making test data
+ * make tree in acording make_tree. Tree is need only if analysing/categorizing or making test data
    */
 void
 train_forest(FILE *in_stream,int new,int make_tree)
@@ -1047,6 +1089,7 @@ train_forest(FILE *in_stream,int new,int make_tree)
     // train only once, if new data is only added (!make_tree) no training is run and only new samples are collected
     if(new && make_tree)  
     {
+        DEBUG("\n **Starting forest training\n");
         for(i = 0;i < forest_count;i++)
         {
             if(aggregate) recalculate_stats(&forest[i]);

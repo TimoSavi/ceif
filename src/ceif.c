@@ -74,6 +74,7 @@ int scale_score = 1;               // should outlier scores be scaled between fo
 int percentage_score = 0;          // outlier score is based on training data distribution, score is the largest score of the x% set of samples having the smallest score
 int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
 int analyze_sampling_count = 0;    // number of lines / forest after sampling of analyzed lines is started, 0 = sampling disabled
+int debug = 0;                     // If set print processing related info
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -88,7 +89,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Px:v:R:z:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Px:v:R:z:=";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -134,6 +135,7 @@ static struct option long_opts[] =
   {"average", 1, 0, 'v'},
   {"reset-forest", 1, 0, 'R'},
   {"inplace-forest", 1, 0, 'z'},
+  {"sizeof", 0, 0, '='},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -151,7 +153,7 @@ Options:\n\
   -I, --ignore-dims LIST      comma separated list of dimensions not to be used, first is number 1. Ranges can be given using dash\n\
   -U, --use-dims LIST         comma separated list of dimensions to be used, first is number 1. Ranges can be given using dash. Overwrites entries from -I option\n\
   -t, --trees INTEGER         number of trees. default is 100\n\
-  -s, --samples INTEGER       number of samples/tree. default is 256\n\
+  -s, --samples INTEGER       number of samples/tree. Default is 256\n\
   -f, --input-separator CHAR  input file field separator. Default is comma\n\
   -l, --learn FILE            file to used for training \n\
   -a, --analyze FILE          file to analyze\n\
@@ -161,7 +163,7 @@ Options:\n\
   -w, --write-forest FILE     write forest data to FILE\n\
   -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0.0 - 1.0)\n\
   -O, --outlier-score FLOATs  outlier data is printed if score is bigger that FLOAT (0.0 - 1.0), actual scores are scaled to range 0..1\n\
-  -O, --outlier-score FLOAT%%  outlier score is the score which covers FLOAT percent of samples, give value between 0..100\n\
+  -O, --outlier-score FLOAT%%  outlier score is the score which covers FLOAT percent of samples, give value between 0 - 100\n\
   -O, --outlier-score max     outlier score is determined using sample value having the highest score\n\
   -O, --outlier-score average outlier score is determined using sample average score\n\
   -x, --score-factor FLOAT    set max and average outlier score factor to FLOAT\n\
@@ -187,7 +189,7 @@ Options:\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
   -E, --sample-scores         print samples values with sample score and exit\n\
   -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
-  -g, --rc-file FILE          read global settings from FILE instead of ~/.ceifrc\n\
+  -g, --rc-file FILE          read global settings from FILE (default is ~/.ceifrc)\n\
   -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
   -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
   -R, --reset-forest STRING   remove all samples for a forest read using option -r and having forest string STRING\n\
@@ -370,6 +372,8 @@ main (int argc, char **argv)
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
 
+    atexit(print_alloc_debug);
+
     setlocale(LC_ALL,"C");
 
     init_forest_hash();
@@ -429,6 +433,8 @@ main (int argc, char **argv)
                     if(save_file == NULL) save_file = xstrdup(optarg);
                 case 'r':
                     load_file = xstrdup(optarg);
+                    DEBUG("*** Loading forest data from %s\n",load_file);
+
                     /* load now, parameters after this take higher presence */
                     if(forest_count == 0)
                     {
@@ -553,6 +559,11 @@ main (int argc, char **argv)
                 case 'R':
                     remove_samples(optarg);
                     break;
+                case '=':
+                    printf("sizeof double: %u\n",(unsigned int) sizeof(double));
+                    printf("sizeof int: %u\n",(unsigned int) sizeof(int));
+                    exit(0);
+                    break;
                 default:
                     usage(opt);
                     break;
@@ -589,6 +600,7 @@ main (int argc, char **argv)
     {
         if(learn_file != NULL) 
         {
+            DEBUG("\n***read training data from file %s\n",learn_file);
             learns = xfopen(learn_file,"r",'a');
             train_forest(learns,1,make_tree); 
             fclose(learns);

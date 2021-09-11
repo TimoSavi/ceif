@@ -330,6 +330,10 @@ void read_config_file(char *config_file)
         {
              analyze_sampling_count = atoi(value);
              if(analyze_sampling_count < 0) analyze_sampling_count = 0;
+        } else if((value = parse_config_line(input_line,"DEBUG")) != NULL)
+        {
+             debug = atoi(value);
+             if(debug < 0) debug = 0;
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
@@ -673,7 +677,7 @@ print_sample_scores(FILE *outs)
 
        for(i = 0;i < f->X_count;i++)
        {
-           score = calculate_score(forest_idx,f->X[i].dimension);
+           score = sample_score_scale(forest_idx,&f->X[i]);
            _2P("%10f",score);
            for(j = 0;j < dimensions;j++) _P("%25.*f",decimals,f->X[i].dimension[j]);
            _P("\n");

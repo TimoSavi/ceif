@@ -51,13 +51,14 @@
 
 struct sample
 {
-    double *dimension;      // dimension table, dynamically reserved
+    double *dimension;             // dimension array, dynamically reserved
+    double *scaled_dimension;      // scaled dimension array, dynamically reserved
 };
 
 struct node
 {
-    int sample_count;       // number of samples
-    struct sample *samples; // samples array for this node, samples are scaled if auto scale is on
+    int sample_count;        // number of samples
+    int *samples;         // node sample indizes to X array
     double *n;               // random normal vector having dimensions count of coordinates
     double pdotn;           // calculate p dot n for performance issues
     int left;               // first left node, -1 if not existing
@@ -114,6 +115,12 @@ struct forest_hash
 };
 
 
+/* Debugging macros 
+ */
+#define DEBUG(...) do {if (debug) fprintf(stderr, __VA_ARGS__);} while(0)
+#define DEBUG_SEPARATOR(i,max) do {if(i < max - 1) DEBUG("%c",',');} while(0)
+#define DEBUG_ARRAY(count,array) do {int _i; if(debug) for(_i = 0;_i < count;_i++) {DEBUG("%f",array[_i]);DEBUG_SEPARATOR(_i,count);}} while(0)   // print double array values separated by comma
+
 /* Global data */
 extern int dim_idx[];
 extern int ignore_idx[];
@@ -155,6 +162,7 @@ extern int scale_score;
 extern int nearest;
 extern int percentage_score;
 extern int analyze_sampling_count;
+extern int debug;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -187,6 +195,8 @@ VOID *xrealloc (VOID *, size_t);
 char *xstrdup (char *);
 FILE * xfopen(char *, char *, char);
 FILE * xfopen_test(char *, char *, char);
+void print_alloc_debug(void);
+
 
 /* file.c prototypes */
 char *make_csv_line(char **,int,char);
@@ -204,7 +214,6 @@ void train_forest(FILE *,int,int);
 double parse_dim_attribute(char *);
 double parse_dim_hash_attribute(char *);
 double dot(double *, double *);
-double wdot(double *, double *,int, double *,double *);
 double c(int);
 int dim_ok(int,int);
 void add_to_X(struct forest *,char **, int , int);
@@ -222,6 +231,8 @@ double v_dist(double *,double *);
 double *scale_dimension(double *,struct forest *);
 void parse_values(double *,char **, int, int);
 int ri(int, int);
+double *sample_dimension(struct sample *);
+
 
 
 
@@ -241,6 +252,8 @@ void calculate_average_sample_score(int);
 void calculate_forest_score(int);
 double get_forest_score(int);
 void remove_samples(char *);
+double sample_score(int ,struct sample *);
+double sample_score_scale(int ,struct sample *);
 
 /* save.c prototypes */
 void write_forest_file(FILE *,time_t);
