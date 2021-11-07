@@ -53,6 +53,7 @@ int cat_filter_count = 0;      // Category filter count
 int auto_weigth = 1;           // Should weigths be calculated automatically
 
 char *print_string = NULL;     // How to print outlier data
+char *print_dimension = NULL;  // How to print directive %m (in print_string). This combines different dimension values together
 int tree_count = 100;             // trees / forest
 int samples_max = 256;            // max samples / tree
 int max_total_samples = 0;        // limit for samples_total, if zero use samples_max * trees
@@ -62,19 +63,20 @@ char category_separator = ';';    // separator for category values
 char label_separator = '-';       // separator for category values
 int header = 0;                   // input data has a header row to skip
 double outlier_score = 0.5;      // outlier score
-double auto_score_factor = 5.0;   // How much to expand sample set when determining the auto score, larger value yields larger auto score
+double auto_score_factor = 5.0;   // Not in use, keeped as place holder for saving forest info
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
 char *printf_format = "";       // User given printf format for dimension and average values
 char list_separator = ',';         // seprator for dimension and average values in output
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
-double average_score_factor = 1.0; // sample set average score will by adjust by this, average +=  stddev * average_score_factor
 int scale_score = 1;               // should outlier scores be scaled between foretsts, scaled score is between 0..1
 int percentage_score = 0;          // outlier score is based on training data distribution, score is the largest score of the x% set of samples having the smallest score
 int nearest = 1;                // the shortest distance of analyzed point to nearest sample is calulated in leaf nodes. 
 int analyze_sampling_count = 0;    // number of lines / forest after sampling of analyzed lines is started, 0 = sampling disabled
 int debug = 0;                     // If set print processing related info
+double cluster_relative_size = 0.125; // relative distance for samples in the same cluster, must be between 0 and 1
+int dimension_print_width = 25;   // dimension value printing width, used when printing forest info (option -q)
 
 /* User given strings for dim ranges */
 char *ignore_dims = NULL;           // which input values are ignored, user given string
@@ -89,7 +91,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Px:v:R:z:=";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Pv:R:z:=j:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -131,11 +133,11 @@ static struct option long_opts[] =
   {"remove-outlier", 0, 0, 'k'},
   {"rc-file", 1, 0, 'g'},
   {"correlation-coe", 0, 0, 'P'},
-  {"score-factor", 1, 0, 'x'},
   {"average", 1, 0, 'v'},
   {"reset-forest", 1, 0, 'R'},
   {"inplace-forest", 1, 0, 'z'},
   {"sizeof", 0, 0, '='},
+  {"print-dimension", 1, 0, 'j'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -159,14 +161,12 @@ Options:\n\
   -a, --analyze FILE          file to analyze\n\
   -c, --categorize FILE       file to categorize\n\
   -p, --print STRING          outlier printing format\n\
+  -j, --print-dimension STRING print format format for printing directive %m, prints joined dimension values\n\
   -o, --output FILE           outlier data is printed to FILE. Default is stdout\n\
   -w, --write-forest FILE     write forest data to FILE\n\
   -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0.0 - 1.0)\n\
   -O, --outlier-score FLOATs  outlier data is printed if score is bigger that FLOAT (0.0 - 1.0), actual scores are scaled to range 0..1\n\
   -O, --outlier-score FLOAT%%  outlier score is the score which covers FLOAT percent of samples, give value between 0 - 100\n\
-  -O, --outlier-score max     outlier score is determined using sample value having the highest score\n\
-  -O, --outlier-score average outlier score is determined using sample average score\n\
-  -x, --score-factor FLOAT    set max and average outlier score factor to FLOAT\n\
   -r, --read-forest FILE      read forest data from FILE\n\
   -z, --inplace-forest FILE   read forest data from FILE and after any processing write forest back to FILE\n\
   -C, --category-dim LIST     comma separated list of dimensions to form a category string\n\
@@ -299,7 +299,7 @@ void init_forest_hash()
 
 /* parse outlier score
  */
-void parse_user_score(char *score_str,int saved)
+void parse_user_score(char *score_str)
 {
     char *endp;
 
@@ -308,33 +308,24 @@ void parse_user_score(char *score_str,int saved)
 
     outlier_score = strtod(score_str,&endp);
 
-    if(strcmp(score_str,"auto") == 0 || strcmp(score_str,"max") == 0 || (outlier_score == AUTO_SCORE && *endp == '\000' && saved)) 
+    if(*endp == 's' && endp[1] == '\000') 
     {
-        outlier_score = AUTO_SCORE;
-    } else if(strcmp(score_str,"average") == 0 || (outlier_score == AVERAGE_SCORE && *endp == '\000' && saved))
+        scale_score = 1;
+        *endp = '\000';
+    } else if(*endp == '%' && endp[1] == '\000')
     {
-        outlier_score = AVERAGE_SCORE;
-    } else
-    {
-        if(*endp == 's' && endp[1] == '\000') 
-        {
-            scale_score = 1;
-            *endp = '\000';
-        } else if(*endp == '%' && endp[1] == '\000')
-        {
-            percentage_score = 1;
-            *endp = '\000';
-        }
-
-        if(percentage_score)
-        {
-            if(outlier_score < 0.0 || outlier_score > 100.0) 
-            {
-                panic("Give percentage based score between 0 and 100",NULL,NULL);
-            }
-        } else if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
-            panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required or with suffix \'%\' for percentage score) or \"max\" or \"average\"",NULL,NULL);
+        percentage_score = 1;
+        *endp = '\000';
     }
+
+    if(percentage_score)
+    {
+        if(outlier_score < 0.0 || outlier_score > 100.0) 
+        {
+            panic("Give percentage based score between 0 and 100",NULL,NULL);
+        }
+    } else if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
+        panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required or with suffix \'%\' for percentage score)",NULL,NULL);
 }
 
 int
@@ -422,8 +413,12 @@ main (int argc, char **argv)
                     if(print_string != NULL) free(print_string);
                     print_string = xstrdup(optarg);
                     break;
+                case 'j':
+                    if(print_dimension != NULL) free(print_dimension);
+                    print_dimension = xstrdup(optarg);
+                    break;
                 case 'O':
-                    parse_user_score(optarg,0);
+                    parse_user_score(optarg);
                     score_option_given = 1;
                     break;
                 case 'w':
@@ -542,9 +537,6 @@ main (int argc, char **argv)
                     break;
                 case 'P':
                     print_correlation = 1;
-                    break;
-                case 'x':
-                    auto_score_factor = average_score_factor = atof(optarg);
                     break;
                 case 'v':
                     print_average = 1;

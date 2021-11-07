@@ -215,6 +215,7 @@ static
 char *parse_config_line(char *input_line,char *name)
 {
     char *c = input_line,*e;
+    int quoted = 0;
 
     while(isspace(*c)) c++;
 
@@ -224,10 +225,28 @@ char *parse_config_line(char *input_line,char *name)
         if(isspace(*c))
         {
             while(isspace(*c)) c++;
+            if(*c == '\"')
+            {
+                c++;
+                quoted = 1;
+            }
+
             e = c;
-            while(*e != '\000') e++;
+
+            while(*e != '\000')
+            {
+                if(quoted && *e == '\"')
+                    *e = '\000';
+                else
+                {
+                    e++;
+                    if(quoted && *e == '\000') quoted = 0;
+                }
+            }
+
             e--;
-            while(e > c && isspace(*e)) e--;   // remove trailing spaces
+
+            if(!quoted) while(e > c && isspace(*e)) e--;   // remove trailing spaces
             e++;
             *e = '\000';
             if(*c != '\000') return c;
@@ -275,13 +294,7 @@ void read_config_file(char *config_file)
     {
         if(skip_line(input_line)) continue;
 
-        if((value = parse_config_line(input_line,"AUTO_SCORE_FACTOR")) != NULL)
-        {
-            auto_score_factor = atof(value);
-        } else if((value = parse_config_line(input_line,"MAX_SCORE_FACTOR")) != NULL)
-        {
-            auto_score_factor = atof(value);
-        } else if((value = parse_config_line(input_line,"SAMPLES")) != NULL)
+        if((value = parse_config_line(input_line,"SAMPLES")) != NULL)
         {
             samples_max = atoi(value);
         } else if((value = parse_config_line(input_line,"TREES")) != NULL)
@@ -290,12 +303,6 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"DECIMALS")) != NULL)
         {
             decimals = atoi(value);
-        } else if((value = parse_config_line(input_line,"AUTO_SCORE")) != NULL)
-        {
-            if(atoi(value)) outlier_score = AUTO_SCORE;
-        } else if((value = parse_config_line(input_line,"MAX_SCORE")) != NULL)
-        {
-            if(atoi(value)) outlier_score = AUTO_SCORE;
         } else if((value = parse_config_line(input_line,"AUTO_WEIGTH")) != NULL)
         {
             auto_weigth = atoi(value);
@@ -310,18 +317,12 @@ void read_config_file(char *config_file)
         {
             label_separator = value[0];
             if(label_separator == '"' && value[1]) label_separator = value[1];
-        } else if((value = parse_config_line(input_line,"AVERAGE_SCORE_FACTOR")) != NULL)
-        {
-            average_score_factor = atof(value);
-        } else if((value = parse_config_line(input_line,"AVERAGE_SCORE")) != NULL)
-        {
-            if(atoi(value)) outlier_score = AVERAGE_SCORE;
         } else  if((value = parse_config_line(input_line,"MAX_SAMPLES")) != NULL)
         {
              max_total_samples = atoi(value);
         } else if((value = parse_config_line(input_line,"OUTLIER_SCORE")) != NULL)
         {
-             parse_user_score(value,0);
+             parse_user_score(value);
         } else if((value = parse_config_line(input_line,"NEAREST")) != NULL)
         {
              if(atoi(value)) nearest = 1;
@@ -334,6 +335,18 @@ void read_config_file(char *config_file)
         {
              debug = atoi(value);
              if(debug < 0) debug = 0;
+        } else if((value = parse_config_line(input_line,"CLUSTER_SIZE")) != NULL)
+        {
+            cluster_relative_size = atof(value);
+            if(isnan(cluster_relative_size) || cluster_relative_size < 0.0 || cluster_relative_size > 1.0) cluster_relative_size = 0.25;
+        } else if((value = parse_config_line(input_line,"PRINT_DIMENSION")) != NULL)
+        {
+            if(print_dimension != NULL) free(print_dimension);
+            print_dimension = xstrdup(value);
+        } else if((value = parse_config_line(input_line,"DIM_PRINT_WIDTH")) != NULL)
+        {
+            dimension_print_width = atoi(value);
+            if(dimension_print_width <= 0) dimension_print_width = 25;
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
@@ -350,12 +363,12 @@ void read_config_file(char *config_file)
 #define _S(i,max) if(i < max - 1) _P("%c",',')
 #define _D(name,count,array) _2P(name); for(i = 0;i < count;i++) {_P("%d",array[i]+1);_S(i,count);} _P("\n")
 
-/* Print forest contents in user readbaly form
+/* Print forest contents in user readable form
  */
 void
 print_forest_info(FILE *outs)
 {
-    int forest_idx,i;
+    int forest_idx,i,j;
     struct forest *f;
     char outstr[100];
     struct tm *tmp;
@@ -367,13 +380,7 @@ print_forest_info(FILE *outs)
     _2P("Number of trees: %d\n",tree_count);
     _2P("Number of decimals: %d\n",decimals);
 
-    if(outlier_score == AUTO_SCORE)
-    {
-        _2P("Outlier score is based on maximum sample score. Samples are adjusted by: dimension density * %f\n",auto_score_factor);
-    } else if(outlier_score == AVERAGE_SCORE)
-    {
-        _2P("Outlier score is sample score average increased using stddev * average score factor: %s += stddev * %f\n","average",average_score_factor);
-    } else if(percentage_score)
+    if(percentage_score)
     {
         _2P("Outlier score is the score under which there are %.2f percent of sample scores\n",outlier_score); 
     }
@@ -390,6 +397,7 @@ print_forest_info(FILE *outs)
         }
     }
 
+    _2P("Relative cluster size: %f\n",cluster_relative_size);
     _2P("Input separator: %c\n",input_separator);
     _2P("Output separator: %c\n",list_separator);
     _2P("Header is %s\n",_O(header));
@@ -410,6 +418,8 @@ print_forest_info(FILE *outs)
     _P("\n");
     _2P("Density is sample max - min range divided by sample count");
     _P("\n");
+    _2P("Cluster coverage is ratio between 0 - 1, where 1 = clusters cover all samples");
+    _P("\n");
 
 
     if(forest_count) _P("\nForest data:\n");
@@ -428,13 +438,7 @@ print_forest_info(FILE *outs)
             _3P("Average path length (c): %f\n",f->c);
             _3P("Max. tree heigth: %d\n",f->heigth_limit);
 
-            if(outlier_score == AUTO_SCORE)
-            {
-                _3P("Maximum sample based outlier score: %f\n",f->auto_score);
-            } else if(outlier_score == AVERAGE_SCORE)
-            {
-                _3P("Adjusted average based outlier score: %f\n",f->average_score);
-            } else if(scale_score)
+            if(scale_score)
             { 
                 _3P("Forest score range is between %f and %f, this is used to scale data scores to 0..1 range\n",f->min_score,f->max_score);
             } else if(percentage_score)
@@ -459,27 +463,42 @@ print_forest_info(FILE *outs)
         if(!f->X_count) continue;
 
         _P("\n");
-        _3P("%15s%*s\n","Dimension sample value summary:",12*dimensions,"Dimension");
+        _3P("%15s%*s\n","Dimension sample value summary:",dimensions * dimension_print_width / 2,"Dimension");
 
         _3P("%15s","");
-        for(i = 0;i < dimensions;i++) _P("%25d",i + 1);
+        for(i = 0;i < dimensions;i++) _P("%*d",dimension_print_width,i + 1);
         _P("\n");
 
         _3P("%15s","Maximum value");
-        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->max[i]);
+        for(i = 0;i < dimensions;i++) _P("%*.*f",dimension_print_width,decimals,f->max[i]);
         _P("\n");
         
         _3P("%15s","Minimum value");
-        for(i = 0;i < dimensions;i++) _P("%25.*f",decimals,f->min[i]);
+        for(i = 0;i < dimensions;i++) _P("%*.*f",dimension_print_width,decimals,f->min[i]);
         _P("\n");
         
         _3P("%15s","Average value");
-        for(i = 0;i < dimensions;i++) _P("%25f",f->avg[i]);
+        for(i = 0;i < dimensions;i++) _P("%*f",dimension_print_width,f->avg[i]);
         _P("\n");
         
         _3P("%15s","Density");
-        for(i = 0;i < dimensions;i++) _P("%25f",f->dim_density[i]);
+        for(i = 0;i < dimensions;i++) _P("%*f",dimension_print_width,f->dim_density[i]);
+
         _P("\n");
+
+        if(!f->filter && cluster_relative_size > 0.0)
+        {
+            _P("\n");
+            _3P("Forest cluster centers, cluster radius: %f, cluster coverage: %f\n",f->cluster_radius,f->cluster_coverage);
+            _3P("%15s\n","Cluster number");
+            for(i = 0;i < f->cluster_count;i++)
+            {
+                _3P("%15d",i + 1);
+                for(j = 0;j < dimensions;j++) _P("%*.*f",dimension_print_width,decimals,f->X[f->cluster_center[i]].dimension[j]);
+                _P("\n");
+            }
+        }
+
     }
 }
 
@@ -670,16 +689,16 @@ print_sample_scores(FILE *outs)
        calculate_forest_score(forest_idx);
         
        _P("\nForest category string: %s\n",f->category);
-       _2P("%10s%25s\n","Score","Dimension values");
+       _2P("%10s%*s\n","Score",dimensions * dimension_print_width / 2,"Dimension values");
        _2P("%10s","");
-       for(j = 0;j < dimensions;j++) _P("%25d",j + 1);
+       for(j = 0;j < dimensions;j++) _P("%*d",dimension_print_width,j + 1);
        _P("\n");
 
        for(i = 0;i < f->X_count;i++)
        {
            score = sample_score_scale(forest_idx,&f->X[i]);
            _2P("%10f",score);
-           for(j = 0;j < dimensions;j++) _P("%25.*f",decimals,f->X[i].dimension[j]);
+           for(j = 0;j < dimensions;j++) _P("%*.*f",dimension_print_width,decimals,f->X[i].dimension[j]);
            _P("\n");
        }
     }

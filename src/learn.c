@@ -151,9 +151,7 @@ int select_forest(int value_count,char **values)
    forest[forest_count].analyzed_rows = 0;
    forest[forest_count].high_analyzed_rows = 0;
    forest[forest_count].extra_rows = 0;
-   forest[forest_count].auto_score = 0.0;
    forest[forest_count].percentage_score = 0.0;
-   forest[forest_count].average_score = 0.0;
    forest[forest_count].min_score = 1.0;
    forest[forest_count].test_average_score = 0.0;
 
@@ -282,9 +280,7 @@ sample_dimension(struct sample *s)
    */
 void add_to_X(struct forest *f,char **values, int value_count,int saved)
 {
-    int i,sample_idx;
-    int first = 0;
-    double *s;
+    int sample_idx;
     static double new[DIM_MAX];
 
     parse_values(new,values,value_count,saved); 
@@ -292,7 +288,7 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
     DEBUG("Adding %sdimension to forest %s: ",saved ? "saved " : "",f->category);
     DEBUG_ARRAY(value_count,new);
 
-    // check if this is duplicate sample. Unique_samples is a value between 0..100. 
+    // check if this is a duplicate sample. Unique_samples is a value between 0..100. 
     // if value is .e.g 10 then 10 percent of samples are checked for uniqueness
     // check is not done for saved values, only new values are checked
 
@@ -336,36 +332,8 @@ void add_to_X(struct forest *f,char **values, int value_count,int saved)
         if(sample_idx >= f->X_count) return;         // check if old sample should be replaced with this or not
     }
 
-    if(f->min == NULL && !aggregate)
-    {
-        f->min = xmalloc(dimensions * sizeof(double));
-        f->max = xmalloc(dimensions * sizeof(double));
-        if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
-        first = 1;
-    }
+    v_copy(f->X[sample_idx].dimension,new);
 
-    s = f->X[sample_idx].dimension;
-
-    v_copy(s,new);
-
-    if(!aggregate)  // if dealing with aggregated data, stats are done after aggregation is done
-    {
-        for(i = 0;i < dimensions;i++)
-        {
-            // update min/max dimensions and average
-            if(first)
-            {
-                f->min[i] = s[i];
-                f->max[i] = s[i];
-                f->avg[i] = s[i];
-            } else
-            {
-                if(s[i] < f->min[i]) f->min[i] = s[i];
-                if(s[i] > f->max[i]) f->max[i] = s[i];
-                f->avg[i] += s[i];
-            }
-        }
-    }
     DEBUG("\n");
 }
 
@@ -424,10 +392,10 @@ add_aggregate(struct forest *f,char **values, int value_count)
     DEBUG("\n");
 }
 
-/* calculate min,max and avg values after aggregated data is added
+/* calculate min,max and avg values after is loaded
  */
 static
-void recalculate_stats(struct forest *f)
+void calculate_stats(struct forest *f)
 {
     int i,j;
     double *s;
@@ -436,8 +404,9 @@ void recalculate_stats(struct forest *f)
     {
         f->min = xmalloc(dimensions * sizeof(double));
         f->max = xmalloc(dimensions * sizeof(double));
-        if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
     }
+
+    if(f->avg == NULL) f->avg = xmalloc(dimensions * sizeof(double));
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -461,6 +430,7 @@ void recalculate_stats(struct forest *f)
             }
         }
     }
+    for(j = 0;j < dimensions;j++) f->avg[j] /= (double) f->X_count;        // turn to average
 }
 
 /* Populate sample table with indices to X table
@@ -614,7 +584,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
             for(j = 0;j < dimensions;j++) p[j] += X[samples[i]].dimension[j];
         }
 
-        for(i = 0;i < dimensions;i++) p[i] /= sample_count;  // turn to average
+        for(i = 0;i < dimensions;i++) p[i] /= (double) sample_count;  // turn to average
     } else
     {
         DEBUG("(random)");
@@ -638,25 +608,6 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     return p;
 }
 
-/* Expands a vector "out" by moving attribute values away from average
- * Each dimension attribute is moved "out" form dimension average value by density multiplied by auto_score_factor
- * Returns a pointer to expanded vector
- */
-double *v_expand(double *dim, double *avg, double *density,int sample_count)
-{
-    int i;
-    static double p[DIM_MAX];
-
-    v_copy(p,dim);
-
-    for(i = 0;i < dimensions;i++) 
-    {
-        p[i] += (p[i] >= avg[i] ? 1.0 : -1.0) * density[i] * auto_score_factor;
-    }
-
-    return p;
-}
-    
 
 /* calculate dot from two arrays with size of dimensions
  */
@@ -944,8 +895,6 @@ void train_one_forest(int forest_idx)
         f->dim_density[i] = (f->max[i] - f->min[i]) / (double) f->X_count;              // calculate avg dimension density
         if(f->dim_density[i] == 0.0) f->dim_density[i] = 1.0 / (double) f->X_count;     // make sure that density is not zero
 
-        f->avg[i] /= (double) f->X_count;              // turn to average
-        
         if(!auto_weigth || f->scale_range_idx == -1)
         {
             if(f->max[i] > f->min[i]) volume *= f->max[i] - f->min[i];
@@ -1067,8 +1016,8 @@ train_forest(FILE *in_stream,int new,int make_tree)
 
             if(first)
             {
-                first = 0;
                 init_dims(value_count);   // init dimensions tables based on first line
+                first = 0;
             } 
 
             forest_idx = select_forest(value_count,values);
@@ -1092,8 +1041,9 @@ train_forest(FILE *in_stream,int new,int make_tree)
         DEBUG("\n **Starting forest training\n");
         for(i = 0;i < forest_count;i++)
         {
-            if(aggregate) recalculate_stats(&forest[i]);
+            calculate_stats(&forest[i]);
             train_one_forest(i);
+            find_cluster_centers(i);
         }
     }
 }
@@ -1176,7 +1126,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxC");
+                    if(score > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxCem");
 
                     v_copy(prev_dimension, test_dimension);
                 }

@@ -32,6 +32,14 @@ static char input_line[INPUT_LEN_MAX];
 static int first = 1;
 static char *float_format = "%.*f";
 
+/*struct for finding sample cluster centers 
+ */
+struct sample_score
+{
+    size_t idx;         // index to X array
+    double score;       // sample X[idx] score
+};
+
 /* find a forest for a data row
  *
  * check filter and update analyzed only if filter_on is set
@@ -352,6 +360,87 @@ char *make_category_string(int value_count,char **values)
     return category;
 }
 
+/* Try to find out how each dimension value effects to outlier score
+ * This is done by assingning each dimension value to each cluster center dim. and
+ * calculating the score. If returned score is high for all clusters, then it can be assumed that this particular dim
+ * is an outlier value. 
+ * Minimum scores for each dim is stored to array
+ *
+ * Returns the result array
+ */
+static
+double * find_dimension_score(int forest_idx,double *dimension)
+{
+    static double result[DIM_MAX];
+    static double test[DIM_MAX];
+    double min,score;
+    struct forest *f;
+    int i,j;
+
+    f = &forest[forest_idx];
+
+    for(i = 0;i < dimensions;i++)
+    {
+        min = 1.0;
+        for(j = 0;j < f->cluster_count;j++)
+        {
+            v_copy(test,f->X[f->cluster_center[j]].dimension);
+
+            test[i] = dimension[i];
+            score = calculate_score(forest_idx,test);
+
+            if(score < min) min = score;
+        }
+        result[i] = min;
+    }
+    return result;
+}
+
+/* prints escaped char
+ * returns number of characters consumed
+ */
+static 
+size_t print_escaped(FILE *outs, char *esc)
+{
+    size_t consumed = 0;
+
+    if(*esc == '\\' && esc[1] != '\000')
+    {
+        esc++;
+        consumed = 2;
+        switch(*esc)
+        {
+            case 't':
+                fprintf(outs,"%c",'\t');
+                break;
+            case 'n':
+                fprintf(outs,"%c",'\n');
+                break;
+            case '\\':
+                fprintf(outs,"%c",'\\');
+                break;
+            case '"':
+                fprintf(outs,"%c",'"');
+                break;
+            case '\'':
+                fprintf(outs,"%c",'\'');
+                break;
+            default:
+                consumed = 0;
+                break;
+        }
+    }
+    return consumed;
+}
+
+/* print list separator for dimension list
+ */
+static 
+void print_dim_list_separator(FILE *outs,int index)
+{
+    if(index < dimensions - 1) fputc(list_separator,outs);
+}
+
 
 /* Print something
  * printing is done using printf style string and %-directives
@@ -359,9 +448,12 @@ char *make_category_string(int value_count,char **values)
 void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,char **values,double *dimension,char *format,char *directives)
 {
     int i;
+    size_t consumed;
     char *c = format;
+    char *d;
     char outstr[100];
     struct tm *tmp;
+    double *earray = NULL;
 
     while(*c != '\000')
     {
@@ -370,16 +462,16 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
             c++;
             switch(*c)
             {
-               case 'r':
+                case 'r':
                     fprintf(outs,"%d",lines);
                     break;
-                case'n':
+                case 'n':
                     fprintf(outs,"%d",forest[forest_idx].total_rows);
                     break;
-                case'o':
+                case 'o':
                     fprintf(outs,"%d",forest[forest_idx].analyzed_rows);
                     break;
-                case'h':
+                case 'h':
                     fprintf(outs,"%d",forest[forest_idx].high_analyzed_rows);
                     break;
                 case 's':
@@ -394,6 +486,56 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                 case 'l':
                     fprintf(outs,"%s",make_label_string(value_count,values));
                     break;
+                case 'm':
+                    if(print_dimension != NULL)
+                    {
+                        for(i = 0;i < dimensions;i++)
+                        {
+                            d = print_dimension;
+                            while(*d != '\000')
+                            {
+                                if(*d == '%' && d[1] != '\000' && strchr("daei",d[1]) != NULL)
+                                {
+                                    d++;
+                                    switch(*d)
+                                    {
+                                        case 'd':
+                                            if(check_idx(dim_idx[i],text_idx_count,text_idx))
+                                            {
+                                                if(values != NULL) fprintf(outs,"%s",values[dim_idx[i]]);
+                                            } else
+                                            {
+                                                if(dimension != NULL) *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
+                                            }
+                                            break;
+                                        case 'a':
+                                            if(forest_idx > -1) *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
+                                            break;
+                                        case 'e':
+                                            if(forest_idx > -1 && !forest[forest_idx].filter &&  cluster_relative_size > 0.0 && dimension != NULL)
+                                            {
+                                                if(earray == NULL) earray = find_dimension_score(forest_idx,dimension);
+                                                fprintf(outs,"%f",earray[i]);
+                                            }
+                                            break;
+                                        case 'i':
+                                            fprintf(outs,"%d",i + 1);
+                                            break;
+                                    }
+                                    d++;
+                                } else if((consumed = print_escaped(outs,d))) // yes, it's an assignment
+                                {
+                                    d += consumed;
+                                }  else
+                                {
+                                    fprintf(outs,"%c",*d);
+                                    d++;
+                                }
+                            }
+                            print_dim_list_separator(outs,i);
+                        }
+                    }
+                    break;
                 case 'd':
                     for(i = 0;i < dimensions;i++)
                     {
@@ -404,74 +546,69 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                         {
                             *printf_format != '\000' ? fprintf(outs,printf_format,dimension[i]) : fprintf(outs,float_format,decimals,dimension[i]);
                         }
-                        if(i < dimensions - 1) fputc(list_separator,outs);
+                        print_dim_list_separator(outs,i);
                     }
-                   break;
-               case 'a':
-                   for(i = 0;i < dimensions;i++)
-                   {
-                       *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
-                       if(i < dimensions - 1) fputc(list_separator,outs);
-                   }
-                   break;
-               case 'v':
-                   for(i = 0;i < value_count;i++) i < value_count - 1 ? fprintf(outs,"%s%c",values[i],list_separator) : fprintf(outs,"%s",values[i]);
-                   break;
-               case 'x':
-                   fprintf(outs,"%06X",score_to_rgb(score));
-                   break;
-               case 'C':
-                   fprintf(outs,"%s",forest[forest_idx].category);
-                   break;
-               case 't':
-                   tmp = localtime(&forest[forest_idx].last_updated);
+                    break;
+                case 'e':
+                    if(cluster_relative_size > 0.0)
+                    {
+                        if(earray == NULL) earray = find_dimension_score(forest_idx,dimension);
+                        for(i = 0;i < dimensions;i++)
+                        {
+                            fprintf(outs,"%f",earray[i]);
+                            print_dim_list_separator(outs,i);
+                        }
+                    }
+                    break;
+                case 'a':
+                    for(i = 0;i < dimensions;i++)
+                    {
+                        *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
+                        print_dim_list_separator(outs,i);
+                    }
+                    break;
+                case 'v':
+                    for(i = 0;i < value_count;i++)
+                    {
+                        fprintf(outs,"%s",values[i]);
+                        if(i < value_count - 1) fputc(list_separator,outs);
+                    }
+                    break;
+                case 'x':
+                    fprintf(outs,"%06X",score_to_rgb(score));
+                    break;
+                case 'C':
+                    fprintf(outs,"%s",forest[forest_idx].category);
+                    break;
+                case 't':
+                    tmp = localtime(&forest[forest_idx].last_updated);
 
-                   if(tmp != NULL)
-                   {
-                       outstr[0] = '\000';
-                       strftime(outstr, sizeof(outstr), "%c", tmp);
-                       fprintf(outs,"%s",outstr);
-                   }
-                   break;
-               case ':':
-                   fprintf(outs,"%c",category_separator);
-                   break;
-               case '.':
-                   fprintf(outs,"%c",label_separator);
-                   break;
-               case '%':
-                   fprintf(outs,"%c",'%');
-                   break;
-           }
-       } else
-       {
-           if(*c == '\\' && c[1] != '\000')
-           {
-               c++;
-               switch(*c)
-               {
-                   case 't':
-                       fprintf(outs,"%c",'\t');
-                       break;
-                   case 'n':
-                       fprintf(outs,"%c",'\n');
-                       break;
-                   case '\\':
-                       fprintf(outs,"%c",'\\');
-                       break;
-                   case '"':
-                       fprintf(outs,"%c",'"');
-                       break;
-                   case '\'':
-                       fprintf(outs,"%c",'\'');
-                       break;
-               }
-           } else
-           {
-               fprintf(outs,"%c",*c);
-           }
-       }
-       c++;
+                    if(tmp != NULL)
+                    {
+                        outstr[0] = '\000';
+                        strftime(outstr, sizeof(outstr), "%c", tmp);
+                        fprintf(outs,"%s",outstr);
+                    }
+                    break;
+                case ':':
+                    fprintf(outs,"%c",category_separator);
+                    break;
+                case '.':
+                    fprintf(outs,"%c",label_separator);
+                    break;
+                case '%':
+                    fprintf(outs,"%c",'%');
+                    break;
+            }
+            c++;
+        } else if((consumed = print_escaped(outs,c))) // yes, it's an assignment
+        {
+            c += consumed;
+        } else
+        {
+            fprintf(outs,"%c",*c);
+            c++;
+        }
     }
     if(*format) fprintf(outs,"%c",'\n');
 }
@@ -529,33 +666,6 @@ void aggregate_values(int forest_idx,double *sample)
     } else
     {
         for(i = 0;i < dimensions;i++) f->summary[i] += sample[i];
-    }
-}
-
-/* Init auto (max) score for a forest 
- * Auto score is initialized by the maximun sample score value.
- * Sample values are sligthly randomly moved using v_expand, 
- * */
-void calculate_forest_auto_score(int forest_idx)
-{
-    double score,*d;
-    int i;
-    struct forest *f;
-
-    f = &forest[forest_idx];
-        
-    f->auto_score = 0.0;
-
-    if(f->filter) return;
-
-    for(i = 0;i < f->X_count;i++)
-    {
-        d = v_expand(f->X[i].dimension,f->avg,f->dim_density,f->X_count);
-
-        if(auto_weigth) d = scale_dimension(d,f);
-
-        score = _score(forest_idx,d);
-        if(score > f->auto_score) f->auto_score = score;
     }
 }
 
@@ -641,61 +751,42 @@ void remove_outlier()
     }
 }
 
-/* calculate average sample score for a forest
- * Average is counted once, this is chekked using f->average_score (it is practically never zero)
+/* calculate the range of scores for a forest this is used to scale scores to 0..1 range in analysis
+ * Min score is considered to be the smallest score among samples
+ * Max score is tested using huge values for each dimension attributes (calculate_max_score)
+ * and in order to make sure that max score is really max adjust it by MAX_SCORE_ADJUST
  *
  */
-void calculate_average_sample_score(int forest_idx)
+#define MAX_SCORE_ADJUST 1.01
+void calculate_sample_score_range(int forest_idx)
 {
     int i;
     struct forest *f;
-    double stddev = 0.0;
-    double *scores;
+    double score;
 
     f = &forest[forest_idx];
 
-    if(f->filter) return;
+    if(f->filter || f->min_score < 1.0) return;   // Range is calculated if f->min_score < 1.0
      
-    f->average_score = 0.0;
     f->min_score = 1.0;
 
-    scores = xmalloc(f->X_count * sizeof(double));
-
     for(i = 0;i < f->X_count;i++)
     {
-        scores[i] = sample_score(forest_idx,&f->X[i]);
+        score = sample_score(forest_idx,&f->X[i]);
 
-        if(scores[i] < f->min_score) f->min_score = scores[i];
-
-        f->average_score += scores[i];
+        if(score < f->min_score) f->min_score = score;
     }
 
-    f->average_score /= (double) f->X_count;
-
-    for(i = 0;i < f->X_count;i++)
-    {
-        stddev += POW2(f->average_score - scores[i]);
-    }
-
-    stddev = sqrt(stddev / (double) f->X_count);
-
-    f->average_score += stddev * average_score_factor;
-
-    DEBUG(" Calculating maximum score for forest %s\n",f->category);
-    f->max_score = calculate_max_score(forest_idx) + stddev / 2.0;   // add stddev/2 in order to make sure that scaled score remains always < 1.0
+    f->max_score = calculate_max_score(forest_idx) * MAX_SCORE_ADJUST;   
 
     if(f->max_score > 1.0) f->max_score = 1.0;
-
-    free(scores);
 }
 
-/* Return score for a forest, special scores for auto and average socres are handled here
+/* Return score for a forest, special scores are handled here too
  */
 inline 
 double get_forest_score(int forest_idx)
 {
-    if(outlier_score == AUTO_SCORE) return forest[forest_idx].auto_score;
-    if(outlier_score == AVERAGE_SCORE) return forest[forest_idx].average_score;
     if(percentage_score) return forest[forest_idx].percentage_score;
     return outlier_score;
 }
@@ -707,16 +798,169 @@ void calculate_forest_score(int forest_idx)
 {
     if(!forest[forest_idx].filter) DEBUG("\n** Calculating forest score\n");
 
-    if(forest[forest_idx].average_score == 0.0 && (outlier_score == AVERAGE_SCORE || scale_score)) 
+    if(scale_score) 
     {
-        calculate_average_sample_score(forest_idx);
-    } else if(forest[forest_idx].auto_score == 0.0 && outlier_score == AUTO_SCORE)
-    {
-        calculate_forest_auto_score(forest_idx);
-    } if(forest[forest_idx].percentage_score == 0.0 && percentage_score)
+        calculate_sample_score_range(forest_idx);
+    } else if(forest[forest_idx].percentage_score == 0.0 && percentage_score)
     {
         calculate_forest_percentage_score(forest_idx);
     }
+}
+
+/* qsort comparison function for cluster center analysis
+ */
+static 
+int cluster_score_cmp(const void *a, const void *b)
+{
+    const struct sample_score *e1 = a;
+    const struct sample_score *e2 = b;
+    
+    if(e1->score < e2->score)
+    {
+        return -1;
+    } else if(e1->score > e2->score)
+    {
+        return 1;
+    } else
+    {
+        return 0;
+    }
+}
+
+
+
+/* Find forest cluster centers
+ * Centers are found using method:
+ * - sort all samples by score
+ * - take first n scores (having the smallest score -> cluster centers are among these). n = 97.5% of samples
+ * - calculate largest distance from sample having smallest score to farthest sample among first n scores
+ * - Take first sample and remove all samples being near (samples in the same cluster) to first sample
+ * - Take next sample as next cluster center and remove nearby samples
+ * - continue until all n samples are done
+ */
+#define CLUSTER_SAMPLE_DIV 0.975
+#define CLUSTER_CHECK 0
+#define CLUSTER_DONE 1
+void find_cluster_centers(int forest_idx)
+{
+    struct forest *f;
+    struct sample_score *samples;
+    static double min[DIM_MAX],max[DIM_MAX];
+    double dist,longest_dist = 0.0,same_cluster_dist;
+    size_t *status;
+    int samples_to_analyze,cluster_samples = 0;
+    int i,j,current,next,min_cluster_sample_count;
+    int cluster_sample_count[CLUSTER_MAX];
+
+    f = &forest[forest_idx];
+    
+    f->cluster_count = 0;
+
+    if(f->filter || cluster_relative_size == 0.0) return;
+
+    samples_to_analyze = (int) (CLUSTER_SAMPLE_DIV * (double) f->X_count);
+
+    samples = xmalloc(sizeof(struct sample_score) *  f->X_count);
+    status = xmalloc(sizeof(size_t) * samples_to_analyze);
+
+    for(i = 0;i < CLUSTER_MAX;i++) cluster_sample_count[i] = 0;
+
+    for(i = 0;i < f->X_count;i++)
+    {
+        samples[i].idx = i;
+        samples[i].score = sample_score(forest_idx,&f->X[i]);
+    }
+
+    qsort(samples,f->X_count,sizeof(struct sample_score),cluster_score_cmp);
+
+    for(i = 0;i < samples_to_analyze;i++) status[i] = CLUSTER_CHECK;
+
+    // We use nosqrt distances for performance reasons
+    //
+    // First find longest distance. Here is assumed that the sample with lowest score (first one) is the center of all samples
+    // distance to the farthest sample is measured from that
+    for(i = 0;i < dimensions;i++) 
+    {
+        min[i] = f->X[samples[0].idx].dimension[i];
+        max[i] = f->X[samples[0].idx].dimension[i];
+    }
+
+    for(i = 1;i < samples_to_analyze;i++)
+    {
+        for(j = 0;j < dimensions;j++)
+        {
+            if(f->X[samples[i].idx].dimension[j] < min[j]) min[j] = f->X[samples[i].idx].dimension[j];
+            if(f->X[samples[i].idx].dimension[j] > max[j]) max[j] = f->X[samples[i].idx].dimension[j];
+        }
+    }
+
+    longest_dist =  v_dist_nosqrt(max,min);
+
+    // First cluster is around the sample having lowest score
+    f->cluster_center[f->cluster_count] = samples[0].idx;
+    f->cluster_count++;
+
+    // samples are considered to be in same cluster if their distance is smaller than same_cluster_dist calculated here
+    // cluster_relative_size default value is in cluster_relative_size, use power of two because square root is not used in distance calculation
+    same_cluster_dist = POW2(cluster_relative_size) * longest_dist;
+    f->cluster_radius = cluster_relative_size * sqrt(longest_dist);
+
+
+    current = 0;   // cluster center point, index to X
+    status[0] = CLUSTER_DONE;
+
+    while(f->cluster_count < CLUSTER_MAX)
+    {
+        next = -1;
+
+        for(i = 0;i < samples_to_analyze;i++)
+        {
+            if(status[i] == CLUSTER_CHECK)
+            {
+                dist = v_dist_nosqrt(f->X[samples[current].idx].dimension,f->X[samples[i].idx].dimension);    // check distance
+                if(dist <= same_cluster_dist)
+                {
+                    status[i] = CLUSTER_DONE;                     // if in cluster then  mark as done
+                    cluster_sample_count[f->cluster_count - 1]++;
+                    cluster_samples++;
+                }
+                else if(next == -1)  // add new cluster, but check that the distance for existing clusters is longer that 2 * f->cluster_radius
+                {
+                    next = i;
+                    for(j = 0;j < f->cluster_count && next > -1;j++)
+                        if(v_dist_nosqrt(f->X[f->cluster_center[j]].dimension,f->X[samples[next].idx].dimension) < POW2(2.0 * f->cluster_radius)) next = -1;
+                    if(next > -1) status[i] = CLUSTER_DONE;                     // mark as done
+                }
+            }
+        }
+
+        if(next == -1) break;
+        current = next;
+        f->cluster_center[f->cluster_count] = samples[current].idx;
+        f->cluster_count++;
+    }
+
+    f->cluster_coverage = (double) cluster_samples / (double) samples_to_analyze;
+
+    // Remove clusters having small number of samples
+    // Minimum number is app. the number of samples / 2 in clusters when they are evenly distributed for each cluster
+    min_cluster_sample_count = (cluster_samples / f->cluster_count) / 2;
+
+    for(i = 0;i < f->cluster_count;i++)
+    {
+        while(f->cluster_count > i && cluster_sample_count[i] < min_cluster_sample_count)
+        {
+            for(j = i;j < f->cluster_count - 1;j++)
+            {
+                f->cluster_center[j] = f->cluster_center[j + 1];
+                cluster_sample_count[j] = cluster_sample_count[j + 1];
+            }
+            f->cluster_count--;
+        }
+    }
+
+    free(samples);
+    free(status);
 }
 
 /* Check if analyzed rows should be sampled and 
@@ -730,7 +974,6 @@ int take_this_row(int total_rows)
     if(analyze_sampling_count && total_rows > analyze_sampling_count && ri(1,total_rows) > analyze_sampling_count) return 0;
     return 1;
 }
-
 /* analyze data from file. 
  * All lines are analyzed against loaded forest/tree data
  * and print anomalies (having score > outlier_score) using printing mask
@@ -772,7 +1015,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 
             if(forest_idx >= 0)
             {
-                calculate_forest_score(forest_idx);
+                if(!forest[forest_idx].total_rows) calculate_forest_score(forest_idx);
 
                 forest[forest_idx].total_rows++;
 
@@ -794,13 +1037,13 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                         if(score > get_forest_score(forest_idx))
                         {
                             forest[forest_idx].high_analyzed_rows++;
-                            print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCtnoh");
+                            print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCtnohem");
                         }
                     }
                 }
             } else
             {
-                if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,0,value_count,values,dimension,not_found_format,"dvcl");
+                if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,-1,value_count,values,dimension,not_found_format,"dvclm");
             }
 
         }
@@ -821,7 +1064,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                 if(score > get_forest_score(forest_idx))
                 {
                     forest[forest_idx].high_analyzed_rows++;
-                    print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCtnoh");
+                    print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCtnohem");
                 }
             }
         }
@@ -868,13 +1111,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
 
     scale_score = 1;
 
-    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)  /* Get forest sample score min ... max range */
-    {
-        if(!forest[forest_idx].filter)
-        {
-            if(forest[forest_idx].average_score == 0.0) calculate_average_sample_score(forest_idx);
-        }
-    }
+    for(forest_idx = 0;forest_idx < forest_count;forest_idx++)  calculate_sample_score_range(forest_idx); // calculate score range for socre scaling
 
     while(fgets(input_line,INPUT_LEN_MAX,in_stream) != NULL) 
     {
@@ -923,7 +1160,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 }
 
                 if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
-                    print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCtn");
+                    print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCtnem");
             }
         }
     }
@@ -949,7 +1186,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 }
             }
             if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
-                print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCtn");
+                print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCtnem");
         }
     }
 
@@ -970,7 +1207,7 @@ void print_missing_categories(FILE *outs,char *format)
 
     for(i = 0;i < forest_count;i++)
     {
-        if(!forest[i].filter && !forest[i].analyzed) print_(outs,0.0,0,i,0,NULL,NULL,format,"Cat");
+        if(!forest[i].filter && !forest[i].analyzed) print_(outs,0.0,0,i,0,NULL,NULL,format,"Catm");
     }
 }
 

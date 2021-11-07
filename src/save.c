@@ -49,14 +49,8 @@ void write_global_data(FILE *w,int f_count)
 
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
 
-    if(outlier_score < 0) 
-    {
-        scale_score = 0;
-        percentage_score = 0;
-    }
-
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,scale_score ? "s" : (percentage_score ? "%" : ""),outlier_score == AVERAGE_SCORE ? average_score_factor : auto_score_factor,\
+                input_separator,header,outlier_score,scale_score ? "s" : (percentage_score ? "%" : ""),auto_score_factor,\
                 ignore_dims ? ignore_dims : "",\
                 include_dims ? include_dims : "",f_count,filter_str,decimals,unique_samples,printf_format ? printf_format : "",list_separator,\
                 n_vector_adjust,aggregate,text_dims ? text_dims : "","") < 0)
@@ -154,9 +148,9 @@ int parse_G(char *l)
         input_separator = v[7][0];
         header = atoi(v[8]);
 
-        parse_user_score(v[9],1);
+        parse_user_score(v[9]);
 
-        auto_score_factor = average_score_factor = atof(v[10]);
+        auto_score_factor = atof(v[10]);
         ignore_dims = xstrdup(v[11]);
         ignore_idx_count = parse_dims(v[11],ignore_idx);
         include_dims = xstrdup(v[12]);
@@ -223,9 +217,7 @@ int parse_F(int forest_idx,char *l)
         f->analyzed_rows = 0;
         f->high_analyzed_rows = 0;
         f->extra_rows = 0;
-        f->auto_score = 0.0;
         f->percentage_score = 0.0;
-        f->average_score = 0.0;
         f->min_score = 1.0;
         f->test_average_score = 0.0;
 

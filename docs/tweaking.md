@@ -43,14 +43,11 @@ Outlier area is printed using color and non outlier are is white.
 |0|![](pics/2blob_O0.png)|![](pics/square_O0.png)|![](pics/circle_O0.png)|
 |0.5|![](pics/2blob_O05.png)|![](pics/square_O05.png)|![](pics/circle_O05.png)|
 |0.5s|![](pics/2blob_O05s.png)|![](pics/square_O05s.png)|![](pics/circle_O05s.png)|
-|max|![](pics/2blob_Oauto.png)|![](pics/square_Oauto.png)|![](pics/circle_Oauto.png)|
-|average|![](pics/2blob_Oavg.png)|![](pics/square_Oavg.png)|![](pics/circle_Oavg.png)|
 
 Outlier score 0.5 is not the same for all cases. In some cases (2blobs and square) it leaves some training data points in outlier area and in circle case it is too large. 
-max outlier score leaves all training data points in inlier area. Average score with default adjusting factor (1) leaves training data sample points in outlier area.
-Larger value (e.g. 5) yields same results as max score.
+100% score leaves all training data points in inlier area. 
 
-On the other hand the scaled score 0.5s can be used as a good outlier limit for all cases.
+Typically the scaled score 0.5s can be used as a good outlier limit for all cases.
 
 #### Scaled outlier score
 If suffix 's' is given with outlier score then the analyzed scores are scaled to range 0..1. Typically score range for normal case is something between 0.3 and 0.85. 
@@ -58,28 +55,6 @@ When scaling the minimum score (e.g. 0.33) is scaled to 0 and maximum score (e.g
 Minimum score is the lowest sample score and maximum score is got analyzing huge dimension values.
 
 This gives more consistet score values between different forests and outlier have at least value 0.5. Scaling is used always when categorizing (option -c).
-
-#### Difference between max and average automatic outlier score
-Notable difference between max and average automatic score methods is that the max consideres all training data samples to be inliers. This can be used when it it known that training data has not outliers. If training data has outliers but they should not have major effect to automatic outlier score then average method could be used. Following maps show the difference. 
-Few data lines from file circle.csv were added to square data as outliers.
-
-Command used in No outlier case:
-
-    cat square.csv | ceif -l - -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
-
-And command used in outlier case:
-
-    head -3 circle.csv | cat - square.csv | ceif -l - -Omax -T1 -p "%d,0x%x,%s" -o plot_data.csv
-
-Average method was run with option -x 4, because default value leaves too much samples in outlier area.
-
-|Outlier score value (-O)|No outliers|Outliers|
-|---|---|---|
-|max|![](pics/square_no_max.png)|![](pics/square_o_max.png)|
-|average|![](pics/square_no_avg.png)|![](pics/square_o_avg.png)|
-
-Outlier case with -Omax causes the most distant outlier define the outlier score. This causes the inlier area to be quite large. In -Oaverage case the outliers cause the original inlier are to 
-be slightly enlarged.
 
 #### Percentage based outlier score
 Percentage based score is calculated by sorting all sample scores and taking the score which covers x percent of scores starting from smallest score. 
@@ -210,40 +185,6 @@ Result is now better, there is clear 0.65 score range around the data line.
 Values are scaled according to the largest attribute range. In the example above the X range 5...117 is scaled 
 to the Y range (100 000...2 000 000). This makes both attributes equal in score analysis.
 
-### Using automatic outlier scores
-Following examples show how the automatic outlier score can be determined for file circle.csv. This process is adjusted using different values for option -x or rc-file paramter MAX\_SCORE\_FACTOR.
-Examples are run using command:
-
-    ceif -l circle.csv  -Omax -T1 -x5  -p "%d,0x%x" -o plot_data.csv
-
-And plotting the file plot_data.csv with gnuplot. Non outlier area is printed with white color, outliers are non white. 
-Following table contains result of different values of MAX\_SCORE\_FACTOR. More larger value means more larger outlier score.
-
-|MAX\_SCORE\_FACTOR value (option -x)|score map|Comment|
-|---|---|---|
-|0, value zero means that the outlier score is the same as score from the sample having the highest score|![](pics/ascore_0.png)|Sample with the highest score determines the outlier area|
-|5, default value, sample set is slightly expanded out from the average value of each dimension value before finding the highest score|![](pics/ascore_5.png)|non outlier area is slighly expanded|
-|10|![](pics/ascore_10.png)|non outlier area is expanded more, too much actually because center is now outlier area|
-|10 with 300 trees (-t 300)|![](pics/ascore_10_t300.png)|center has now more inliers, adding more trees (and samples) yields usually better results|
-|-5, negative value causes some sample points to be considered as outliers. Negative value reduces the sample set towards dimension average before finding the largest score|![](pics/ascore_m5.png)|Now some sample points are clearly in outlier area|
-
-When searching the largest score each dimension attribute is moved out from the dimension attribute average by the formula (for values larger than average):
-
-    a += MAX_SCORE_FACTOR * d
-
-Operator -= is used for values smaller than average.
-
-Where
-  
-    a = dimension attribute value to be moved
-    d = dimension density, calculated using formula: (dimension attribute max value - dimension attribute min value) / number of samples
-
-Average based anomaly score is calculated by finding the training set average score and it is adjusted by
-
-    s += AVERAGE_SCORE_FACTOR * stddev
-
-Where stddev is training set score standard deviation.
-
 ### Print analyzed data average info
 Option -v can be used to print average score and other statistics calculated from analyzed data (given by option -a). If option -v is used then ceif calculates the total number of analyzed lines and
 the number of lines which had higher score than outlier score. Option -v requires a printing mask, which can have following directives:
@@ -332,3 +273,54 @@ As an example the following table gives an idea how many input rows will be appr
 |500 000|49 120|
 |2 000 000|62 983|
 |20 000 000|86 009|
+
+### Printing dimension metrics together
+Option -j (or rc-file variable PRINT\_DIMENSION) and printing directive can be used in order to print all dimension metrics in a group. In following example outlier attributes are printed in XML type of format.
+First make forest info file from 2blob.csv file:
+    ceif -l 2blob.csv -w 2blob.ceif
+File sblob.csv is analyzed against 2blob.ceif and outlier are printed in XML style with outlier score, input row number and row dimension attribute values and attribute related score:
+<pre>
+    cat  sblob.csv | ../src/ceif -r 2blob.ceif -O0.674s -a - -j " &lt;attr idx=%i&gt;\n  &lt;value&gt;%d&lt;/value&gt;\n  &lt;score&gt;%e&lt;/score&gt;\n &lt;/attr&gt;\n" -p "&lt;outlier score=%s row=%n&gt;\n%m&lt;/outlier&gt;" -e ""
+    &lt;outlier score=0.675003 row=7&gt;
+     &lt;attr idx=1&gt;
+      &lt;value&gt;24.760000&lt;/value&gt;
+      &lt;score&gt;0.260190&lt;/score&gt;
+     &lt;/attr&gt;
+     &lt;attr idx=2&gt;
+      &lt;value&gt;31.390000&lt;/value&gt;
+      &lt;score&gt;0.621133&lt;/score&gt;
+     &lt;/attr&gt;
+   &lt;/outlier&gt;
+   &lt;outlier score=0.674121 row=13&gt;
+    &lt;attr idx=1&gt;
+     &lt;value&gt;24.340000&lt;/value&gt;
+     &lt;score&gt;0.207147&lt;/score&gt;
+    &lt;/attr&gt;
+    &lt;attr idx=2&gt;
+     &lt;value&gt;31.850000&lt;/value&gt;
+     &lt;score&gt;0.642780&lt;/score&gt;
+    &lt;/attr&gt;<
+   &lt;/outlier&gt;
+</pre>
+### Clusters and dimension attribute scores
+#### Clusters
+Ceif tries to find forest sample data cluster using method below. Clusters in ceif have all the same fixed size and shape of sphere. The size can be controlled by rc-file variable CLUSTER\_SIZE. Cluster are not overlapping.
+
+Method:
+
+1. The cluster size is the distance from the sample having the lowest score to the farthermost sample multiplyed by CLUSTER\_SIZE. Smaller CLUSTER\_SIZE means more clusters. Cluster size is now relative to sample space.
+2. Take the sample with lowest score. This is the first cluster center.
+3. Calculate the number of samples in cluster (A sample is in cluster if the distance from cluster center is smaller than the cluster distance calculated in step 1)
+4. After all samples in cluster are found take the next sample having smallest score not yet in any cluster as next cluster center and calculate samples in this cluster
+5. Continue with step 4 until all samples are analyzed
+6. Remove clusters having only few samples
+
+#### Dimension attribute score
+When analysing outliers it is often usefull to know which dimension attribute is causing the dimension to be outlier. This is not revealed by isolation forest method, only dimension total score is.
+Ceif uses cluster centers in dimension attribute score analysis by assigning each outlier dimension attribute value to each cluster center by one by one. The cluster center values changed by 
+one attribute is then analysed and the lowest score found is considered as the dimension attribute score.
+
+This assumes that if dimension attribute value in any cluster center causes the cluster center to be outlier (only high scores are found among cluster centers) then the dimension attribute is probably causing the 
+dimension to be outlier. This is not always true, even if all attributes give low score still the dimension as whole can be outlier.
+
+Attribute scores can be printed using directive %e.

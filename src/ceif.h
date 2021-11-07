@@ -31,10 +31,7 @@
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in node 
-
-/* Special outlier_score values for automatic and average based scores */
-#define AVERAGE_SCORE -1
-#define AUTO_SCORE -2
+#define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 
 /* should normal distributed values be written to cache for faster execution */
 #define FAST_N_SAMPLES 32771
@@ -95,7 +92,6 @@ struct forest
     int analyzed;           // Is this forest used in analysis 
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
     double auto_score;      // automatic socre calculated based on sample value having max score value
-    double average_score;   // average score of all saved samples
     double percentage_score;   // percentage based score of saved samples
     double min_score;       // Minimum score of all saved samples
     double max_score;       // Maximum score of all saved samples
@@ -105,6 +101,10 @@ struct forest
     int high_analyzed_rows; // Number of rows having score higher than avaerage score
     int extra_rows;         // Number of rows read after train file after max number of samples reached
     struct tree *t;         // Tree table, NULL if not initialized
+    int cluster_count;      // Number of cluster in a forest
+    size_t cluster_center[CLUSTER_MAX]; // cluster center points, indices to sample array X
+    double cluster_radius;  // cluster radius
+    double cluster_coverage;  // Samples covered by clusters, relative coverage between 0..1, where 1 = clusters cover all samples
 };
 
 struct forest_hash
@@ -146,6 +146,7 @@ extern int samples_max;              // max samples / tree
 extern int max_total_samples;
 extern int samples_total;              // max samples / forest
 extern char *print_string;
+extern char *print_dimension;
 extern char input_separator;
 extern int header;
 extern double outlier_score;
@@ -157,12 +158,13 @@ extern char *printf_format;
 extern char list_separator;
 extern int n_vector_adjust;
 extern int aggregate;
-extern double average_score_factor;
 extern int scale_score;
 extern int nearest;
 extern int percentage_score;
 extern int analyze_sampling_count;
 extern int debug;
+extern double cluster_relative_size;
+extern int dimension_print_width;
 
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
@@ -184,7 +186,7 @@ extern struct forest_hash fhash[];
 void panic(char *,char *,char *);
 void info(char *,char *,char *);
 int parse_dims(char *,int *);
-void parse_user_score(char *,int);
+void parse_user_score(char *);
 
 
 
@@ -254,6 +256,8 @@ double get_forest_score(int);
 void remove_samples(char *);
 double sample_score(int ,struct sample *);
 double sample_score_scale(int ,struct sample *);
+void find_cluster_centers(int);
+
 
 /* save.c prototypes */
 void write_forest_file(FILE *,time_t);
