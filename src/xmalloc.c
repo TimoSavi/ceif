@@ -108,8 +108,7 @@ xrealloc (VOID *p, size_t n)
 /* Make a copy of a string in a newly allocated block of memory. */
 
 char *
-xstrdup (str)
-     char *str;
+xstrdup (const char *str)
 {
   VOID *p;
   size_t len = strlen (str);

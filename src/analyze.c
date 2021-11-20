@@ -266,6 +266,79 @@ double calculate_score(int forest_idx,double *dimension)
     return scale_score ? calculate_score_scale(forest_idx,dim) : _score(forest_idx,dim);
 }
 
+/* Try to find out how each dimension value effects to outlier score
+ * This is done by assingning each dimension value to each cluster center dim. and
+ * calculating the score. If returned score is high for all clusters, then it can be assumed that this particular dim
+ * is an outlier value. 
+ * Minimum scores for each dim is stored to array
+ *
+ * Returns the result array
+ */
+static
+double * find_dimension_score(int forest_idx,double *dimension)
+{
+    static double result[DIM_MAX];
+    static double test[DIM_MAX];
+    double min,score;
+    struct forest *f;
+    int i,j;
+
+    f = &forest[forest_idx];
+
+    for(i = 0;i < dimensions;i++)
+    {
+        min = 1.0;
+        for(j = 0;j < f->cluster_count;j++)
+        {
+            v_copy(test,f->X[f->cluster_center[j]].dimension);
+
+            test[i] = dimension[i];
+            score = calculate_score(forest_idx,test);
+
+            if(score < min) min = score;
+        }
+        result[i] = min;
+    }
+    return result;
+}
+
+
+/* Returns the score for dimensions attributes given by option -G. 
+ * This can be used to check only certain attributes or if certain attributes needs to be left out from 
+ * outlier analysis
+ *
+ * This is done by assigning those attribute values to each cluster center and analysing the score.
+ * If several cluster centers then the smallest score is taken
+ * This tries to find out which score those attributes cause alone.
+ *
+ * Returns score value or 2.0 if cluster centers or attribute indices given with option -G are not available
+ */
+double get_dim_score(int forest_idx,double *dimension)
+{
+    struct forest *f = &forest[forest_idx];
+    static double test[DIM_MAX];
+    double score,min;
+    int i,j;
+
+    min = 2.0;
+
+    if(score_idx_count && cluster_relative_size > 0.0)
+    {
+        for(i = 0;i < f->cluster_count;i++)
+        {
+            v_copy(test,f->X[f->cluster_center[i]].dimension);
+
+            for(j = 0;j < dimensions;j++) if(check_idx(j,score_idx_count,score_idx)) test[j] = dimension[j];
+
+            score = calculate_score(forest_idx,test);
+            if(score < min) min = score;
+        }
+    }
+
+    return min;
+}
+            
+
 /* calculate sample score. Select right dimension using auto_weigth and scale score
  */
 double sample_score_scale(int forest_idx,struct sample *s)
@@ -358,42 +431,6 @@ char *make_category_string(int value_count,char **values)
     }
 
     return category;
-}
-
-/* Try to find out how each dimension value effects to outlier score
- * This is done by assingning each dimension value to each cluster center dim. and
- * calculating the score. If returned score is high for all clusters, then it can be assumed that this particular dim
- * is an outlier value. 
- * Minimum scores for each dim is stored to array
- *
- * Returns the result array
- */
-static
-double * find_dimension_score(int forest_idx,double *dimension)
-{
-    static double result[DIM_MAX];
-    static double test[DIM_MAX];
-    double min,score;
-    struct forest *f;
-    int i,j;
-
-    f = &forest[forest_idx];
-
-    for(i = 0;i < dimensions;i++)
-    {
-        min = 1.0;
-        for(j = 0;j < f->cluster_count;j++)
-        {
-            v_copy(test,f->X[f->cluster_center[j]].dimension);
-
-            test[i] = dimension[i];
-            score = calculate_score(forest_idx,test);
-
-            if(score < min) min = score;
-        }
-        result[i] = min;
-    }
-    return result;
 }
 
 /* prints escaped char
@@ -614,11 +651,11 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
 }
 
 
-/* check if index is in index table.
+/* check if index is in a index table.
  */
 int check_idx(int index,int index_count, int *idx_table)
 {
-    int i;
+    register int i;
 
     for(i = 0;i < index_count;i++) if(index == idx_table[i]) return 1;
 
@@ -986,7 +1023,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
     int forest_idx;
     char *values[DIM_MAX];
     double *dimension = NULL;
-    double score;
+    double score,forest_score;
     
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
 
@@ -1028,13 +1065,15 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                     {
                         forest[forest_idx].analyzed_rows++;
                         
-                        DEBUG("\n *Calculate score for a test dimension\n");
+                        DEBUG("\n *Calculate score for a dimension\n");
 
                         score = calculate_score(forest_idx,dimension);
 
                         if(average_format != NULL) forest[forest_idx].test_average_score += score;
 
-                        if(score > get_forest_score(forest_idx))
+                        forest_score =  get_forest_score(forest_idx);
+
+                        if(score > forest_score && get_dim_score(forest_idx,dimension) > forest_score)
                         {
                             forest[forest_idx].high_analyzed_rows++;
                             print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCtnohem");
@@ -1060,8 +1099,10 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                 score = calculate_score(forest_idx,forest[forest_idx].summary);
                     
                 if(average_format != NULL) forest[forest_idx].test_average_score = score;
+
+                 forest_score =  get_forest_score(forest_idx);
                 
-                if(score > get_forest_score(forest_idx))
+                if(score > forest_score && get_dim_score(forest_idx,forest[forest_idx].summary) > forest_score)
                 {
                     forest[forest_idx].high_analyzed_rows++;
                     print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCtnohem");

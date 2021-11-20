@@ -91,7 +91,6 @@ struct forest
     double *summary;        // aggregated values when analysing or categorizing
     int analyzed;           // Is this forest used in analysis 
     time_t last_updated;    // time when the forest data was last updated in save file. Can be used clean up old forests
-    double auto_score;      // automatic socre calculated based on sample value having max score value
     double percentage_score;   // percentage based score of saved samples
     double min_score;       // Minimum score of all saved samples
     double max_score;       // Maximum score of all saved samples
@@ -128,6 +127,7 @@ extern int include_idx[];
 extern int category_idx[];
 extern int label_idx[];
 extern int text_idx[];
+extern int score_idx[];
 
 extern int dimensions;            // dimensions in current setup
 extern int ignore_idx_count;
@@ -135,6 +135,7 @@ extern int include_idx_count;
 extern int category_idx_count;
 extern int label_idx_count;
 extern int text_idx_count;
+extern int score_idx_count;
 
 extern char *cat_filter[];
 extern int cat_filter_count;
@@ -150,7 +151,6 @@ extern char *print_dimension;
 extern char input_separator;
 extern int header;
 extern double outlier_score;
-extern double auto_score_factor;
 extern double test_extension_factor;
 extern int decimals;
 extern int unique_samples;
@@ -174,6 +174,7 @@ extern char *ignore_dims;
 extern char *category_dims;
 extern char *label_dims;
 extern char *text_dims;
+extern char *score_dims;
 
 extern int forest_count;
 extern int forest_cap;
@@ -194,7 +195,7 @@ void parse_user_score(char *);
 VOID *xmalloc (size_t);
 VOID *xcalloc (size_t, size_t);
 VOID *xrealloc (VOID *, size_t);
-char *xstrdup (char *);
+char *xstrdup (const char *);
 FILE * xfopen(char *, char *, char);
 FILE * xfopen_test(char *, char *, char);
 void print_alloc_debug(void);
@@ -218,7 +219,7 @@ double parse_dim_hash_attribute(char *);
 double dot(double *, double *);
 double c(int);
 int dim_ok(int,int);
-void add_to_X(struct forest *,char **, int , int);
+void add_to_X(struct forest *,double *, int , int);
 void add_category_filter(char *);
 int search_forest_hash(char *); 
 void add_forest_hash(int, char *);
@@ -247,8 +248,6 @@ double calculate_score(int ,double *);
 void print_missing_categories(FILE *,char *);
 void print_(FILE *, double, int,int,int,char **,double *,char *,char *);
 int check_idx(int ,int , int *);
-void calculate_forest_auto_score(int);
-void init_auto_scores();
 void remove_outlier();
 void calculate_average_sample_score(int);
 void calculate_forest_score(int);
@@ -257,10 +256,16 @@ void remove_samples(char *);
 double sample_score(int ,struct sample *);
 double sample_score_scale(int ,struct sample *);
 void find_cluster_centers(int);
+double get_dim_score(int ,double *);
+
 
 
 /* save.c prototypes */
-void write_forest_file(FILE *,time_t);
-int read_forest_file(FILE *);
+void write_forest_file(char *,time_t);
+int read_forest_file(char *);
+
+/* json.c prototypes */
+int write_forest_file_json(char *,time_t);
+int read_forest_file_json(char *);
 
 

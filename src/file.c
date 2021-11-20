@@ -154,7 +154,7 @@ check_dim_range(int index)
 
    1,2,10-15
 
-   returns the number if dims
+   returns the number of dims
 
    */
 int
@@ -409,12 +409,15 @@ print_forest_info(FILE *outs)
 
     _2P("\n");
 
-    _D("Dimensions used in analysis: ",dimensions,dim_idx);
+    _2P("Dimension number in following items refers to input file field number (first=1)\n");
     _D("User ignored dimensions: ",ignore_idx_count,ignore_idx);
     _D("User included dimensions: ",include_idx_count,include_idx);
     _D("Category dimensions: ",category_idx_count,category_idx);
     _D("Label dimensions: ",label_idx_count,label_idx);
     _D("Dimensions treated as text: ",text_idx_count,text_idx);
+    _P("\n");
+    _2P("Dimension number in following items refers to dimension attribute number (first=1)\n");
+    _D("Dimension attributes which must jointly have high score: ",score_idx_count,score_idx);
     _P("\n");
     _2P("Density is sample max - min range divided by sample count");
     _P("\n");

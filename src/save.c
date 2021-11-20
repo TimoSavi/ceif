@@ -24,10 +24,14 @@
 #include "ceif.h"
 #include <time.h>
 
+#define FILE_JSON     1
+#define FILE_CSV      2
+#define FILE_UNKNOWN  3
+
 /* formats for write and reading data
  */
 
-static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f%s;%f;\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
+static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f%s;\"%s\";\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
 static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
 static char *W_sample = "S;%s\n";
 
@@ -50,7 +54,7 @@ void write_global_data(FILE *w,int f_count)
     filter_str = xstrdup(make_csv_line(cat_filter,cat_filter_count,';'));
 
     if(fprintf(w,W_global,dimensions,label_dims ? label_dims : "",print_string ? print_string : "",tree_count,samples_max,category_dims ? category_dims : "",\
-                input_separator,header,outlier_score,scale_score ? "s" : (percentage_score ? "%" : ""),auto_score_factor,\
+                input_separator,header,outlier_score,scale_score ? "s" : (percentage_score ? "%" : ""),score_dims ? score_dims :"",\
                 ignore_dims ? ignore_dims : "",\
                 include_dims ? include_dims : "",f_count,filter_str,decimals,unique_samples,printf_format ? printf_format : "",list_separator,\
                 n_vector_adjust,aggregate,text_dims ? text_dims : "","") < 0)
@@ -110,17 +114,30 @@ save_forest(int forest_idx,FILE *w)
  * S = sample
  */
 void
-write_forest_file(FILE *data_file,time_t delete_interval)
+write_forest_file_csv(char *file_name,time_t delete_interval)
 {
     int i;
     time_t now = time(NULL);
+    FILE *fp;
+
+    fp = xfopen(file_name,"w",'a');
     
-    write_global_data(data_file,forest_count);
+    write_global_data(fp,forest_count);
 
     for(i = 0;i < forest_count;i++)
     {
-        if(delete_interval == (time_t) 0 || (delete_interval > (time_t) 0 && forest[i].last_updated >= now - delete_interval)) save_forest(i,data_file);
+        if(delete_interval == (time_t) 0 || (delete_interval > (time_t) 0 && forest[i].last_updated >= now - delete_interval)) save_forest(i,fp);
     }
+
+    fclose(fp);
+}
+
+/* write forest data to file. If JSON is available use JSON else CSV
+ */
+void
+write_forest_file(char *file_name,time_t delete_interval)
+{
+    if(!write_forest_file_json(file_name,delete_interval)) write_forest_file_csv(file_name,delete_interval);
 }
 
 /*
@@ -150,7 +167,8 @@ int parse_G(char *l)
 
         parse_user_score(v[9]);
 
-        auto_score_factor = atof(v[10]);
+        score_dims = xstrdup(v[10]);
+        score_idx_count =  parse_dims(v[10],score_idx);
         ignore_dims = xstrdup(v[11]);
         ignore_idx_count = parse_dims(v[11],ignore_idx);
         include_dims = xstrdup(v[12]);
@@ -247,16 +265,20 @@ void forest_error(int linenumber)
  * returns 1 in case read was ok, 0 other wise
  */
 int 
-read_forest_file(FILE *data_file)
+read_forest_file_csv(char *file_name)
 {
     int f_count,line,value_count;
     int ln = 0;
-    char *values[DIM_MAX];
-    
+    int retval = 0;
+    static char *values[DIM_MAX];
+    static double new[DIM_MAX];
+    FILE *fp;
+
+    fp = xfopen(file_name,"r",'a');
 
     do
     {
-        if(fgets(input_line,INPUT_LEN_MAX,data_file) != NULL)
+        if(fgets(input_line,INPUT_LEN_MAX,fp) != NULL)
         {
             ln++;
             if(input_line[0] == 'G')
@@ -264,19 +286,20 @@ read_forest_file(FILE *data_file)
                 if(!parse_G(input_line))
                 {
                     forest_error(ln);
-                    return 0;
+                    goto end;
                 }
             }
         } else
         {
             forest_error(ln);
-            return 0;
+            goto end;
         }
     } while(input_line[0] != 'G');
 
-    if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) {
+    if(fgets(input_line,INPUT_LEN_MAX,fp) == NULL) {
         forest_count = 0;
-        return 1;
+        retval = 1;
+        goto end;
     }
 
     ln++;
@@ -295,17 +318,18 @@ read_forest_file(FILE *data_file)
             if(!parse_F(f_count,input_line))
             {
                 forest_error(ln);
-                return 0;
+                goto end;
             }
 
             line = 0;
 
             do
             {
-                if(fgets(input_line,INPUT_LEN_MAX,data_file) == NULL) 
+                if(fgets(input_line,INPUT_LEN_MAX,fp) == NULL) 
                 {
                     forest_count = f_count + 1;
-                    return 1;
+                    retval = 1;
+                    goto end;
                 }
 
                 ln++;
@@ -314,17 +338,75 @@ read_forest_file(FILE *data_file)
                 {
                     line++;
                     value_count = parse_csv_line(values,dimensions,&input_line[2],'|');
-                    add_to_X(&forest[f_count],values,value_count,1);
+                    parse_values(new,values,value_count,1);
+                    add_to_X(&forest[f_count],new,value_count,1);
                 }
             } while(input_line[0] == 'S');
             f_count++;
         } else
         {
             forest_error(ln);
-            return 0;
+            goto end;
         }
     } while(1);
 
-    return 1;
+    end:
+
+    fclose(fp);
+
+    return retval;
 }
 
+/* Check the forest data file type. Makes a wild guess using the first char in the file
+ * */
+static
+int check_forest_file_type(char *file_name)
+{
+    FILE *fp;
+    int first;
+
+    fp = xfopen(file_name,"r",'a');
+
+    first = fgetc(fp);
+
+    fclose(fp);
+
+    switch(first)
+    {
+        case '{':
+            return FILE_JSON;
+            break;
+        case 'G':
+            return FILE_CSV;
+            break;
+    }
+    return FILE_UNKNOWN;
+}
+
+
+
+
+/*
+ * read saved forest structure to  memory
+ * returns 1 in case read was ok, 0 otherwise
+ */
+int 
+read_forest_file(char *file_name)
+{
+    int file_type = check_forest_file_type(file_name);
+
+    switch(file_type)
+    {
+        case FILE_JSON:
+            return read_forest_file_json(file_name);
+            break;
+        case FILE_CSV:
+            return read_forest_file_csv(file_name);
+            break;
+        default:
+            panic("Unknown file format: ", file_name,"");
+            break;
+    }
+    return 0;
+}
+ 

@@ -14,6 +14,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -I&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
 | -U&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This overrides equal values from option -I|
 | -X&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be as text fields when reading the input file. Ranges can be given with dash (e.g. 2-9). A hash value from range 0-32770 is generated using field string value. Note that this is not collision free. This should be used mainly for simple classifications like "yes/no" or "Male/Female/Unknown". Note also that "Yes" and "yes" will produce different value|
+| -G&nbsp;LIST | LIST is a comma separated list of dimensions attribute indices. Combination of these dimension attributes must have outlier score along total score. Ranges can be given using dash. These are dimensions attribute indices, not input line indices (first = 1)|
 | -t&nbsp;INTEGER&nbsp;&nbsp; | Number of trees to use. Default is 100|
 | -s&nbsp;INTEGER | Number of samples for each tree. Default is 256|
 | -f&nbsp;CHAR | Field separator for input files|
@@ -55,6 +56,9 @@ Input data is assumed to be comma separated values. Different separator can be g
 
 
 If FILE is "-" then standard input or output is read or written.
+
+Default file format for options -r,-w and -z is JSON. If JSON is not available then CSV format is used. Ceif tries to obey the number of decimals (option -d) when saving data.
+If no double formatting support is available, the number of decimals saved is the json library default.
 
 #### Printing directives
 

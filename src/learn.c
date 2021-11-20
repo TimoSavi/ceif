@@ -21,6 +21,7 @@
  *
  */
 #include "ceif.h"
+#include "cmap.h"
 #include <math.h>
 #include <regex.h>
 #include <time.h>
@@ -209,12 +210,35 @@ double parse_dim_attribute(char *value)
  * a hash is calculated based on string.
  * NOTE! collisions may occur
  *
- * Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown" 
- * Note also that "Yes" and "yes" will produce different values
+ * Probably this should be used only for simple classifications like "yes/no" or "Male/Female/Unknown"
+ * or text codes like A-Z or A1,A2,A3,...
+ * 
+ * Note also that "Yes" and "yes" will produce same value (upper and lower case are mapped to same value)
+ *
+ * Algorith is based on nothing, it just tries to produce different value for different strings, but probably not 100% sure
+ * Also value for similar texts should be close, e.g.
+ * values for 'attribute' and 'attricute' are relative close
+ *
+ * Values start app. 700 
  */
 double parse_dim_hash_attribute(char *value)
 {
-    return (double) hash(value);
+    unsigned char *c,count=1,prev=85,pprev=60;
+    unsigned long long int weight = 346;
+
+    c = (unsigned char *) value;
+
+    while(*c)
+    {
+        weight += cmap[*c].map_value * ((prev ^ count) + 1) * pprev;
+        pprev = prev;
+        prev = cmap[*c].map_value;
+        if(count == 255) count = 0;
+        count++;
+        c++;
+    }
+
+    return (double) weight / 345.6789;
 }
 
 /* parse ascii value table to dimension table of type double
@@ -277,13 +301,10 @@ sample_dimension(struct sample *s)
  *
  * saved == 1 means that values are from saved forest file and == 0 means that values are from user given data file.
  * indices are different in those two cases
-   */
-void add_to_X(struct forest *f,char **values, int value_count,int saved)
+ */
+void add_to_X(struct forest *f,double *new, int value_count,int saved)
 {
     int sample_idx;
-    static double new[DIM_MAX];
-
-    parse_values(new,values,value_count,saved); 
 
     DEBUG("Adding %sdimension to forest %s: ",saved ? "saved " : "",f->category);
     DEBUG_ARRAY(value_count,new);
@@ -990,7 +1011,7 @@ void filter_forests()
 
 
 /* build a new forest structure (new=1) or add new samples to existing forest (new=0)
- * make tree in acording make_tree. Tree is need only if analysing/categorizing or making test data
+ * make tree in acording make_tree. Tree is needed only if analysing/categorizing or making test data
    */
 void
 train_forest(FILE *in_stream,int new,int make_tree)
@@ -999,7 +1020,10 @@ train_forest(FILE *in_stream,int new,int make_tree)
     int value_count;
     int lines = 0;
     int forest_idx;
-    char *values[DIM_MAX];
+    static char *values[DIM_MAX];
+    static double numval[DIM_MAX];
+
+    
 
     first = 1;
     now = time(NULL);
@@ -1028,7 +1052,8 @@ train_forest(FILE *in_stream,int new,int make_tree)
                 add_aggregate(&forest[forest_idx],values,value_count);
             } else
             {
-                add_to_X(&forest[forest_idx],values,value_count,0);
+                parse_values(numval,values,value_count,0);
+                add_to_X(&forest[forest_idx],numval,value_count,0);
             }
         }
     }
@@ -1126,7 +1151,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxCem");
+                    if(score > forest_score && get_dim_score(forest_idx,test_dimension) > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxCem");
 
                     v_copy(prev_dimension, test_dimension);
                 }

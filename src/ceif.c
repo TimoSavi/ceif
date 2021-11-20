@@ -47,6 +47,9 @@ int category_idx_count  = 0;             // number of category fields
 int label_idx[DIM_MAX];         // final table of label indices to be used. Index refers to input line field index
 int label_idx_count = 0;                 // number of labels fields
 
+int score_idx[DIM_MAX];        // table of dimensions indices which must have high score along total score. If none if these dims. dooes not have high score then the data is not outlier
+int score_idx_count = 0;
+
 char *cat_filter[FILTER_MAX];  // Category filters
 int cat_filter_count = 0;      // Category filter count
 
@@ -63,7 +66,6 @@ char category_separator = ';';    // separator for category values
 char label_separator = '-';       // separator for category values
 int header = 0;                   // input data has a header row to skip
 double outlier_score = 0.5;      // outlier score
-double auto_score_factor = 5.0;   // Not in use, keeped as place holder for saving forest info
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
 char *printf_format = "";       // User given printf format for dimension and average values
@@ -79,11 +81,12 @@ double cluster_relative_size = 0.125; // relative distance for samples in the sa
 int dimension_print_width = 25;   // dimension value printing width, used when printing forest info (option -q)
 
 /* User given strings for dim ranges */
-char *ignore_dims = NULL;           // which input values are ignored, user given string
-char *include_dims = NULL;           // which input values are included, user given string
-char *category_dims = NULL;           // list of dimensions to be used as category label, user given string
-char *label_dims = NULL;           // list of dimensions to be used as category label, user given string
-char *text_dims = NULL;           // list of dimensions to be used as text based input values, user given string
+char *ignore_dims = "";           // which input values are ignored, user given string
+char *include_dims = "";           // which input values are included, user given string
+char *category_dims = "";           // list of dimensions to be used as category label, user given string
+char *label_dims = "";           // list of dimensions to be used as category label, user given string
+char *text_dims = "";           // list of dimensions to be used as text based input values, user given string
+char *score_dims = "";           // list of dimensions which should together have high outlier score among total_score, user given string
 
 int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
@@ -91,7 +94,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Pv:R:z:=j:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Pv:R:z:=j:G:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -138,6 +141,7 @@ static struct option long_opts[] =
   {"inplace-forest", 1, 0, 'z'},
   {"sizeof", 0, 0, '='},
   {"print-dimension", 1, 0, 'j'},
+  {"score-dims", 1, 0, 'G'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -183,7 +187,8 @@ Options:\n\
   -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
   -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
   -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
-  -X, --text-dims STRING      comma separated list of dimensions in STRING to be used as text based input values, first is number 1. Ranges can be given using dash\n\
+  -X, --text-dims STRING      comma separated list of dimensions to be used as text based input values, first is number 1. Ranges can be given using dash\n\
+  -G, --score-dims STRING     comma separated list of dimensions attribute indices. Combination of these dimension attributes must have outlier score along total score. Ranges can be given using dash. These are dimensions attribute indices, not input line indices (first is always number 1)\n\
   -q, --query                 print forest info and exit\n\
   -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
   -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
@@ -276,6 +281,9 @@ void
 print_version()
 {
     printf("%s version %s\n",PACKAGE_NAME,PACKAGE_VERSION);
+#if defined HAVE_JSON_JSON_H || defined HAVE_LIBFASTJSON_JSON_H || defined HAVE_JSON_C_JSON_H
+    printf("Forest data is stored in JSON format\n");
+#endif
     printf("Copyright (c) 2020 Timo Savinen\n\n");
     printf("This is free software; see the source for copying conditions.\n");
     printf("There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n");
@@ -359,7 +367,6 @@ main (int argc, char **argv)
     FILE *learns = NULL;            // file to read learn data
     FILE *analyzes = NULL;          // file to analyze
     FILE *categorizes = NULL;          // file to categorize
-    FILE *saves = NULL;             // file to save forest for reuse
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
 
@@ -433,7 +440,7 @@ main (int argc, char **argv)
                     /* load now, parameters after this take higher presence */
                     if(forest_count == 0)
                     {
-                        if (opt == 'z')
+                        if (opt == 'z')    // test file readbility
                         {
                             loads = xfopen_test(load_file,"r",'a');
                         } else
@@ -443,8 +450,8 @@ main (int argc, char **argv)
 
                         if(loads != NULL)
                         {
-                            if(!read_forest_file(loads)) panic("Cannot load forest data from file",load_file,NULL);
                             fclose(loads);
+                            if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
                         }
                     } 
                     break;
@@ -518,6 +525,10 @@ main (int argc, char **argv)
                 case 'X':
                     text_dims = xstrdup(optarg);
                     text_idx_count = parse_dims(optarg,text_idx);
+                    break;
+                case 'G':
+                    score_dims = xstrdup(optarg);
+                    score_idx_count = parse_dims(optarg,score_idx);
                     break;
                 case 'q':
                     make_query = 1;
@@ -656,9 +667,7 @@ main (int argc, char **argv)
     if(save_file != NULL)
     {
         if(set_locale) setlocale(LC_ALL,"C");
-        saves = xfopen(save_file,"w",'a');
-        write_forest_file(saves,delete_interval);
-        fclose(saves);
+        write_forest_file(save_file,delete_interval);
         if(set_locale) setlocale(LC_ALL,"");
     }
 
