@@ -66,6 +66,7 @@ If no double formatting support is available, the number of decimals saved is th
 |----|----|
 | %r | Current input file row number|
 | %s | Anomaly score|
+| %g | Anomaly score for dimensions given by option -G|
 | %S | Average anomaly score for analysed data|
 | %n | Number of rows for a forest|
 | %o | Number of analyzed rows for a forest. This might be lower than %n value if data sampling is used (see ANALYZE\_SAMPLING in next section)|
@@ -73,19 +74,21 @@ If no double formatting support is available, the number of decimals saved is th
 | %c | Category string from input data. The original category when categorizing data|
 | %C | Forest category string. The best matching category when categorizing data|
 | %l | Label values|
-| %d | Separated list of dimension values|
+| %d | Separated list of dimension values. Print text based dimensions as text|
+| %u | Separated list of dimension values. Print text based dimensions as double|
 | %a | Separated list of dimension average values|
 | %e | Separated list of dimension attribute scores, ceif tries to analyze how each attribute affects the total score and gives each attribute a score|
 | %m | Separated list of dimension metrics printed by attribute by attribute. Printf format for attribute metrics printed is given by option -j or rc-file variable PRINT\_DIMENSION. See rc-file for printing directives|
 | %i | Dimension attribute index (first=1)|
 | %v | Current input row values|
 | %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Note that value zero is printed as black|
+| %X | Outlier score value in RGB for dimensions given by option -G|
 | %t | Time when category has been last updated. In human readable form using current locale|
 | %: | Category value separator|
 | %. | Label value separator|
 | %% | Percent sign|
 
-Value separator for d,a,m,e and v can be given by option -e.
+Value separator for d,u,a,m,e and v can be given by option -e.
 Category value separator is semicolon and label value separator is dash. These can be changed in rc-file.
 
 ### User rc-file

@@ -333,7 +333,7 @@ void parse_user_score(char *score_str)
             panic("Give percentage based score between 0 and 100",NULL,NULL);
         }
     } else if(outlier_score < 0.0 || outlier_score > 1.0 || *endp != '\000') 
-        panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required or with suffix \'%\' for percentage score)",NULL,NULL);
+        panic("Give outlier score between 0 and 1 (with suffix \'s\' if scaling is required) or between 0 and 100 with suffix \'%\' for percentage score",NULL,NULL);
 }
 
 int

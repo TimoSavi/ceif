@@ -26,11 +26,10 @@
 #include <time.h>
 #include <float.h>
 
-#define INPUT_LEN_MAX 1048576
-
 static char input_line[INPUT_LEN_MAX];
 static int first = 1;
 static char *float_format = "%.*f";
+static int nearest_needed = 1;                // if non true, then skip nearest analysis temporarily for cases where it is not necessary needed, spees up things
 
 /*struct for finding sample cluster centers 
  */
@@ -39,6 +38,27 @@ struct sample_score
     size_t idx;         // index to X array
     double score;       // sample X[idx] score
 };
+
+/* do make nearest analysis
+ */
+void set_nearest()
+{
+    nearest_needed = 1;
+}
+
+/* do not make nearest analysis
+ */
+void reset_nearest()
+{
+    nearest_needed = 0;
+}
+
+/* should nearest analysis be skippped
+ */
+int do_nearest()
+{
+    return nearest_needed;
+}
 
 /* find a forest for a data row
  *
@@ -113,7 +133,7 @@ double search_last_node(struct forest *f,int this_idx,struct node *n,double *dim
     if(this->left == -1 && this->rigth == -1)
     {
         DEBUG("\n    Reached a leaf node at heigth %d with %d samples",heigth,this->sample_count);
-        if(nearest && f->avg_sample_dist > 0.0)
+        if(do_nearest() && nearest && f->avg_sample_dist > 0.0)
         {
             double rel_dist = nearest_rel_distance(dimension,this->sample_count,this->samples,f);
 
@@ -201,6 +221,8 @@ double calculate_max_score(int forest_idx)
     
     for(l = lim_dim;l < dimensions;l++) dim[l] = MAX_DIM_VALUE;   // Init possible rest values with +max
 
+    reset_nearest();         // nearest analysis is not needed here
+
     for(i = 0;i < pwrtwo(lim_dim);i++)
     {
         for(j = 0;j <  pwrtwo(lim_dim);j++)
@@ -236,6 +258,8 @@ double calculate_max_score(int forest_idx)
     }
 
     free(dim);
+
+    set_nearest();  
 
     return max_score;
 }
@@ -275,7 +299,7 @@ double calculate_score(int forest_idx,double *dimension)
  * Returns the result array
  */
 static
-double * find_dimension_score(int forest_idx,double *dimension)
+double * get_dim_attr_scores(int forest_idx,double *dimension)
 {
     static double result[DIM_MAX];
     static double test[DIM_MAX];
@@ -322,7 +346,7 @@ double get_dim_score(int forest_idx,double *dimension)
 
     min = 2.0;
 
-    if(score_idx_count && cluster_relative_size > 0.0)
+    if(score_idx_count)
     {
         for(i = 0;i < f->cluster_count;i++)
         {
@@ -490,7 +514,7 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
     char *d;
     char outstr[100];
     struct tm *tmp;
-    double *earray = NULL;
+    double *earray = NULL,dim_score = -1.0;
 
     while(*c != '\000')
     {
@@ -513,6 +537,10 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                     break;
                 case 's':
                     fprintf(outs,"%f",score);
+                    break;
+                case 'g':
+                    if(dim_score < 0.0) dim_score = get_dim_score(forest_idx,dimension);
+                    if(dim_score >= 0 && dim_score <= 1.0) fprintf(outs,"%f",dim_score);
                     break;
                 case 'S':
                     fprintf(outs,"%f",forest[forest_idx].test_average_score);
@@ -549,9 +577,9 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                                             if(forest_idx > -1) *printf_format != '\000' ? fprintf(outs,printf_format,forest[forest_idx].avg[i]) : fprintf(outs,float_format,decimals,forest[forest_idx].avg[i]);
                                             break;
                                         case 'e':
-                                            if(forest_idx > -1 && !forest[forest_idx].filter &&  cluster_relative_size > 0.0 && dimension != NULL)
+                                            if(forest_idx > -1 && !forest[forest_idx].filter && forest[forest_idx].cluster_count && dimension != NULL)
                                             {
-                                                if(earray == NULL) earray = find_dimension_score(forest_idx,dimension);
+                                                if(earray == NULL) earray = get_dim_attr_scores(forest_idx,dimension);
                                                 fprintf(outs,"%f",earray[i]);
                                             }
                                             break;
@@ -574,9 +602,10 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                     }
                     break;
                 case 'd':
+                case 'u':
                     for(i = 0;i < dimensions;i++)
                     {
-                        if(check_idx(dim_idx[i],text_idx_count,text_idx) && values != NULL)
+                        if(*c == 'd' && check_idx(dim_idx[i],text_idx_count,text_idx) && values != NULL)
                         {
                             fprintf(outs,"%s",values[dim_idx[i]]);
                         } else
@@ -587,9 +616,9 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                     }
                     break;
                 case 'e':
-                    if(cluster_relative_size > 0.0)
+                    if(forest[forest_idx].cluster_count)
                     {
-                        if(earray == NULL) earray = find_dimension_score(forest_idx,dimension);
+                        if(earray == NULL) earray = get_dim_attr_scores(forest_idx,dimension);
                         for(i = 0;i < dimensions;i++)
                         {
                             fprintf(outs,"%f",earray[i]);
@@ -613,6 +642,16 @@ void print_(FILE *outs, double score, int lines,int forest_idx,int value_count,c
                     break;
                 case 'x':
                     fprintf(outs,"%06X",score_to_rgb(score));
+                    break;
+                case 'X':
+                    if(score == 0.0)  // print black dot
+                    {
+                        fprintf(outs,"%06X",score_to_rgb(score));
+                    } else
+                    {
+                        if(dim_score < 0.0) dim_score = get_dim_score(forest_idx,dimension);
+                        if(dim_score >= 0 && dim_score <= 1.0) fprintf(outs,"%06X",score_to_rgb(dim_score));
+                    }
                     break;
                 case 'C':
                     fprintf(outs,"%s",forest[forest_idx].category);
@@ -870,23 +909,19 @@ int cluster_score_cmp(const void *a, const void *b)
  * Centers are found using method:
  * - sort all samples by score
  * - take first n scores (having the smallest score -> cluster centers are among these). n = 97.5% of samples
- * - calculate largest distance from sample having smallest score to farthest sample among first n scores
- * - Take first sample and remove all samples being near (samples in the same cluster) to first sample
- * - Take next sample as next cluster center and remove nearby samples
- * - continue until all n samples are done
+ * - calculate largest distance from sample having smallest score to farthest sample among first n scores, this is used as relative cluster radius adjusted by cluster_relative_size
+ * - read the sample list sorted by score, if the distance of sample to all existing cluster centers is > 2*cluster radius, then this sample is considered a new center
+ * - after all centers are found, calculate the number of samples inside each cluster
+ * - remove centers having low number of samples
  */
 #define CLUSTER_SAMPLE_DIV 0.975
-#define CLUSTER_CHECK 0
-#define CLUSTER_DONE 1
 void find_cluster_centers(int forest_idx)
 {
     struct forest *f;
     struct sample_score *samples;
-    static double min[DIM_MAX],max[DIM_MAX];
     double dist,longest_dist = 0.0,same_cluster_dist;
-    size_t *status;
     int samples_to_analyze,cluster_samples = 0;
-    int i,j,current,next,min_cluster_sample_count;
+    int i,j,min_cluster_sample_count;
     int cluster_sample_count[CLUSTER_MAX];
 
     f = &forest[forest_idx];
@@ -898,9 +933,10 @@ void find_cluster_centers(int forest_idx)
     samples_to_analyze = (int) (CLUSTER_SAMPLE_DIV * (double) f->X_count);
 
     samples = xmalloc(sizeof(struct sample_score) *  f->X_count);
-    status = xmalloc(sizeof(size_t) * samples_to_analyze);
 
     for(i = 0;i < CLUSTER_MAX;i++) cluster_sample_count[i] = 0;
+
+    reset_nearest();           // not needed here
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -908,85 +944,73 @@ void find_cluster_centers(int forest_idx)
         samples[i].score = sample_score(forest_idx,&f->X[i]);
     }
 
-    qsort(samples,f->X_count,sizeof(struct sample_score),cluster_score_cmp);
+    set_nearest();
 
-    for(i = 0;i < samples_to_analyze;i++) status[i] = CLUSTER_CHECK;
+    qsort(samples,f->X_count,sizeof(struct sample_score),cluster_score_cmp);
 
     // We use nosqrt distances for performance reasons
     //
     // First find longest distance. Here is assumed that the sample with lowest score (first one) is the center of all samples
     // distance to the farthest sample is measured from that
-    for(i = 0;i < dimensions;i++) 
-    {
-        min[i] = f->X[samples[0].idx].dimension[i];
-        max[i] = f->X[samples[0].idx].dimension[i];
-    }
+    longest_dist = 0.0;
 
     for(i = 1;i < samples_to_analyze;i++)
     {
-        for(j = 0;j < dimensions;j++)
-        {
-            if(f->X[samples[i].idx].dimension[j] < min[j]) min[j] = f->X[samples[i].idx].dimension[j];
-            if(f->X[samples[i].idx].dimension[j] > max[j]) max[j] = f->X[samples[i].idx].dimension[j];
-        }
+        dist = v_dist_nosqrt(f->X[samples[0].idx].dimension,f->X[samples[i].idx].dimension);
+        if(dist > longest_dist) longest_dist = dist;
     }
 
-    longest_dist =  v_dist_nosqrt(max,min);
-
     // First cluster is around the sample having lowest score
-    f->cluster_center[f->cluster_count] = samples[0].idx;
-    f->cluster_count++;
+    f->cluster_center[0] = samples[0].idx;
+    f->cluster_count = 1;
 
     // samples are considered to be in same cluster if their distance is smaller than same_cluster_dist calculated here
     // cluster_relative_size default value is in cluster_relative_size, use power of two because square root is not used in distance calculation
-    same_cluster_dist = POW2(cluster_relative_size) * longest_dist;
-    f->cluster_radius = cluster_relative_size * sqrt(longest_dist);
+    same_cluster_dist = POW2(cluster_relative_size) * longest_dist;      // no sqrt distance
+    f->cluster_radius = cluster_relative_size * sqrt(longest_dist);      // real cluster radius 
 
 
-    current = 0;   // cluster center point, index to X
-    status[0] = CLUSTER_DONE;
+    cluster_samples = 0; 
 
-    while(f->cluster_count < CLUSTER_MAX)
+
+    // first find cluster centers
+    for(i = 1;i < samples_to_analyze && f->cluster_count < CLUSTER_MAX;i++)
     {
-        next = -1;
+        for(j = 0;j < f->cluster_count;j++) 
+            if(v_dist_nosqrt(f->X[f->cluster_center[j]].dimension,f->X[samples[i].idx].dimension) < 4.0 * same_cluster_dist) break;   // Break if this sample is allready in some cluster
 
-        for(i = 0;i < samples_to_analyze;i++)
+        if(j == f->cluster_count) // if distance to all centers is long enough (2 * cluster radius)
         {
-            if(status[i] == CLUSTER_CHECK)
-            {
-                dist = v_dist_nosqrt(f->X[samples[current].idx].dimension,f->X[samples[i].idx].dimension);    // check distance
-                if(dist <= same_cluster_dist)
-                {
-                    status[i] = CLUSTER_DONE;                     // if in cluster then  mark as done
-                    cluster_sample_count[f->cluster_count - 1]++;
-                    cluster_samples++;
-                }
-                else if(next == -1)  // add new cluster, but check that the distance for existing clusters is longer that 2 * f->cluster_radius
-                {
-                    next = i;
-                    for(j = 0;j < f->cluster_count && next > -1;j++)
-                        if(v_dist_nosqrt(f->X[f->cluster_center[j]].dimension,f->X[samples[next].idx].dimension) < POW2(2.0 * f->cluster_radius)) next = -1;
-                    if(next > -1) status[i] = CLUSTER_DONE;                     // mark as done
-                }
-            }
+            f->cluster_center[f->cluster_count] = samples[i].idx;
+            f->cluster_count++;
         }
-
-        if(next == -1) break;
-        current = next;
-        f->cluster_center[f->cluster_count] = samples[current].idx;
-        f->cluster_count++;
     }
 
-    f->cluster_coverage = (double) cluster_samples / (double) samples_to_analyze;
+    // Check which samples belong to which center
+    for(i = 0;i < samples_to_analyze;i++)
+    {
+        for(j = 0;j < f->cluster_count;j++) 
+        {
+            dist = v_dist_nosqrt(f->X[f->cluster_center[j]].dimension,f->X[samples[i].idx].dimension);    // check distance
+            if(dist <= same_cluster_dist)                                                                 // sample inside this cluster
+            {
+                f->X[samples[i].idx].cluster_center_idx = f->cluster_center[j];
+                cluster_sample_count[j]++;
+                cluster_samples++;
+                break;
+            }
+        }
+    }
 
     // Remove clusters having small number of samples
     // Minimum number is app. the number of samples / 2 in clusters when they are evenly distributed for each cluster
-    min_cluster_sample_count = (cluster_samples / f->cluster_count) / 2;
+    min_cluster_sample_count = (cluster_samples / f->cluster_count) / 2 + 1;
 
     for(i = 0;i < f->cluster_count;i++)
     {
         while(f->cluster_count > i && cluster_sample_count[i] < min_cluster_sample_count)
         {
+            cluster_samples -= cluster_sample_count[i];
             for(j = i;j < f->cluster_count - 1;j++)
             {
                 f->cluster_center[j] = f->cluster_center[j + 1];
@@ -996,8 +1020,9 @@ void find_cluster_centers(int forest_idx)
         }
     }
 
+    f->cluster_coverage = (double) cluster_samples / (double) samples_to_analyze;
+
     free(samples);
-    free(status);
 }
 
 /* Check if analyzed rows should be sampled and 
@@ -1076,13 +1101,13 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                         if(score > forest_score && get_dim_score(forest_idx,dimension) > forest_score)
                         {
                             forest[forest_idx].high_analyzed_rows++;
-                            print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rscldavxCtnohem");
+                            print_(outs,score,lines,forest_idx,value_count,values,dimension,print_string,"rsclduavxCtnohemgX");
                         }
                     }
                 }
             } else
             {
-                if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,-1,value_count,values,dimension,not_found_format,"dvclm");
+                if(not_found_format != NULL && find_forest(value_count,values,0) == -1) print_(outs,0,lines,-1,value_count,values,dimension,not_found_format,"duvclm");
             }
 
         }
@@ -1105,7 +1130,7 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
                 if(score > forest_score && get_dim_score(forest_idx,forest[forest_idx].summary) > forest_score)
                 {
                     forest[forest_idx].high_analyzed_rows++;
-                    print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsdaxCtnohem");
+                    print_(outs,score,0,forest_idx,0,NULL,forest[forest_idx].summary,print_string,"rsduaxCtnohemgX");
                 }
             }
         }
@@ -1149,6 +1174,8 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
     
     DEBUG("*** Starting categorizing\n");
+
+    set_centroid_tresshold(0.75);     // Use higher value for categorizing, yields slightly better results
 
     scale_score = 1;
 
@@ -1201,7 +1228,7 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 }
 
                 if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
-                    print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rscldavxCtnem");
+                    print_(outs,min_score,lines,best_forest_idx,value_count,values,dimension,print_string,"rsclduavxCtnemgX");
             }
         }
     }
@@ -1227,10 +1254,11 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
                 }
             }
             if(best_forest_idx >= 0 && (!score_limit || (score_limit && min_score <= get_forest_score(best_forest_idx))))
-                print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sdaxCtnem");
+                print_(outs,min_score,0,best_forest_idx,0,NULL,forest[i].summary,print_string,"sduaxCtnem");
         }
     }
 
+    set_centroid_tresshold(CENTROID_TRESSHOLD);   // Set to default
     scale_score = save_scale_score;
 
     if(dimension != NULL) free(dimension);

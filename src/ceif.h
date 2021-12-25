@@ -22,18 +22,18 @@
 
 /* Global constants */
 
-#define DIM_MAX 1024
-#define INPUT_LEN_MAX 1048576
+#define DIM_MAX 1024              // maximum number of dimensions attributes
+#define INPUT_LEN_MAX 1048576     // maximum length of input line
 #define SAMPLES_MIN 24            // minimun number of samples for a forest
 #define FILTER_MAX 100            // maximun number of category filters
-#define WEIGTH_MAX 100            // maximun number of weigth options
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
-#define N_ADJUST_COUNT 24         // How many N vectors are tested for the best n adjust result
-#define NODE_MIN_SAMPLE 3         // Minimum number of samples in node 
+#define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
+#define CENTROID_TRESSHOLD 0.45   // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p, default value
 
-/* should normal distributed values be written to cache for faster execution */
+
+/* Normal distributed values written to cache for faster execution */
 #define FAST_N_SAMPLES 32771
 
 /* cache size for c values (the average depth in an unsuccessful search in a Binary Search Tree) */
@@ -50,6 +50,7 @@ struct sample
 {
     double *dimension;             // dimension array, dynamically reserved
     double *scaled_dimension;      // scaled dimension array, dynamically reserved
+    int cluster_center_idx;        // Sample cluster center index. Index to samples table X 
 };
 
 struct node
@@ -235,6 +236,7 @@ double *scale_dimension(double *,struct forest *);
 void parse_values(double *,char **, int, int);
 int ri(int, int);
 double *sample_dimension(struct sample *);
+void set_centroid_tresshold(double);
 
 
 

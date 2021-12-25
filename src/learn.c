@@ -31,6 +31,7 @@ static double fast_c_cache[FAST_C_SAMPLES];
 
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
+static double centroid_tresshold = CENTROID_TRESSHOLD;
 
 /* hash function for hash table
  * calculates hash for string s
@@ -230,7 +231,7 @@ double parse_dim_hash_attribute(char *value)
 
     while(*c)
     {
-        weight += cmap[*c].map_value * ((prev ^ count) + 1) * pprev;
+        weight += cmap[*c].map_value * ((prev ^ count) + 1) * ((pprev ^ count) + 1);
         pprev = prev;
         prev = cmap[*c].map_value;
         if(count == 255) count = 0;
@@ -342,6 +343,7 @@ void add_to_X(struct forest *f,double *new, int value_count,int saved)
             f->X[f->X_count].dimension = v_dup(f->X[sample_idx].dimension);
             f->X[f->X_count].scaled_dimension = NULL;
         }
+        f->X[f->X_count].cluster_center_idx = -1;
         f->X_count++;
     } else
     {
@@ -514,12 +516,8 @@ double N()
 {
     static int next_n=0;
 
-    if(FAST_N_SAMPLES)
-    {
-        if(next_n == FAST_N_SAMPLES) next_n = 0;
-        return fast_n_cache[next_n++];
-    }
-    return(gaussrand());
+    if(next_n == FAST_N_SAMPLES) next_n = 0;
+    return fast_n_cache[next_n++];
 }
 
 /* calculate n vector, vector should have dimensions nmber of coordinates
@@ -581,31 +579,39 @@ void v_subt(double *a, double *b)
     for(i = 0;i < dimensions;i++) a[i] -= b[i];
 }
 
+void set_centroid_tresshold(double new)
+{
+    centroid_tresshold = new;
+}
+
 /* generate p from sample data.
  * returns pointer to p array.
  * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
  * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree (hopefully)
  */
-#define CENTROID_TRESSHOLD 0.4 // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p
 static
 double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
 {
     int i,j;
     int random_sample;
+    static int start = 1;
     double *n_vector;
     static double p[DIM_MAX];
 
-    if(heigth_ratio < CENTROID_TRESSHOLD)  // In deeper nodes of tree use sample centroid as p, 
+    if(heigth_ratio < centroid_tresshold)  // In deeper nodes of tree use sample centroid as p, take only every other sample, speeds things and adds ramdomness
     {
         DEBUG("(centroid)");
+    
         for(i = 0;i < dimensions;i++) p[i] = 0.0;
 
-        for(i = 0;i < sample_count;i++)
+        start = 1 - start;
+
+        for(i = start;i < sample_count;i += 2)
         {
-            for(j = 0;j < dimensions;j++) p[j] += X[samples[i]].dimension[j];
+            for(j = 0;j < dimensions;j++)  p[j] += X[samples[i]].dimension[j];
         }
 
-        for(i = 0;i < dimensions;i++) p[i] /= (double) sample_count;  // turn to average
+        for(i = 0;i < dimensions;i++) p[i] /= (double) (sample_count >> 1);  // turn to average, divide by sample_count / 2
     } else
     {
         DEBUG("(random)");
@@ -858,7 +864,7 @@ int find_weigth_scale_idx(double *min,double *max)
     return idx;
 }
 
-/* calculate sclaed dimension values to be used later
+/* calculate scaled dimension values to be used later
  */
 static
 void calculate_scaled_dimensions(struct forest *f)
@@ -1151,7 +1157,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                 {
                     score = calculate_score(forest_idx,test_dimension);
 
-                    if(score > forest_score && get_dim_score(forest_idx,test_dimension) > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sdaxCem");
+                    if(score > forest_score && get_dim_score(forest_idx,test_dimension) > forest_score) print_(outs,score,0,forest_idx,0,NULL,test_dimension,print_string,"sduaxCemgX");
 
                     v_copy(prev_dimension, test_dimension);
                 }
@@ -1172,7 +1178,7 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
                            
             for(samples = 0;samples < TEST_SAMPLES && samples < f->X_count;samples++)
             {
-                 print_(outs,0.0,0,forest_idx,0,NULL,f->X[f->X_count <= TEST_SAMPLES ? samples : ri(0,f->X_count - 1)].dimension,print_string,"sdaxC");
+                 print_(outs,0.0,0,forest_idx,0,NULL,f->X[f->X_count <= TEST_SAMPLES ? samples : ri(0,f->X_count - 1)].dimension,print_string,"sduaxCX");
             }
         }
     }

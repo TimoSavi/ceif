@@ -338,7 +338,7 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"CLUSTER_SIZE")) != NULL)
         {
             cluster_relative_size = atof(value);
-            if(isnan(cluster_relative_size) || cluster_relative_size < 0.0 || cluster_relative_size > 1.0) cluster_relative_size = 0.25;
+            if(isnan(cluster_relative_size) || cluster_relative_size < 0.0 || cluster_relative_size > 1.0) cluster_relative_size = 0.125;
         } else if((value = parse_config_line(input_line,"PRINT_DIMENSION")) != NULL)
         {
             if(print_dimension != NULL) free(print_dimension);
@@ -670,6 +670,20 @@ print_sample_density(FILE *outs,int common_scale)
     }
 }
 
+/* return cluster center  number, use index of clsurter center table
+ * search using cluster center index to X table
+ *
+ * Return -1 if not found
+ */
+static 
+int search_cluster_idx(struct forest *f,int cluster_center_idx)
+{
+    int i;
+
+    for(i = 0;i < f->cluster_count;i++) if(f->cluster_center[i] == (size_t) cluster_center_idx) return i;
+    return -1;
+}
+
 /* print samples scores. 
  * All samples of all non filterd forest are printed with sample score
  */
@@ -677,7 +691,7 @@ print_sample_density(FILE *outs,int common_scale)
 void
 print_sample_scores(FILE *outs)
 {
-    int forest_idx,i,j;
+    int forest_idx,i,j,cluster_idx;
     double score;
     struct forest *f;
 
@@ -692,15 +706,27 @@ print_sample_scores(FILE *outs)
        calculate_forest_score(forest_idx);
         
        _P("\nForest category string: %s\n",f->category);
-       _2P("%10s%*s\n","Score",dimensions * dimension_print_width / 2,"Dimension values");
-       _2P("%10s","");
-       for(j = 0;j < dimensions;j++) _P("%*d",dimension_print_width,j + 1);
+       _2P("%10s%10s%*s\n","Score","Cluster ",dimensions * dimension_print_width / 2 + 16,"Dimension values");
+       _2P("%20s","");
+       for(j = 0;j < dimensions;j++)
+       {
+           _P("%*d",dimension_print_width,j + 1);
+       }
        _P("\n");
 
        for(i = 0;i < f->X_count;i++)
        {
            score = sample_score_scale(forest_idx,&f->X[i]);
            _2P("%10f",score);
+
+           if((cluster_idx = search_cluster_idx(f,f->X[i].cluster_center_idx)) > -1)
+           {
+               _P("%10d",cluster_idx + 1);
+           } else
+           {
+               _P("%10s","");
+           }
+
            for(j = 0;j < dimensions;j++) _P("%*.*f",dimension_print_width,decimals,f->X[i].dimension[j]);
            _P("\n");
        }
