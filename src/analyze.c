@@ -31,6 +31,17 @@ static int first = 1;
 static char *float_format = "%.*f";
 static int nearest_needed = 1;                // if non true, then skip nearest analysis temporarily for cases where it is not necessary needed, spees up things
 
+/* User given RGB colors for low and high score values,
+ * colors for values between 0 and 1 are gradient */
+static double low_color[3];
+static double high_color[3];
+
+#define RGB_RED(c)   (((c) >> 16) & 0xff)
+#define RGB_GREEN(c) (((c) >> 8) & 0xff)
+#define RGB_BLUE(c)  ((c) & 0xff)
+
+
+
 /*struct for finding sample cluster centers 
  */
 struct sample_score
@@ -38,6 +49,7 @@ struct sample_score
     size_t idx;         // index to X array
     double score;       // sample X[idx] score
 };
+
 
 /* do make nearest analysis
  */
@@ -380,29 +392,88 @@ double sample_score(int forest_idx,struct sample *s)
     return _score(forest_idx,sample_dimension(s));
 }
 
+/* Making smooth linear gradient colors
+ * Thanks to Ian Boyd for the algorithm
+ */
+
+/* Undo the RGB gamma adjustment.
+ * Colors (RGB, 0 - 255) are in array of double
+ */
+static void
+InverseSrgbCompanding(double *color)
+{
+    int i;
+
+    for (i = 0;i < 3;i++)
+    {
+        color[i] /= 255.0;    // convert to 0..1
+        color[i] = (color[i] > 0.04045) ? pow((color[i] + 0.055)/1.055,2.4) : color[i] / 12.92;    
+        color[i] *= 255.0;    // convert back to 0..255
+    }
+}
+
+/* Reapply the gamma adjustment
+ * Colors (RGB, 0 - 255) are in array of double
+ */
+static void 
+SrgbCompanding(double *color)
+{
+    int i;
+
+    for (i = 0;i < 3;i++)
+    {
+        color[i] /= 255.0;    // convert to 0..1
+        color[i] = (color[i] > 0.0031308) ? 1.055 * pow(color[i],1/2.4) - 0.055 : color[i] * 12.92;
+        color[i] *= 255.0;    // convert back to 0..255
+    }
+}
+
+
+/* Initialize low rgb compoments, color is assumed to be rgb value
+ * components are split to red,green and blue values and adjusted for gamma
+ */
+void init_low_rgb(unsigned int color)
+{
+    low_color[0] = RGB_RED(color);
+    low_color[1] = RGB_GREEN(color);
+    low_color[2] = RGB_BLUE(color);
+
+    InverseSrgbCompanding(low_color); 
+}
+
+/* Initialize high rgb compoments, color is assumed to be rgb value
+ * components are split to red,green and blue values and adjusted for gamma
+ */
+void init_high_rgb(unsigned int color)
+{
+    high_color[0] = RGB_RED(color);
+    high_color[1] = RGB_GREEN(color);
+    high_color[2] = RGB_BLUE(color);
+
+    InverseSrgbCompanding(high_color);
+}
 
 /* make a RGB value using score.
  * can be used for plotting the results
+ * color is gradiently changed from low (score 0) to high (score 1)
  * value mapping:
- * 1 : red
- * 0.5: green
- * 0: blue
- * and colors between them
  * if score == 0,return 0 (black)
  */
+
 static 
 unsigned int score_to_rgb(double score)
 {
-    unsigned int red,blue,green;
+    int i;
+    static double color[3];
 
     if(score == 0.0) return 0;
 
-    green = score < 0.5 ? (unsigned int) (2 * 0xff * score) : (unsigned int) (0xff * 2 * (1 - score)); 
-    red = score > 0.5 ? (unsigned int) (2 * 0xff * (score - 0.5)) : 0; 
-    blue = score < 0.5 ? (unsigned int) (2 * 0xff * (0.5 - score)) : 0; 
-    
-    return (red << 16) + (green << 8) + blue;
-}                      
+    for(i = 0;i < 3;i++) color[i] = low_color[i] + (high_color[i] - low_color[i]) * score;
+
+    SrgbCompanding(color);
+
+    return ((unsigned int) color[0] << 16) + ((unsigned int) color[1] << 8) + (unsigned int) color[2];
+}
 
 /* make label sring using values from file and label_idx
  *   values are concatenad with semicolon

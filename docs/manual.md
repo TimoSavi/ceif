@@ -81,7 +81,7 @@ If no double formatting support is available, the number of decimals saved is th
 | %m | Separated list of dimension metrics printed by attribute by attribute. Printf format for attribute metrics printed is given by option -j or rc-file variable PRINT\_DIMENSION. See rc-file for printing directives|
 | %i | Dimension attribute index (first=1)|
 | %v | Current input row values|
-| %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Note that value zero is printed as black|
+| %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Default gradient color for score values 0..1 is yellow to red. Colors can be changed using rc-file. Note that value zero is printed as black|
 | %X | Outlier score value in RGB for dimensions given by option -G|
 | %t | Time when category has been last updated. In human readable form using current locale|
 | %: | Category value separator|
@@ -113,6 +113,8 @@ Following variables are supported:
 |PRINT\_DIMENSION|Printf string for printf directive %m. This printf string can contain directives %d, %a, %e and %i ||
 |DIM\_PRINT\_WIDTH|Attribute metrics printing width. Used when printing forest info with option -q. This can be used when number of dimension attributes is high and metrics do not fit to screen|25|
 |CLUSTER\_SIZE|Ceif tries to find data cluster by taking the samples having lowest scores and counting the number of samples around them. Cluster size is fixed and is calculated by finding the distance from the sample having the lowest score to most distant sample. Cluster size is the distance multiplied by this value. Use values between 0-1|0.125|
+|LOW_RGB_COLOR|RGB color code for score value 0 (printing directive %x). Values are given as hex string (e.g. 0x12fe44)|0xffff00, yellow|
+|HIGH_RGB_COLOR|RGB color code for score value 1|0xff0000, red|
 
 Example of rc-file:
 

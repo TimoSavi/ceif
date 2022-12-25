@@ -347,6 +347,12 @@ void read_config_file(char *config_file)
         {
             dimension_print_width = atoi(value);
             if(dimension_print_width <= 0) dimension_print_width = 25;
+        } else if((value = parse_config_line(input_line,"LOW_RGB_COLOR")) != NULL)
+        {
+            init_low_rgb(strtol(value,NULL,16));
+        } else if((value = parse_config_line(input_line,"HIGH_RGB_COLOR")) != NULL)
+        {
+            init_high_rgb(strtol(value,NULL,16));
         } else
         {
              panic("Unknown option in config file",input_line,NULL);

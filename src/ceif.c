@@ -375,6 +375,10 @@ main (int argc, char **argv)
     setlocale(LC_ALL,"C");
 
     init_forest_hash();
+
+    init_low_rgb(0xffff00);         // yellow
+    init_high_rgb(0xff0000);        // red
+
     read_config_file(CEIF_CONFIG);          // config file parameters are read before options
 
 #ifdef HAVE_GETOPT_LONG

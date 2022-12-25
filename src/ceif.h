@@ -167,6 +167,7 @@ extern int debug;
 extern double cluster_relative_size;
 extern int dimension_print_width;
 
+
 extern char category_separator;       // separator for category values
 extern char label_separator;       // separator for category values
 
@@ -259,6 +260,9 @@ double sample_score(int ,struct sample *);
 double sample_score_scale(int ,struct sample *);
 void find_cluster_centers(int);
 double get_dim_score(int ,double *);
+void init_low_rgb(unsigned int);
+void init_high_rgb(unsigned int);
+
 
 
 
