@@ -79,6 +79,7 @@
 #define DECIMALS "decimals"
 #define UNIQUE_SAMPLES "uniqueSamples"
 #define AGGREGATE "aggregate"
+#define FORMULA "formulas"
 
 #if defined HAVE_JSON_C_SET_SERIALIZATION_DOUBLE_FORMAT || defined HAVE_JSON_OBJECT_NEW_DOUBLE_S   // in versions 0.15 and 0.12 or fastjson
     static char double_print[10];
@@ -89,6 +90,7 @@
 static json_object *
 write_globals(void)
 {
+    int i;
     char str[] = "X";
     char scorestr[20];
     char *filter_str;
@@ -119,6 +121,8 @@ write_globals(void)
     json_object *jdecimals = json_object_new_int(decimals);
     json_object *junique_samples = json_object_new_int(unique_samples);
     json_object *jaggregate = json_object_new_int(aggregate);
+    json_object *jformulas = json_object_new_array();
+    json_object *jformula;
 
     json_object_object_add(globals,DIMENSIONS,jdims);
     json_object_object_add(globals,FOREST_COUNT,jforest_count);
@@ -140,6 +144,14 @@ write_globals(void)
     json_object_object_add(globals,DECIMALS,jdecimals);
     json_object_object_add(globals,UNIQUE_SAMPLES,junique_samples);
     json_object_object_add(globals,AGGREGATE,jaggregate);
+
+    for(i = 0;i < formulas;i++)
+    {
+        jformula = json_object_new_string(formula[i].formula);
+        json_object_array_add(jformulas,jformula);
+    }
+
+    json_object_object_add(globals,FORMULA,jformulas);
 
     return globals;
 }
@@ -236,7 +248,7 @@ void read_globals(json_object *globals)
 {
     char str[10240];
     char *f[FILTER_MAX];
-    int i,c;
+    int i,c,fcount;
 
     json_object *jdims  ;
     json_object *jforest_count  ;
@@ -258,6 +270,8 @@ void read_globals(json_object *globals)
     json_object *jdecimals  ;
     json_object *junique_samples  ;
     json_object *jaggregate  ;
+    json_object *jformulas = NULL;
+    json_object *jformula;
 
     if(!json_object_object_get_ex(globals,DIMENSIONS,&jdims)) panic("Error in globals object","","");
     if(!json_object_object_get_ex(globals,FOREST_COUNT,&jforest_count)) panic("Error in globals object","","");
@@ -279,6 +293,18 @@ void read_globals(json_object *globals)
     if(!json_object_object_get_ex(globals,DECIMALS,&jdecimals)) panic("Error in globals object","","");
     if(!json_object_object_get_ex(globals,UNIQUE_SAMPLES,&junique_samples)) panic("Error in globals object","","");
     if(!json_object_object_get_ex(globals,AGGREGATE,&jaggregate)) panic("Error in globals object","","");
+    json_object_object_get_ex(globals,FORMULA,&jformulas);
+
+    if(jformulas != NULL)
+    {
+        fcount = json_object_array_length(jformulas);
+        for(i = 0;i < fcount;i++)
+        {
+           jformula = json_object_array_get_idx(jformulas,i);
+           strcpy(str,json_object_get_string(jformula));
+           parse_expression(str);
+        }
+    }
 
     dimensions = json_object_get_int(jdims);
     if(dimensions > DIM_MAX) dimensions = DIM_MAX;

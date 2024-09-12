@@ -39,3 +39,6 @@ The absolute distance is scaled to relative distance using average sample distan
 than average then the score is incremented and if distance is smaller the score is reduced.
 
 The scale of dimension attribute values can be adjusted too, see the [tweaking document](docs/tweaking.md) for details.
+
+### Acknowledgements
+Thanks to codeplea for the tinyexpr (https://github.com/codeplea/tinyexpr)

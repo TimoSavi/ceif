@@ -79,6 +79,7 @@ int analyze_sampling_count = 0;    // number of lines / forest after sampling of
 int debug = 0;                     // If set print processing related info
 double cluster_relative_size = 0.125; // relative distance for samples in the same cluster, must be between 0 and 1
 int dimension_print_width = 25;   // dimension value printing width, used when printing forest info (option -q)
+int ignore_expression_errors = 0; // Ingore data value change expression errors
 
 /* User given strings for dim ranges */
 char *ignore_dims = "";           // which input values are ignored, user given string
@@ -94,7 +95,7 @@ struct forest *forest = NULL;    // forest table
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
-static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Pv:R:z:=j:G:";
+static char short_opts[] = "o:hVd:I:t:s:f:l:a:p:w:O:r:C:HSL:U:c:F:T::i:u::m:e:M::D:N::AX:qy::Ekg:Pv:R:z:=j:G:Q:";
 
 #ifdef HAVE_GETOPT_LONG
 static struct option long_opts[] =
@@ -142,6 +143,7 @@ static struct option long_opts[] =
   {"sizeof", 0, 0, '='},
   {"print-dimension", 1, 0, 'j'},
   {"score-dims", 1, 0, 'G'},
+  {"expression", 1, 0, 'Q'},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -198,6 +200,7 @@ Options:\n\
   -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
   -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
   -R, --reset-forest STRING   remove all samples for a forest read using option -r and having forest string STRING\n\
+  -Q, --expression STRING     replace input data value using an expression in STRING, if STRING starts with hyphen, then the expression is removed\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -570,6 +573,9 @@ main (int argc, char **argv)
                     printf("sizeof double: %u\n",(unsigned int) sizeof(double));
                     printf("sizeof int: %u\n",(unsigned int) sizeof(int));
                     exit(0);
+                    break;
+                case 'Q':
+                    parse_expression(optarg);
                     break;
                 default:
                     usage(opt);

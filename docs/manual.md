@@ -53,6 +53,7 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
 | -R&nbsp;STRING | Remove all samples for a forest having STRING as forest string.|
 | -v&nbsp;STRING | Print average score and other statistics calculated from analysed data using printing format STRING.|
+| -Q&nbsp;STRING | Replace input data value using an expression in STRING, STRING is added to list of expression. If STRING starts with hyphen, then the expression is removed from the list. |
 
 
 If FILE is "-" then standard input or output is read or written.
@@ -215,3 +216,35 @@ Forest file contents below, for each hour and traffic type the number of bytes a
 And when the same is done next day and so on, a new sample is added for each forest (Hour and traffic direction combination).
 After enough samples are collected a daily traffic can be analyzed for anomalies using -a option.
 
+#### Using input data expressions (-Q)
+Input data values can be modified before actual processing. Modification expression can have any tinyexpr expression (see https://github.com/codeplea/tinyexpr/tree/master?tab=readme-ov-file#grammar). Input fields are referred using '$n' notation where 'n' is the sequence number of the input data field (first field = 1). 
+
+Expression has format:
+```
+$n=<expr>
+```
+or
+```
+$n=<expr>:d
+```
+```
+'$n' is the reference to the field to be modified
+'<expr>' is the tinyexp expression which can have '$n' references to input fields. Non existing fields are not replaced
+':d' d is optional number of decimals to be used
+```
+
+Examples:
+
+| Case  | Expression |
+|:----|----|
+| Divide the 4th field by 13, result has two decimals | '$4=$4/13:2' |
+| Multiply the first field with second field | '$1=$1*$2' |
+| Divide the second field with 60 and convert it to integer| '$2=floor($2/60)' |
+| Set constant value for field 10 | '$10=3486' |
+
+All expressions are saved in forest data. If an earlier saved expression should be removed, then prefix it with hyphen (e.g. -Q '-$4=$4/10') and save the data (-w or -z).
+
+Example command line:
+```
+ceif -Q '$4=$4/13:2' -Q '$2=floor($2/60)' -Q '-$4=$4/10' ...
+```

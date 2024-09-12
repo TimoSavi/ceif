@@ -195,9 +195,19 @@ int v_cmp(double *t,double *s)
 }
 
 
-/* parse single numeric sample attribute 
+/* parse single numeric sample attribute. data expression is called to evaluate possible expression
    return 0 in case number cannot be parsed
    */
+double parse_dim_attribute_expr(int data_idx, int value_count, char **values)
+{
+    double d;
+
+    d = atof(evaluate_data_expression(data_idx,value_count,values));
+
+    return isnan(d) ? 0.0 : d;
+}
+
+/* parse single numeric sample attribute. */
 double parse_dim_attribute(char *value)
 {
     double d;
@@ -263,7 +273,7 @@ void parse_values(double *dim,char **values, int value_count, int saved)
                     dim[i] = parse_dim_hash_attribute(values[dim_idx[i]]);
                 } else
                 {
-                    dim[i] = parse_dim_attribute(values[dim_idx[i]]);
+                    dim[i] = parse_dim_attribute_expr(dim_idx[i],value_count,values);
                 }
             }
         } else

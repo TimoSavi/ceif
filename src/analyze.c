@@ -519,10 +519,10 @@ char *make_category_string(int value_count,char **values)
         {
             if(category_idx[i] < value_count)
             {
-                make_separated_string(values[category_idx[i]],category_separator);
+                make_separated_string(evaluate_data_expression(category_idx[i],value_count,values),category_separator);
             }
         }
-        make_separated_string(values[category_idx[category_idx_count - 1]],0);
+        make_separated_string(evaluate_data_expression(category_idx[category_idx_count - 1],value_count,values),0);
     }
 
     return category;

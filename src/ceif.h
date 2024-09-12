@@ -31,6 +31,7 @@
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 #define CENTROID_TRESSHOLD 0.45   // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p, default value
+#define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
 
 
 /* Normal distributed values written to cache for faster execution */
@@ -114,6 +115,25 @@ struct forest_hash
     size_t *idx;               // indices to forest table 
 };
 
+struct expression_data_reference
+{
+    int data_idx;           // data index to be used
+    int length;             // reference string length in expression
+};
+
+struct data_value_formula
+{
+    char *formula;          // original data value replacement formula, e.g. $3 = $3 / $12
+    int target_data_idx;     // data value index to be replaced (starts from 0)
+    char *expression;       // expression, the right side of the equation 
+    int decimals;           // Decimals to be used when converting expression to string
+    int dref_count;         // Number of references in dref array
+    struct expression_data_reference dref[EXPRESSION_DATA_REFERENCE_MAX];  //dimension reference positions
+};
+
+
+
+
 
 /* Debugging macros 
  */
@@ -166,6 +186,8 @@ extern int analyze_sampling_count;
 extern int debug;
 extern double cluster_relative_size;
 extern int dimension_print_width;
+extern int ignore_expression_errors;
+
 
 
 extern char category_separator;       // separator for category values
@@ -183,6 +205,10 @@ extern int forest_cap;
 extern struct forest *forest;           // forest table
 
 extern struct forest_hash fhash[];
+
+extern struct data_value_formula formula[];
+extern int formulas;        // Number of formulas
+
 
 
 /* ceif.c prototypes */
@@ -273,5 +299,12 @@ int read_forest_file(char *);
 /* json.c prototypes */
 int write_forest_file_json(char *,time_t);
 int read_forest_file_json(char *);
+
+/* expr.c prototypes */
+void parse_expression(char *);
+char *evaluate_data_expression(int , int ,char **);
+
+
+
 
 

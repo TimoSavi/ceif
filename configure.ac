@@ -1,5 +1,6 @@
-AC_INIT([ceif], [2.4], [tjsa@iki.fi])
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AC_INIT([ceif],[2.5],[tjsa@iki.fi])
+AC_USE_SYSTEM_EXTENSIONS
+AM_INIT_AUTOMAKE([-Wall -Werror foreign tar-pax])
 AC_PROG_CC
 AC_HEADER_STDC
 AC_SEARCH_LIBS([cos],[m])

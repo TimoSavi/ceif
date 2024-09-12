@@ -353,6 +353,9 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"HIGH_RGB_COLOR")) != NULL)
         {
             init_high_rgb(strtol(value,NULL,16));
+        } else if((value = parse_config_line(input_line,"IGNORE_EXPR_PARSE_ERROR")) != NULL)
+        {
+            ignore_expression_errors = atoi(value);
         } else
         {
              panic("Unknown option in config file",input_line,NULL);
@@ -429,6 +432,18 @@ print_forest_info(FILE *outs)
     _P("\n");
     _2P("Cluster coverage is ratio between 0 - 1, where 1 = clusters cover all samples");
     _P("\n");
+
+    if(formulas) 
+    {
+        _P("\n");
+        _2P("Input data expressions:\n");
+    }
+
+    for(i = 0;i < formulas;i++)
+    {
+        _3P(formula[i].formula);
+        _P("\n");
+    }
 
 
     if(forest_count) _P("\nForest data:\n");
