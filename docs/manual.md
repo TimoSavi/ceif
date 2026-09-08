@@ -128,6 +128,13 @@ Example rc-file:
 
     # End of file
 
+#### Deprecated Parameters
+
+| Variable | Status / Description |
+|:---|:---|
+| `CENTROID_THRESHOLD`<br>*(or `CENTROID_TRESSHOLD`)* | **Deprecated.** In earlier versions, this specified the tree depth ratio threshold at which node splitting switched from random perturbations to sample centroids for tree balancing. Tree construction now uses pairwise local sample interpolation (SCiForest / Pairwise EIF) across all depths, which naturally stays bounded within local cluster geometry and cleanly separates samples without requiring centroid balancing. This parameter and the associated API (`set_centroid_tresshold`) are preserved for backwards compatibility but silently ignored. |
+| `AUTO_WEIGTH` | **Deprecated.** Legacy spelling and alias for `AUTO_SCALE`. |
+
 ### Examples
 
 #### Learn and analyze the same file

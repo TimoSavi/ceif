@@ -596,51 +596,40 @@ void set_centroid_tresshold(double new)
 
 /* generate p from sample data.
  * returns pointer to p array.
- * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
- * In deeper nodes the sample centroid is used as p; this ensures a more balanced tree.
+ * p is chosen using pairwise interpolation between two random sample points
+ * in the node's local sample set: p = x1 + u * (x2 - x1) with u in [0, 1].
+ * This guarantees p lies on the segment connecting two local samples, avoiding
+ * ghost outlier regions and arbitrary bounding box cutouts at all depths.
+ * Legacy centroid threshold parameter is preserved for backwards compatibility.
  */
 static
-double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
+double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio)
 {
-    int i,j;
-    int random_sample;
-    static int start = 1;
-    double *n_vector;
+    int i;
     static double p[DIM_MAX];
 
-    if(heigth_ratio < centroid_tresshold)  // In deeper nodes of tree use sample centroid as p, take only every other sample; speeds things and adds randomness
+    (void)heigth_ratio;
+    (void)centroid_tresshold;
+
+    DEBUG("(pairwise)");
+    int s1 = ri(0,sample_count - 1);
+    int s2;
+    if(sample_count > 1)
     {
-        DEBUG("(centroid)");
-    
-        for(i = 0;i < dimensions;i++) p[i] = 0.0;
-
-        start = 1 - start;
-
-        for(i = start;i < sample_count;i += 2)
-        {
-            for(j = 0;j < dimensions;j++)  p[j] += X[samples[i]].dimension[j];
-        }
-
-        for(i = 0;i < dimensions;i++) p[i] /= (double) (sample_count >> 1);  // turn to average, divide by sample_count / 2
-    } else
-    {
-        DEBUG("(random)");
-        // get a random sample point
-        random_sample = ri(0,sample_count - 1);
-
-        // copy random sample to p vector 
-        v_copy(p,X[samples[random_sample]].dimension);
-    
-    
-        n_vector = calculate_n();
-
-        // Add adjustment vector
-
-        for(i = 0;i < dimensions;i++) {
-            p[i] += n_vector[i] * heigth_ratio * (max[i] - min[i] > 0.0 ? (max[i] - min[i]) / 2.0 : 0.5);   // move sample by adjustment
-        }
+        s2 = ri(0,sample_count - 2);
+        if(s2 >= s1) s2++;
     }
-    
+    else
+    {
+        s2 = s1;
+    }
+    double u = rd(0.0, 1.0);
+    double *x1 = X[samples[s1]].dimension;
+    double *x2 = X[samples[s2]].dimension;
+
+    for(i = 0;i < dimensions;i++) {
+        p[i] = x1[i] + u * (x2[i] - x1[i]);
+    }
 
     return p;
 }
@@ -795,7 +784,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     this->rigth = -1;
 
     DEBUG(" interception point ");
-    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit),f->max,f->min);
+    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit));
 
     if(auto_weigth) p = scale_dimension(p,f);
 

@@ -30,7 +30,7 @@
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
-#define CENTROID_TRESSHOLD 0.45   // after CENTROID_TRESSHOLD * max tree height is reached, centroid is used as p, default value
+#define CENTROID_TRESSHOLD 0.45   // Deprecated: pairwise interpolation is used; kept for backwards compatibility
 #define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
 
 
@@ -288,7 +288,7 @@ double *scale_dimension(double *,struct forest *);
 void parse_values(double *,char **, int, int);
 int ri(int, int);
 double *sample_dimension(struct sample *);
-void set_centroid_tresshold(double);
+void set_centroid_tresshold(double);  /* Deprecated: pairwise interpolation used; kept for backwards compatibility */
 void free_tree(struct tree *);
 void free_forest_trees(struct forest *);
 void free_forest_samples(struct forest *);
