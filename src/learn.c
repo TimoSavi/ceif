@@ -675,28 +675,40 @@ scale_double(double value, double range, double scale_min, double min, double ma
 
 
 /* calculate average tree height for given sample size n
- *  */
+ * using Euler-Maclaurin expansion for H_{n-1}
+ */
+static
 double _c(int n)
 {
     if (n < 2) return 0.0;   
     if (n == 2) return 1.0;
-    return 2.0 * (log(n - 1) + 0.5772156649) - (2.0 * (double) (n - 1) / (double) n);
+    double m = (double)(n - 1);
+    double H = log(m) + 0.5772156649015328606 + (1.0 / (2.0 * m)) - (1.0 / (12.0 * m * m));
+    return 2.0 * H - (2.0 * m / (double)n);
 }
 
 /* get the average tree height for given sample size n
- *  */
+ */
 double c(int n)
 {
+    if(n <= 1) return 0.0;
     if(n < FAST_C_SAMPLES) return fast_c_cache[n];
     return _c(n);
 }
 
-/*  Init the fast_c_cache table */
-void init_fast_c_cache()
+/* Init the fast_c_cache table with exact harmonic numbers */
+void init_fast_c_cache(void)
 {
-    int i;
+    int n;
+    double H = 0.0;
 
-    for(i = 0;i < FAST_C_SAMPLES;i++) fast_c_cache[i] = _c(i);
+    fast_c_cache[0] = 0.0;
+    fast_c_cache[1] = 0.0;
+    for(n = 2; n < FAST_C_SAMPLES; n++)
+    {
+        H += 1.0 / (double)(n - 1);
+        fast_c_cache[n] = 2.0 * H - (2.0 * (double)(n - 1) / (double)n);
+    }
 }
 
 /* make an n vector, 

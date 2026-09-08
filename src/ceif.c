@@ -393,8 +393,10 @@ main (int argc, char **argv)
     atexit(print_alloc_debug);
     atexit(free_all_forests);
 
-    setlocale(LC_ALL,"C");
+    srand(time(NULL) + getpid());
 
+    init_fast_n_cache();
+    init_fast_c_cache();
     init_forest_hash();
 
     init_low_rgb(0xffff00);         // yellow
@@ -666,11 +668,6 @@ main (int argc, char **argv)
         remove_samples(reset_categories[i]);
         free(reset_categories[i]);
     }
-
-    srand(time(NULL) + getpid());
-
-    init_fast_n_cache();
-    init_fast_c_cache();
 
     if(set_locale) setlocale(LC_ALL,"");
 
