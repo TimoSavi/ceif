@@ -211,70 +211,117 @@ double _score(int forest_idx,double *dimension)
 
 
 /* Calculates max score for a forest
- * This is done making 3^dimensions combinations of +MAX_DIM,-MAX_DIM and 0 
- * The  largest score is returned
- * Number of tested dimensions is limited by LIMIT_DIM for performance reasons
+ * Tests extreme outlier directions:
+ * 1. Positive and negative coordinate axes (+/- e_k)
+ * 2. All-positive and all-negative diagonal extremes (+/- 1)
+ * 3. Primary split normal vectors of all trees (+/- n_{t, 0})
+ * 4. 1-pass coordinate refinement around the best candidate direction
+ * Total evaluations: O(D + T), avoiding the exponential 3^D complexity.
  */
 #define MAX_DIM_VALUE (1e+100)
-#define pwrtwo(x) ((unsigned int) 1 << (x))
-#define LIMIT_DIM 8
 
 double calculate_max_score(int forest_idx)
 {
-    unsigned int i,j,k;
-    unsigned int bitmap1,bitmap2,state,lim_dim; 
+    int i, k, l, tv;
+    struct forest *f = &forest[forest_idx];
     double *dim;
-    double score,max_score = 0.0;
-    int l;
+    double *best_v;
+    double score, max_score = 0.0;
+    double best_norm_score = 0.0;
 
     dim = xmalloc(dimensions * sizeof(double));
-
-    lim_dim = (dimensions > LIMIT_DIM) ? LIMIT_DIM : dimensions;
-    
-    for(l = lim_dim;l < dimensions;l++) dim[l] = MAX_DIM_VALUE;   // Init possible rest values with +max
+    best_v = xmalloc(dimensions * sizeof(double));
+    for(l = 0; l < dimensions; l++) best_v[l] = 1.0;
 
     reset_nearest();         // nearest analysis is not needed here
 
-    for(i = 0;i < pwrtwo(lim_dim);i++)
+    // 1. Positive and negative coordinate axes
+    for(k = 0; k < dimensions; k++)
     {
-        for(j = 0;j <  pwrtwo(lim_dim);j++)
+        for(l = 0; l < dimensions; l++) dim[l] = 0.0;
+        dim[k] = MAX_DIM_VALUE;
+        score = _score(forest_idx, dim);
+        if(score > max_score) max_score = score;
+
+        dim[k] = -MAX_DIM_VALUE;
+        score = _score(forest_idx, dim);
+        if(score > max_score) max_score = score;
+    }
+
+    // 2. All positive / all negative diagonal corners
+    for(l = 0; l < dimensions; l++) dim[l] = MAX_DIM_VALUE;
+    score = _score(forest_idx, dim);
+    if(score > max_score) max_score = score;
+
+    for(l = 0; l < dimensions; l++) dim[l] = -MAX_DIM_VALUE;
+    score = _score(forest_idx, dim);
+    if(score > max_score) max_score = score;
+
+    // 3. Tree root split normal directions (+/- n_{t, 0})
+    if(f->t != NULL)
+    {
+        for(i = 0; i < tree_count; i++)
         {
-            bitmap1 = i;        // Two bitmaps in order to get state values 0..2, for 0, +max and -max
-            bitmap2 = j;
-
-            if(!(bitmap1 & bitmap2))  // skip cases where there is both bits set in the same position (meaning state value 3, which is not allowed here)
+            struct tree *t = &f->t[i];
+            if(t->n != NULL && t->first >= 0)
             {
-                for(k = 0;k < lim_dim;k++)
+                struct node *root_node = &t->n[t->first];
+                if(root_node->n != NULL)
                 {
-                    state = ((bitmap1 & 1) << 1) | (bitmap2 & 1);
-                    switch(state)
+                    for(l = 0; l < dimensions; l++) dim[l] = MAX_DIM_VALUE * root_node->n[l];
+                    score = _score(forest_idx, dim);
+                    if(score > max_score) max_score = score;
+                    if(score > best_norm_score)
                     {
-                        case 0:
-                            dim[k] = 0.0;
-                            break;
-                        case 1:
-                            dim[k] = MAX_DIM_VALUE;
-                            break;
-                        case 2:
-                            dim[k] = -MAX_DIM_VALUE;
-                            break;
+                        best_norm_score = score;
+                        for(l = 0; l < dimensions; l++) best_v[l] = root_node->n[l];
                     }
-                    bitmap1 >>= 1;
-                    bitmap2 >>= 1;
-                }
 
-                score = _score(forest_idx,dim);
-                if(score > max_score) max_score = score;
+                    for(l = 0; l < dimensions; l++) dim[l] = -MAX_DIM_VALUE * root_node->n[l];
+                    score = _score(forest_idx, dim);
+                    if(score > max_score) max_score = score;
+                    if(score > best_norm_score)
+                    {
+                        best_norm_score = score;
+                        for(l = 0; l < dimensions; l++) best_v[l] = -root_node->n[l];
+                    }
+                }
             }
         }
     }
 
+    // 4. Coordinate refinement from best directional candidate
+    for(l = 0; l < dimensions; l++) dim[l] = (best_v[l] >= 0.0) ? MAX_DIM_VALUE : -MAX_DIM_VALUE;
+    score = _score(forest_idx, dim);
+    if(score > max_score) max_score = score;
+
+    for(k = 0; k < dimensions; k++)
+    {
+        double orig = dim[k];
+        double test_vals[3] = { MAX_DIM_VALUE, -MAX_DIM_VALUE, 0.0 };
+        double best_val = orig;
+        for(tv = 0; tv < 3; tv++)
+        {
+            if(test_vals[tv] == orig) continue;
+            dim[k] = test_vals[tv];
+            score = _score(forest_idx, dim);
+            if(score > max_score)
+            {
+                max_score = score;
+                best_val = test_vals[tv];
+            }
+        }
+        dim[k] = best_val;
+    }
+
+    free(best_v);
     free(dim);
 
     set_nearest();  
 
     return max_score;
 }
+
 
 /* calculate scaled score. Forest min (from sample having lowest score) and max range (found using a dim with "big" values) 
  * is used to scale score to range 0...1
