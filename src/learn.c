@@ -617,7 +617,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     {
         s2 = s1;
     }
-    double margin = heigth_ratio * 0.5;
+    double margin = heigth_ratio * 1.0;
     double u = rd(-margin, 1.0 + margin);
     double *x1 = X[samples[s1]].dimension;
     double *x2 = X[samples[s2]].dimension;
