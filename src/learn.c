@@ -358,9 +358,9 @@ void add_to_X(struct forest *f,double *new, int value_count,int saved)
     } else
     {
         DEBUG(" Replacing an existing item in sample table");
-        sample_idx = ri(0,f->X_count + f->extra_rows -1); // minus 1 in order to get first sample to be saved
-
         if(!saved) f->extra_rows++;                  // Number of extra rows for this forest read from train file
+
+        sample_idx = ri(0,f->X_count + f->extra_rows - 1);
 
         if(sample_idx >= f->X_count) return;         // check if old sample should be replaced with this or not
     }

@@ -57,6 +57,7 @@
 #define CATEGORY "category"
 #define SAMPLE_COUNT "sampleCount"
 #define LAST_UPDATED "lastUpdated"
+#define EXTRA_ROWS "extraRows"
 #define SAMPLES "samples"
 
 #define DIMENSIONS "dimensions"
@@ -175,6 +176,11 @@ write_forest(int forest_idx)
     json_object_object_add(jforest,CATEGORY,jcategory);
     json_object_object_add(jforest,SAMPLE_COUNT,jsample_count);
     json_object_object_add(jforest,LAST_UPDATED,jlast_updated);
+    if(f->extra_rows > 0)
+    {
+        json_object *jextra_rows = json_object_new_int(f->extra_rows);
+        json_object_object_add(jforest,EXTRA_ROWS,jextra_rows);
+    }
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -453,7 +459,14 @@ void init_forest(int forest_idx,json_object *jforest)
     f->total_rows = 0;
     f->analyzed_rows = 0;
     f->high_analyzed_rows = 0;
-    f->extra_rows = 0;
+    json_object *jextra_rows;
+    if(json_object_object_get_ex(jforest,EXTRA_ROWS,&jextra_rows))
+    {
+        f->extra_rows = json_object_get_int(jextra_rows);
+    } else
+    {
+        f->extra_rows = 0;
+    }
     f->percentage_score = 0.0;
     f->min_score = 1.0;
     f->test_average_score = 0.0;

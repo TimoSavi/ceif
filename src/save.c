@@ -32,7 +32,7 @@
  */
 
 static char *W_global = "G;%d;\"%s\";\"%s\";%d;%d;\"%s\";\"%c\";%d;%f%s;\"%s\";\"%s\";\"%s\";%d;\"%s\";%d;%d;\"%s\";\"%c\";%d;%d;\"%s\";\"%s\"\n";
-static char *W_forest = "F;\"%s\";%f;%d;%d;%ld\n";
+static char *W_forest = "F;\"%s\";%f;%d;%d;%ld;%d\n";
 static char *W_sample = "S;%s\n";
 
 static char input_line[INPUT_LEN_MAX];
@@ -131,7 +131,7 @@ save_forest(int forest_idx,FILE *w)
     int i;
     struct forest *f = &forest[forest_idx];
 
-    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit,f->X_count,(long int) f->last_updated) < 0) write_error();
+    if(fprintf(w,W_forest,f->category ? f->category : "",f->c,f->heigth_limit,f->X_count,(long int) f->last_updated,f->extra_rows) < 0) write_error();
 
     for(i = 0;i < f->X_count;i++)
     {
@@ -280,7 +280,7 @@ int parse_F(int forest_idx,char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 6)
+    if(value_count == 6 || value_count == 7)
     {
         f->category = xstrdup(v[1]);
         f->c = atof(v[2]);
@@ -305,7 +305,7 @@ int parse_F(int forest_idx,char *l)
         f->total_rows = 0;
         f->analyzed_rows = 0;
         f->high_analyzed_rows = 0;
-        f->extra_rows = 0;
+        f->extra_rows = (value_count == 7) ? atoi(v[6]) : 0;
         f->percentage_score = 0.0;
         f->min_score = 1.0;
         f->test_average_score = 0.0;
