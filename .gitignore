@@ -39,3 +39,4 @@ stamp-h1
 /src/ceif
 callgrind*
 *.bak
+prompt

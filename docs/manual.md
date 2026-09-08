@@ -1,9 +1,9 @@
 ## Running ceif
-ceif is a command-line program controlled by arguments, basic syntax is:
+ceif is a command-line program controlled by arguments. The basic syntax is:
 
     ceif [OPTION]...
 
-Input data is assumed to be comma separated values. Different separator can be given by option -f.
+Input data is assumed to be comma-separated values. A different separator can be specified with option -f.
 ### Options
 
 | Option | Purpose  |
@@ -11,49 +11,49 @@ Input data is assumed to be comma separated values. Different separator can be g
 | -h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| Display help and exit|
 | -d&nbsp;INTEGER | Number of decimals when printing and saving dimension values. Default is 6|
 | -V | Display version and exit|
-| -I&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be ignored when reading the input file. Ranges can be given with dash (e.g. 2-9). Default is to read all fields|
-| -U&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be processed when reading the input file. Ranges can be given with dash (e.g. 2-9). This overrides equal values from option -I|
-| -X&nbsp;LIST | LIST is a comma separated list of field numbers (first = 1) which should be as text fields when reading the input file. Ranges can be given with dash (e.g. 2-9). A hash value from range 0-32770 is generated using field string value. Note that this is not collision free. This should be used mainly for simple classifications like "yes/no" or "Male/Female/Unknown". Note also that "Yes" and "yes" will produce different value|
-| -G&nbsp;LIST | LIST is a comma separated list of dimensions attribute indices. Combination of these dimension attributes must have outlier score along total score. Ranges can be given using dash. These are dimensions attribute indices, not input line indices (first = 1)|
+| -I&nbsp;LIST | LIST is a comma-separated list of field numbers (first = 1) that should be ignored when reading the input file. Ranges can be specified with a dash (e.g., 2-9). The default is to read all fields|
+| -U&nbsp;LIST | LIST is a comma-separated list of field numbers (first = 1) that should be processed when reading the input file. Ranges can be specified with a dash (e.g., 2-9). This overrides overlapping values from option -I|
+| -X&nbsp;LIST | LIST is a comma-separated list of field numbers (first = 1) that should be treated as text fields when reading the input file. Ranges can be specified with a dash (e.g., 2-9). A hash value in the range 0–32770 is generated from the string value. Note that this is not collision-free and should be used mainly for simple classifications like "yes/no" or "Male/Female/Unknown". Note also that "Yes" and "yes" produce different values|
+| -G&nbsp;LIST | LIST is a comma-separated list of dimension attribute indices. A combination of these dimension attributes must yield an outlier score alongside the total score. Ranges can be specified using a dash. Note that these are dimension attribute indices, not input line field indices (first = 1)|
 | -t&nbsp;INTEGER&nbsp;&nbsp; | Number of trees to use. Default is 100|
 | -s&nbsp;INTEGER | Number of samples for each tree. Default is 256|
 | -f&nbsp;CHAR | Field separator for input files|
-| -l&nbsp;FILE | File to be used in algorithm training| 
-| -a&nbsp;FILE | File to analyse|
+| -l&nbsp;FILE | File to be used for algorithm training| 
+| -a&nbsp;FILE | File to analyze|
 | -c&nbsp;FILE | File to categorize|
-| -p&nbsp;STRING | Printf style format to print anomaly data or categorized data. See printing directives below|
-| -o&nbsp;FILE | Print output to FILE. Default is to use stdout|
-| -r&nbsp;FILE | Read forest data from file. File should have been written earlier with option -w|
-| -w&nbsp;FILE | Write forest data to FILE. Typically result of analysing data using file with option -l. Data can be later read with option -r|
-| -z&nbsp;FILE | Read and write forest data from/to file. Forest data is read from file FILE and after any processing written back to FILE|
-| -O&nbsp;FLOAT| Outlier score for anomaly detection. Data with higher or equal score is considered as an anomaly and printed with format given by option -p. Use values 0.0 - 1.0|
-| -O&nbsp;FLOATs| Scaled outlier score for anomaly detection. The actual analyzed score is scaled to range 0-1 using forest min/max scores. This ensures that the best inlier has value zero and the farthest outlier will get value near 1.0. When given with categorize option (-c) the results are limited by this value. Only category results having lower value than this are accepted.  Use values 0.0s - 1.0s|
-| -O&nbsp;FLOAT%| Outlier score for anomaly detection is calculated using sample score distribution taking the score value under which FLOAT percent of samples have lower score. Use values  0% - 100%|
-| -C&nbsp;LIST | List of field numbers to be used as a category field. Default is not to use category field. Field values are separated by colon to form a category string|
-| -L&nbsp;LIST | List of field numbers to be used as a label field. Default is not to use label field. Field values are separated by colon to form a label string|
-| -F&nbsp;REGEXP | Filter categories using regular expression. Forests having category string matching REGEXP are not used in analysis or categorization. Several options can be given. If REGEXP is preceded by "-v " then matching is inverted|
-| -H | Input data contains a header line which is ignored. Default is to read all lines|
-| -S | Set locale to local locale. Default is use locale "C"|
-| -T&nbsp;FLOAT| Generate test data. Test data is generated using sample set min/max values and test data point interval given by option -i (default is 256). Test data range can be enlarged by FLOAT. E.g. value 1.0 doubles the test data range. After test data is printed max 10240 sample data points are printed with score 0|
-| -i&nbsp;INTEGER| Test data point interval. Larger value means more dense test data point set|
-| -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is value between 0..100 (default is 10). This is the percentage of input data rows to be checked for uniqueness. Value 100 can be used if every accepted sample data should be unique|
-| -m&nbsp;STRING| Printf format for printing float values for sample and sample average values. Default is "%.*f"|
-| -j&nbsp;STRING| Printf format for printing all single dimension attribute related metrics together. Metrics are printed using printf directive %m|
-| -e&nbsp;CHAR| Value separator when printing sample, sample average and analysed data values. Default is comma|
-| -M&nbsp;STRING | Print category value, average values or last update time of forests which have not used in analysis. Optional printf format STRING is used in printing|
-| -D&nbsp;INTEGER | Before saving the forest data to file delete forests which have not been updated INTEGER (seconds) ago. If INTEGER is followed by a letter from set Y,M,D or m the INTEGER is consired to be years, months, days or minutes.|
-| -N&nbsp;STRING | Print input values which are not assosiated with any categories. This can be used for printing "new" category values. Optional printf format STRING is used in printing|
-| -A | Instead taking samples as they are, aggregate new samples values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option|
-| -q | Print forest information in human readable form and exit|
-| -y | Print forest information ascii density map|
-| -yy | Print forest information ascii density map with common sample scale for all forests|
-| -E | Print samples with sample score|
-| -k | Remove the sample having maximun sample score for each non filtered forest. If option is given several times, then several samples are removed. This can be used to remove outliers from samples. Modified sample set can be saved with option -w|
-| -g&nbsp;FILE | Use the FILE as rc-file instead of ~/.ceifrc. Note that file given with option -g overrides options given before -g|
-| -P | Print list of correlation coefficents with regression line slopea and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0|
-| -R&nbsp;STRING | Remove all samples for a forest having STRING as forest string.|
-| -v&nbsp;STRING | Print average score and other statistics calculated from analysed data using printing format STRING.|
-| -Q&nbsp;STRING | Replace input data value using an expression in STRING, STRING is added to list of expression. If STRING starts with hyphen, then the expression is removed from the list. |
+| -p&nbsp;STRING | Printf-style format to print anomaly data or categorized data. See printing directives below|
+| -o&nbsp;FILE | Print output to FILE. Default is stdout|
+| -r&nbsp;FILE | Read forest data from file. The file should have been written earlier with option -w|
+| -w&nbsp;FILE | Write forest data to FILE. Typically the result of analyzing data from a file with option -l. Data can later be read with option -r|
+| -z&nbsp;FILE | Read and write forest data from/to the same file. Forest data is read from FILE and, after processing, written back to FILE|
+| -O&nbsp;FLOAT| Outlier score threshold for anomaly detection. Data with a higher or equal score is considered an anomaly and printed using the format given by option -p. Values range from 0.0 to 1.0|
+| -O&nbsp;FLOATs| Scaled outlier score for anomaly detection. The analyzed score is scaled to the range 0.0–1.0 using the forest min/max scores. This ensures the best inlier receives a score near 0.0 and the farthest outlier receives a score near 1.0. When given with the categorize option (-c), results are filtered by this threshold: only category results with scores lower than this value are accepted. Values range from 0.0s to 1.0s|
+| -O&nbsp;FLOAT%| Outlier score threshold calculated from the sample score distribution, selecting the score value under which FLOAT percent of samples have a lower score. Values range from 0% to 100%|
+| -C&nbsp;LIST | List of field numbers to be used as category fields. Default is not to use category fields. Field values are concatenated with colons to form a category string|
+| -L&nbsp;LIST | List of field numbers to be used as label fields. Default is not to use label fields. Field values are concatenated with colons to form a label string|
+| -F&nbsp;REGEXP | Filter categories using a regular expression. Forests with category strings matching REGEXP are excluded from analysis or categorization. Several options can be specified. If REGEXP is preceded by "-v ", matching is inverted|
+| -H | Input data contains a header line that should be ignored. Default is to read all lines|
+| -S | Set locale from the environment. Default is the "C" locale|
+| -T&nbsp;FLOAT| Generate test data. Test data is generated using the sample set min/max values and test data point interval given by option -i (default is 256). The test data range can be scaled by FLOAT (e.g., 1.0 doubles the test data range). After test data is generated, up to 10,240 sample data points are printed with score 0|
+| -i&nbsp;INTEGER| Test data point interval. Larger values produce a denser test dataset|
+| -u&nbsp;INTEGER| Accept only unique samples when sampling input data. INTEGER is a value between 0 and 100 (default is 10), representing the percentage of input data rows checked for uniqueness. Value 100 requires all accepted sample data to be unique|
+| -m&nbsp;STRING| Printf format for printing floating-point values for samples and sample averages. Default is "%.*f"|
+| -j&nbsp;STRING| Printf format for printing all single dimension attribute metrics together. Metrics are formatted using printf directive %m|
+| -e&nbsp;CHAR| Value separator when printing sample, sample average, and analyzed data values. Default is comma|
+| -M&nbsp;STRING | Print category values, average values, or last update times of forests that were not used in analysis. Optional printf format STRING is used for printing|
+| -D&nbsp;INTEGER | Before saving forest data to a file, delete forests that have not been updated within the last INTEGER seconds. If INTEGER is followed by a letter from {Y, M, D, m}, INTEGER is interpreted as years, months, days, or minutes|
+| -N&nbsp;STRING | Print input values that are not associated with any category. This can be used for identifying "new" category values. Optional printf format STRING is used for printing|
+| -A | Instead of taking samples as individual rows, aggregate new sample values for each forest. Only one new aggregated sample per forest is added for each invocation of option -l|
+| -q | Print forest information in human-readable form and exit|
+| -y | Print an ASCII density map of forest information and exit|
+| -yy | Print an ASCII density map of forest information using a common sample scale for all forests and exit|
+| -E | Print samples with their sample scores and exit|
+| -k | Remove the sample having the maximum sample score for each non-filtered forest. If specified multiple times, multiple outliers are removed. The updated sample set can be saved with option -w|
+| -g&nbsp;FILE | Use FILE as the rc-file instead of ~/.ceifrc. Note that options in FILE override options specified before -g|
+| -P | Print a list of correlation coefficients with regression line slopes and y-intercepts for every dimension attribute pair and exit. The correlation coefficient ranges from -1.0 to 1.0|
+| -R&nbsp;STRING | Remove all samples for the forest whose category string matches STRING|
+| -v&nbsp;STRING | Print average score and other summary statistics calculated from analyzed data using format STRING|
+| -Q&nbsp;STRING | Replace input data values using an expression in STRING. STRING is added to the list of expressions. If STRING starts with a hyphen, the expression is removed from the list|
 
 
 If FILE is "-" then standard input or output is read or written.
@@ -68,56 +68,56 @@ If no double formatting support is available, the number of decimals saved is th
 | %r | Current input file row number|
 | %s | Anomaly score|
 | %g | Anomaly score for dimensions given by option -G|
-| %S | Average anomaly score for analysed data|
+| %S | Average anomaly score for analyzed data|
 | %n | Number of rows for a forest|
-| %o | Number of analyzed rows for a forest. This might be lower than %n value if data sampling is used (see ANALYZE\_SAMPLING in next section)|
-| %h | Number of analysed rows having larger score than outlier score value|
+| %o | Number of analyzed rows for a forest. This might be lower than %n if data sampling is enabled (see ANALYZE\_SAMPLING)|
+| %h | Number of analyzed rows having a score greater than the outlier score threshold|
 | %c | Category string from input data. The original category when categorizing data|
-| %C | Forest category string. The best matching category when categorizing data|
+| %C | Forest category string. The best-matching category when categorizing data|
 | %l | Label values|
-| %d | Separated list of dimension values. Print text based dimensions as text|
-| %u | Separated list of dimension values. Print text based dimensions as double|
+| %d | Separated list of dimension values. Text-based dimensions are printed as text|
+| %u | Separated list of dimension values. Text-based dimensions are printed as float|
 | %a | Separated list of dimension average values|
-| %e | Separated list of dimension attribute scores, ceif tries to analyze how each attribute affects the total score and gives each attribute a score|
-| %m | Separated list of dimension metrics printed by attribute by attribute. Printf format for attribute metrics printed is given by option -j or rc-file variable PRINT\_DIMENSION. See rc-file for printing directives|
-| %i | Dimension attribute index (first=1)|
+| %e | Separated list of dimension attribute scores: ceif analyzes how each attribute affects the total score and assigns each an individual score|
+| %m | Separated list of dimension metrics printed attribute by attribute. The printf format for attribute metrics is specified by option -j or the rc-file variable PRINT\_DIMENSION. See rc-file section for printing directives|
+| %i | Dimension attribute index (first = 1)|
 | %v | Current input row values|
-| %x | Outlier score value in RGB values. Presented as hex value (.e.g 127F77). Default gradient color for score values 0..1 is yellow to red. Colors can be changed using rc-file. Note that value zero is printed as black|
-| %X | Outlier score value in RGB for dimensions given by option -G|
-| %t | Time when category has been last updated. In human readable form using current locale|
+| %x | Outlier score formatted as an RGB hex value (e.g., 127F77). The default color gradient for scores from 0.0 to 1.0 ranges from yellow to red. Colors can be customized in the rc-file. Note that a score of zero is printed as black|
+| %X | Outlier score formatted as an RGB hex value for dimensions specified by option -G|
+| %t | Timestamp when category was last updated, in human-readable form using current locale|
 | %: | Category value separator|
 | %. | Label value separator|
 | %% | Percent sign|
 
-Value separator for d,u,a,m,e and v can be given by option -e.
-Category value separator is semicolon and label value separator is dash. These can be changed in rc-file.
+The value separator for d, u, a, m, e, and v can be specified using option -e.
+The category value separator is a semicolon and the label value separator is a dash. These can be customized in the rc-file.
 
 ### User rc-file
-Some defaults can be read from user specific rc-file ~/.ceifrc. File has variable-value pairs separated by whitespace. Comments start with #. 
-These values can be overriden by command options and saved forest data (read using option -r). Note that file given with option -g overrides options given before -g.
+Default settings can be loaded from the user-specific rc-file `~/.ceifrc`. The file contains variable-value pairs separated by whitespace. Comments start with `#`. 
+These values can be overridden by command options and loaded forest data (read via option -r). Note that a file specified with option -g overrides options specified prior to -g.
 
-Following variables are supported:
+The following variables are supported:
 
-| Variable | Meaning | default value |
+| Variable | Meaning | Default Value |
 |----|----|----|
-|SAMPLES|Number of samples taken for each tree, same affect as option -s|256|
-|TREES|Number of trees for each forest, same affect as option -t|100|
-|DECIMALS|Number of decimals used when saving forest data. Affects also printing of sample values (option -d)|6|
-|AUTO\_SCALE|Scale sample values before analysing the forest, 1 = yes, 0 = no|1|
-|CATEGORY\_SEPARATOR|Char to be used as a separator when concatenating category fields|;|
-|LABEL\_SEPARATOR|Char to be used as a separator when concatenating label fields|-|
-|OUTLIER\_SCORE|Outlier score for analysis, same values as for option -O can be used ("max", "average", float value 0..1 or float with suffix 's' 0s..1s)|
-|MAX\_SAMPLES|Maximum number of samples for each forest|Default is calculated by number\_of\_trees * number\_of\_samples\_per\_tree|
-|NEAREST|Score is adjusted by the distance to nearest sample point in leaf nodes, 1 = yes, 0 = no|1|
-|ANALYZE\_SAMPLING|If the data to be analyzed is expected to be inpractical large it can be sampled. If the analyzed row count reaches the value defined by this variable then the sampling starts. Sampling is implement using reservoir sampling method. The number of analyzed rows is estimated to be k * (ln(x/k) + 1), where k = this parameter value, x = total row count|0 (default value, no sampling)|
-|DEBUG|Print debug messages, 1 = yes, 0 = no|0|
-|PRINT\_DIMENSION|Printf string for printf directive %m. This printf string can contain directives %d, %a, %e and %i ||
-|DIM\_PRINT\_WIDTH|Attribute metrics printing width. Used when printing forest info with option -q. This can be used when number of dimension attributes is high and metrics do not fit to screen|25|
-|CLUSTER\_SIZE|Ceif tries to find data cluster by taking the samples having lowest scores and counting the number of samples around them. Cluster size is fixed and is calculated by finding the distance from the sample having the lowest score to most distant sample. Cluster size is the distance multiplied by this value. Use values between 0-1|0.125|
-|LOW_RGB_COLOR|RGB color code for score value 0 (printing directive %x). Values are given as hex string (e.g. 0x12fe44)|0xffff00, yellow|
-|HIGH_RGB_COLOR|RGB color code for score value 1|0xff0000, red|
+|SAMPLES|Number of samples taken for each tree; same effect as option -s|256|
+|TREES|Number of trees for each forest; same effect as option -t|100|
+|DECIMALS|Number of decimals used when saving forest data; also affects printing of sample values (option -d)|6|
+|AUTO\_SCALE|Scale sample values before analyzing the forest: 1 = yes, 0 = no|1|
+|CATEGORY\_SEPARATOR|Character used as a separator when concatenating category fields|;|
+|LABEL\_SEPARATOR|Character used as a separator when concatenating label fields|-|
+|OUTLIER\_SCORE|Outlier score threshold for analysis; accepts the same formats as option -O ("max", "average", float 0..1, or scaled float 0s..1s)|0.65|
+|MAX\_SAMPLES|Maximum number of samples for each forest|Calculated as number\_of\_trees * number\_of\_samples\_per\_tree|
+|NEAREST|Score is adjusted by distance to nearest sample point in leaf nodes: 1 = yes, 0 = no|1|
+|ANALYZE\_SAMPLING|If analyzed data is impractically large, stream sampling can be enabled. When the analyzed row count reaches this threshold, sampling begins using reservoir sampling. The number of analyzed rows is estimated as k * (ln(x/k) + 1), where k is this parameter and x is total rows|0 (disabled)|
+|DEBUG|Print debug messages: 1 = yes, 0 = no|0|
+|PRINT\_DIMENSION|Printf format string for directive %m. May contain directives %d, %a, %e, and %i|""|
+|DIM\_PRINT\_WIDTH|Attribute metric column width when printing forest info with option -q|25|
+|CLUSTER\_SIZE|ceif identifies data clusters by selecting samples with the lowest scores and counting adjacent samples. Cluster radius is calculated by finding the distance from the lowest-scoring sample to the most distant sample, multiplied by this parameter (range: 0 to 1)|0.125|
+|LOW_RGB_COLOR|RGB color code for score 0 (%x directive). Given as hex string (e.g., 0xffff00)|0xffff00 (yellow)|
+|HIGH_RGB_COLOR|RGB color code for score 1 (%x directive)|0xff0000 (red)|
 
-Example of rc-file:
+Example rc-file:
 
     # My default values
     TREES 200
@@ -126,55 +126,54 @@ Example of rc-file:
     OUTLIER_SCORE 0.65s
     PRINT_DIMENSION "<value>%d</value>\n<score>%e</score>\n"
 
-    #End of file
+    # End of file
 
 ### Examples
 
-#### Learn and analyze same file
-Learn and analyse file data.csv, use fields 1-3 (by ignoring fields 4-100) for analysis and print anomalies having score 0.6 or greater.
+#### Learn and analyze the same file
+Learn and analyze `data.csv` using fields 1-3 (ignoring fields 4-100), and print anomalies having a score of 0.6 or greater:
 
-    ceif -l data.csv -a data.csv -I4-100  -O0.6
+    ceif -l data.csv -a data.csv -I4-100 -O0.6
 
-#### Learn and write forest data to file data.f. Use scaled sample score value 0.5, 
+#### Learn and write forest data to data.f with scaled score threshold 0.5s:
 
     ceif -l data.csv -w data.f -I4-100 -O0.5s
 
-#### Read forest data from data.f and analyse data.csv
-Note that parameters like -O are saved to forest file and need not be given again.  
+#### Read forest data from data.f and analyze data.csv
+Note that parameters such as -O are saved inside the forest file and do not need to be specified again:
 
     ceif -r data.f -a data.csv
 
-####  Read forest data from data.f and add more samples from data2.csv 
-Note that -w must given in order to save enhanced forest data.
+#### Read forest data from data.f and add more samples from data2.csv 
+Note that -w must be specified in order to save the updated forest model:
 
     ceif -r data.f -l data2.csv -w data.f
 
-Option -z reads and saves to same file:
+Option -z reads and writes back to the same file:
 
     ceif -z data.f -l data2.csv 
 
 #### Learn and write categorized forest data 
-Use field number 5 as category field
+Use field number 5 as the category key:
 
     ceif -l data.csv -w data.f -I4-100 -O0.6 -C 5
 
-#### categorize data from data.csv using forest data from previous example
-Print analyzed category value (%C) and select fields as comma separated list (%v) for each input row from data.csv.
+#### Categorize data from data.csv using the forest data from the previous example
+Print the analyzed category match (%C) and the dimension values (%d) for each input row from `data.csv`:
 
     ceif -r data.f -c data.csv -p "%C %d"
 
-#### Generate test data set using forest data file
-Generate data set around sample data points by enlarging the area with factor 1. Every dimension value range consists of 512 test values. 
-Test data sample values and outlier score value in RGB value separated by semicolon are printed to file plot\_data.csv.
+#### Generate a test dataset using a forest data file
+Generate a synthetic evaluation dataset around sample data points by enlarging the range by a factor of 1. Each dimension range evaluates 512 test points. Test data values and outlier scores formatted as RGB hex values are separated by semicolons and written to `plot_data.csv`:
 
     ceif -r data.f -T1 -i512 -e";" -p"%d;0x%x" -o plot_data.csv
 
 #### Data value aggregation
-If e.g. daily or hourly summaries should be analyzed then ceif should be called with -A option and each forest should have a daily or hourly aggregation key. 
-Example file of hourly samples of internet traffic:
+If daily or hourly summaries are to be analyzed, `ceif` can be invoked with the -A option, where each forest represents an aggregation key. 
+Example CSV file of hourly internet traffic samples:
 
     $ cat traffic.csv
-    Hour,Type,Inbytes,Outbutes
+    Hour,Type,Inbytes,Outbytes
     12,In,123,1444
     12,Out,423,1644
     13,In,123,1444
@@ -188,11 +187,11 @@ Example file of hourly samples of internet traffic:
     17,Out,433,1644
     18,Out,493,1644
 
-Making Hourly and traffic direction summaries, first two fields are category keys (-C1-2):
+Generating hourly and traffic-direction summaries, where the first two fields serve as category keys (-C1-2):
 
     ceif -l traffic.csv -C1-2 -H -A -d0 -w traffic.ceif
 
-Forest file contents below, for each hour and traffic type the number of bytes are summarized:
+Forest file contents below; for each hour and traffic type, byte counts are summed into aggregated samples:
 
     $ cat traffic.ceif
     G;2;"";"%s %v";100;256;"1-2";",";1;0.750000;10.000000;"";"";8;"";0;0;"";",";1;1
@@ -213,38 +212,37 @@ Forest file contents below, for each hour and traffic type the number of bytes a
     F;"18:Out";0.000000;0;1;1582453164
     S;493|1644
 
-And when the same is done next day and so on, a new sample is added for each forest (Hour and traffic direction combination).
-After enough samples are collected a daily traffic can be analyzed for anomalies using -a option.
+When this is repeated on subsequent days, a new aggregated sample row is added to each forest.
+Once sufficient historical baseline samples have been gathered, daily traffic can be evaluated for anomalies using option -a.
 
 #### Using input data expressions (-Q)
-Input data values can be modified before actual processing. Modification expression can have any tinyexpr expression (see https://github.com/codeplea/tinyexpr/tree/master?tab=readme-ov-file#grammar). Input fields are referred using '$n' notation where 'n' is the sequence number of the input data field (first field = 1). 
+Input data fields can be dynamically transformed before processing. Expressions support standard `tinyexpr` syntax (see https://github.com/codeplea/tinyexpr). Input fields are referenced using the `$n` notation, where `n` is the 1-based index of the input field.
 
-Expression has format:
+The expression format is:
 ```
 $n=<expr>
 ```
-or
+or with decimal rounding:
 ```
 $n=<expr>:d
 ```
-```
-'$n' is the reference to the field to be modified
-'<expr>' is the tinyexp expression which can have '$n' references to input fields. Non existing fields are not replaced
-':d' d is optional number of decimals to be used
-```
+Where:
+- `$n` is the field to be modified.
+- `<expr>` is any valid `tinyexpr` expression that may include `$n` references to input fields.
+- `:d` is the optional number of decimal digits to retain.
 
 Examples:
 
-| Case  | Expression |
-|:----|----|
-| Divide the 4th field by 13, result has two decimals | '$4=$4/13:2' |
-| Multiply the first field with second field | '$1=$1*$2' |
-| Divide the second field with 60 and convert it to integer| '$2=floor($2/60)' |
-| Set constant value for field 10 | '$10=3486' |
+| Case | Expression |
+|:---|:---|
+| Divide the 4th field by 13, retaining two decimals | `'$4=$4/13:2'` |
+| Multiply the first field by the second field | `'$1=$1*$2'` |
+| Divide the second field by 60 and floor to an integer | `'$2=floor($2/60)'` |
+| Assign a constant value to field 10 | `'$10=3486'` |
 
-All expressions are saved in forest data. If an earlier saved expression should be removed, then prefix it with hyphen (e.g. -Q '-$4=$4/10') and save the data (-w or -z).
+All active expressions are persisted inside the saved forest metadata. To remove a previously saved expression, prefix it with a hyphen (e.g., `-Q '-$4=$4/10'`) and re-save the forest (`-w` or `-z`).
 
 Example command line:
-```
+```bash
 ceif -Q '$4=$4/13:2' -Q '$2=floor($2/60)' -Q '-$4=$4/10' ...
 ```

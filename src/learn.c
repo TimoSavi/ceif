@@ -597,7 +597,7 @@ void set_centroid_tresshold(double new)
 /* generate p from sample data.
  * returns pointer to p array.
  * In first nodes are taken from random sample point centered n-sphere having random diameter. Diameter length is proportional to tree heigth (larger at root) and dimension value range / 2.
- * In more deeper nodes the sample cetroid is used as p, this ensures more balanced tree (hopefully)
+ * In deeper nodes the sample centroid is used as p; this ensures a more balanced tree.
  */
 static
 double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio, double *max, double *min)
@@ -608,7 +608,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     double *n_vector;
     static double p[DIM_MAX];
 
-    if(heigth_ratio < centroid_tresshold)  // In deeper nodes of tree use sample centroid as p, take only every other sample, speeds things and adds ramdomness
+    if(heigth_ratio < centroid_tresshold)  // In deeper nodes of tree use sample centroid as p, take only every other sample; speeds things and adds randomness
     {
         DEBUG("(centroid)");
     

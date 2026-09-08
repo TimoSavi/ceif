@@ -24,8 +24,8 @@
 
 #define DIM_MAX 1024              // maximum number of dimensions attributes
 #define INPUT_LEN_MAX 1048576     // maximum length of input line
-#define SAMPLES_MIN 24            // minimun number of samples for a forest
-#define FILTER_MAX 100            // maximun number of category filters
+#define SAMPLES_MIN 24            // minimum number of samples for a forest
+#define FILTER_MAX 100            // maximum number of category filters
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
@@ -57,11 +57,11 @@ struct sample
 struct node
 {
     int sample_count;        // number of samples
-    int *samples;         // node sample indizes to X array
+    int *samples;         // node sample indices to X array
     double *n;               // random normal vector having dimensions count of coordinates
     double pdotn;           // calculate p dot n for performance issues
     int left;               // first left node, -1 if not existing
-    int rigth;              // first rigth node, -1 if not existing
+    int rigth;              // first right node, -1 if not existing
 };
 
 struct tree
@@ -75,10 +75,10 @@ struct tree
 
 struct forest
 {
-    char *category;         // Category string, all data having this category string in input data will behandled by this
+    char *category;         // Category string, all data having this category string in input data will be handled by this
     int filter;             // true if this forest should not be used in analysis or categorize
     int X_count;	    // Number of samples
-    int X_current;          // whis smaple should be taken next to tree 
+    int X_current;          // which sample should be taken next to tree 
     int X_cap;              // Memory allocated for X, in terms of units of struct sample
     int X_summary;          // Which sample is used for data summary
     double c;               // Average path length for the forest
@@ -87,7 +87,7 @@ struct forest
     double *min;            // learn data min values dimension
     double *max;            // learn data max values dimension
     double avg_sample_dist; // Average sample distance in hypercube 
-    int scale_range_idx;    // dimension index to range to be used in scaling (-W). Points tomin and max arrays, -1 if no ranges (all attributes have the same value)
+    int scale_range_idx;    // dimension index to range to be used in scaling (-W). Points to min and max arrays, -1 if no ranges (all attributes have the same value)
     double *avg;            // dimension averages
     double *dim_density;    // learn data average attribute distance dimension
     double *summary;        // aggregated values when analysing or categorizing
@@ -99,7 +99,7 @@ struct forest
     double test_average_score; // average score of tested data, can be compared with average_score
     int total_rows;         // Number of rows read from input
     int analyzed_rows;      // Number of rows used in analysis
-    int high_analyzed_rows; // Number of rows having score higher than avaerage score
+    int high_analyzed_rows; // Number of rows having score higher than average score
     int extra_rows;         // Number of rows read after train file after max number of samples reached
     struct tree *t;         // Tree table, NULL if not initialized
     int cluster_count;      // Number of cluster in a forest
@@ -111,7 +111,7 @@ struct forest
 struct forest_hash
 {
     int idx_count;          // number of entries in idx table
-    int idx_cap;            // space reserverd for idx
+    int idx_cap;            // space reserved for idx
     size_t *idx;               // indices to forest table 
 };
 

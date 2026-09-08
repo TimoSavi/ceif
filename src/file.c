@@ -382,7 +382,7 @@ print_forest_info(FILE *outs)
     char outstr[100];
     struct tm *tmp;
         
-    _P("Global setting:\n");
+    _P("Global settings:\n");
     _2P("Number of forests: %d\n",forest_count);
     _2P("Number of analyzed dimensions: %d\n",dimensions);
     _2P("Number of samples/tree: %d\n",samples_max);
@@ -412,7 +412,7 @@ print_forest_info(FILE *outs)
     _2P("Header is %s\n",_O(header));
     _2P("Automatic data value scaling is %s\n",_O(auto_weigth));
     _2P("Aggregate is %s\n",_O(aggregate));
-    _2P("Unigue samples is %s\n",_O(unique_samples));
+    _2P("Unique samples is %s\n",_O(unique_samples));
     _2P("Nearest distance analysis is %s\n",_O(nearest));
     _2P("Print string: \"%s\"\n",print_string);
 
@@ -460,7 +460,7 @@ print_forest_info(FILE *outs)
         if(!f->filter)
         {
             _3P("Average path length (c): %f\n",f->c);
-            _3P("Max. tree heigth: %d\n",f->heigth_limit);
+            _3P("Max. tree height: %d\n",f->heigth_limit);
 
             if(scale_score)
             { 
@@ -544,7 +544,7 @@ print_sample_density(FILE *outs,int common_scale)
     size_t bucket;
 
     _P("Sample value density map\n");
-    _P("Each dimensions is divided into %d buckets, the digit under a bucket means number of 1/10 of samples in that bucket, # means all samples belong to one bucket\n\n",DENSITY_MAX);
+    _P("Each dimension is divided into %d buckets. The digit under a bucket indicates tenths of samples in that bucket (# means all samples belong to one bucket).\n\n",DENSITY_MAX);
     _P("Empty means no samples\n\n");
 
     if(!forest_count) return;

@@ -130,12 +130,12 @@ xfopen(char *name, char *mode, char bin_asc)
     {
         if( mode[0] == 'r' &&  mode[1] == '\000') 
         {
-            if(stdin_opened) panic("stdin allready open",NULL,NULL);
+            if(stdin_opened) panic("stdin already open",NULL,NULL);
             stdin_opened = 1;
             return stdin;
         } else 
         {
-            if(stdout_opened) panic("stdout allready open",NULL,NULL);
+            if(stdout_opened) panic("stdout already open",NULL,NULL);
             stdout_opened = 1;
             return stdout;
         }

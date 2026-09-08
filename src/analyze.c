@@ -1364,7 +1364,7 @@ void remove_samples(char *forest_string)
         forest[forest_idx].X_count = 0;
     } else
     {
-        info("No forest having string",forest_string,NULL);
+        info("No forest matching category string",forest_string,NULL);
     }
 }
 

@@ -324,7 +324,7 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
 
                 if(ignore_expression_errors)
                 {
-                    info("Expression with parameters expanded, this will be replace by zero",expr,NULL);
+                    info("Expression with parameters expanded, this will be replaced by zero",expr,NULL);
                     sprintf(retval,"%.*f",dvf->decimals,0.0);
                 } else
                 {

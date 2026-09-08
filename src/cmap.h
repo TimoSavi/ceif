@@ -1,5 +1,5 @@
-/* A table for mapping ascii char values to unified values. 
- * lower case chars (a-x) are mapped to same value as upper case (A-Z).
+/* A table for mapping ASCII char values to unified values. 
+ * Lowercase chars (a-z) are mapped to the same values as uppercase (A-Z).
  */
 
 struct char_mapping

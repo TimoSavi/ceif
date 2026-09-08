@@ -106,6 +106,7 @@ static struct option long_opts[] =
   {"decimals", 1, 0, 'd'},
   {"ignore-dims", 1, 0, 'I'},
   {"include-dims", 1, 0, 'U'},
+  {"use-dims", 1, 0, 'U'},
   {"trees", 1, 0, 't'},
   {"samples", 1, 0, 's'},
   {"input-separator", 1, 0, 'f'},
@@ -137,6 +138,7 @@ static struct option long_opts[] =
   {"remove-outlier", 0, 0, 'k'},
   {"rc-file", 1, 0, 'g'},
   {"correlation-coe", 0, 0, 'P'},
+  {"correlation_coe", 0, 0, 'P'},
   {"average", 1, 0, 'v'},
   {"reset-forest", 1, 0, 'R'},
   {"inplace-forest", 1, 0, 'z'},
@@ -155,52 +157,52 @@ help (int status)
   printf ("Usage: %s [OPTION]... \n", PACKAGE_NAME);
   printf ("\
 Options:\n\
-  -d, --decimals INTEGER      number of decimals when printing and saving dimension values\n\
-  -h, --help                  display this help and exit\n\
-  -V, --version               output version information and exit\n\
-  -I, --ignore-dims LIST      comma separated list of dimensions not to be used, first is number 1. Ranges can be given using dash\n\
-  -U, --use-dims LIST         comma separated list of dimensions to be used, first is number 1. Ranges can be given using dash. Overwrites entries from -I option\n\
-  -t, --trees INTEGER         number of trees. default is 100\n\
-  -s, --samples INTEGER       number of samples/tree. Default is 256\n\
-  -f, --input-separator CHAR  input file field separator. Default is comma\n\
-  -l, --learn FILE            file to used for training \n\
-  -a, --analyze FILE          file to analyze\n\
-  -c, --categorize FILE       file to categorize\n\
-  -p, --print STRING          outlier printing format\n\
-  -j, --print-dimension STRING print format format for printing directive %m, prints joined dimension values\n\
-  -o, --output FILE           outlier data is printed to FILE. Default is stdout\n\
-  -w, --write-forest FILE     write forest data to FILE\n\
-  -O, --outlier-score FLOAT   outlier data is printed if score is bigger that FLOAT (0.0 - 1.0)\n\
-  -O, --outlier-score FLOATs  outlier data is printed if score is bigger that FLOAT (0.0 - 1.0), actual scores are scaled to range 0..1\n\
-  -O, --outlier-score FLOAT%%  outlier score is the score which covers FLOAT percent of samples, give value between 0 - 100\n\
-  -r, --read-forest FILE      read forest data from FILE\n\
-  -z, --inplace-forest FILE   read forest data from FILE and after any processing write forest back to FILE\n\
-  -C, --category-dim LIST     comma separated list of dimensions to form a category string\n\
-  -L, --label-dim LIST        comma separated list of dimensions to form a label string\n\
-  -H, --header                input data file has a header\n\
-  -S, --set-locale            locale information is read from environment\n\
-  -T, --test FLOAT            generate test data with adjustment factor FLOAT\n\
-  -i, --test-interval INTEGER number of test points for each dimension, default is 256. Used with option -T\n\
-  -F, --category-filter REGEXP regular expression to filter categories. Several option can be given. If REGEXP starts with \"-v \" the matching  is inverted\n\
-  -u, --unique-samples INTEGER accept INTEGER percent of samples as duplicates, default is take all samples.\n\
-  -m, --printf-format STRING  printf format string for dimension and average value printing\n\
-  -e, --list-separator CHAR   value separator for dimension and average value printing\n\
-  -M, --missing STRING        print category value of forests which have not used in analysis. Optional printf format STRING is used for printing\n\
-  -D, --delete INTEGER        before saving the forest data to file delete those forests which have not been updated INTEGER (seconds) ago\n\
-  -N, --new STRING            print values which do not match any known category. Optional printf format STRING is used for printing\n\
-  -A, --aggregate             instead taking samples as they are, aggregate new samples by adding values for each forest. Only one new aggregated sample for each forest is added for each usage of -l option\n\
-  -X, --text-dims STRING      comma separated list of dimensions to be used as text based input values, first is number 1. Ranges can be given using dash\n\
-  -G, --score-dims STRING     comma separated list of dimensions attribute indices. Combination of these dimension attributes must have outlier score along total score. Ranges can be given using dash. These are dimensions attribute indices, not input line indices (first is always number 1)\n\
-  -q, --query                 print forest info and exit\n\
-  -y, --sample-density        print ascii map of all forest sample value densities and exit\n\
-  -yy, --sample-densityy      print ascii map of all forest sample value densities using common scale for all forests and exit\n\
-  -E, --sample-scores         print samples values with sample score and exit\n\
-  -k, --remove-outlier        remove the sample having largest outlier score. For each invocation of this option one sample is removed\n\
-  -g, --rc-file FILE          read global settings from FILE (default is ~/.ceifrc)\n\
-  -P, --correlation_coe       print list of correlation coefficents with regression line slopes and y-intercepts for every dimension attribute pair and exit. Correlation coefficent is a value between -1.0 - 1.0\n\
-  -v, --average STRING        print average info for each forest after analysis using STRING as print format\n\
-  -R, --reset-forest STRING   remove all samples for a forest read using option -r and having forest string STRING\n\
-  -Q, --expression STRING     replace input data value using an expression in STRING, if STRING starts with hyphen, then the expression is removed\n\
+  -d, --decimals INTEGER       number of decimals when printing and saving dimension values\n\
+  -h, --help                   display this help and exit\n\
+  -V, --version                output version information and exit\n\
+  -I, --ignore-dims LIST       comma-separated list of field indices to ignore (1-based). Ranges can be specified with a dash\n\
+  -U, --use-dims LIST          comma-separated list of field indices to include (1-based). Overrides overlapping entries from -I\n\
+  -t, --trees INTEGER          number of trees. Default is 100\n\
+  -s, --samples INTEGER        number of samples per tree. Default is 256\n\
+  -f, --input-separator CHAR   input file field separator. Default is comma\n\
+  -l, --learn FILE             file to use for training\n\
+  -a, --analyze FILE           file to analyze\n\
+  -c, --categorize FILE        file to categorize\n\
+  -p, --print STRING           outlier printing format\n\
+  -j, --print-dimension STRING print format for directive %%m, prints joined dimension metrics\n\
+  -o, --output FILE            outlier data is printed to FILE. Default is stdout\n\
+  -w, --write-forest FILE      write forest data to FILE\n\
+  -O, --outlier-score FLOAT    outlier data is printed if score is greater than or equal to FLOAT (0.0 - 1.0)\n\
+  -O, --outlier-score FLOATs   scaled outlier score (0.0s - 1.0s); raw scores are normalized to 0..1 using forest min/max\n\
+  -O, --outlier-score FLOAT%%   percentile outlier score; threshold covering FLOAT percent of samples (0 - 100)\n\
+  -r, --read-forest FILE       read forest data from FILE\n\
+  -z, --inplace-forest FILE    read forest data from FILE and, after processing, write back to FILE\n\
+  -C, --category-dim LIST      comma-separated list of field indices to form a category string\n\
+  -L, --label-dim LIST         comma-separated list of field indices to form a label string\n\
+  -H, --header                 input data file has a header line to skip\n\
+  -S, --set-locale             read locale information from environment\n\
+  -T, --test FLOAT             generate test data with adjustment factor FLOAT\n\
+  -i, --test-interval INTEGER  number of test points for each dimension, default is 256. Used with option -T\n\
+  -F, --category-filter REGEXP regular expression to filter categories. Multiple options allowed. Prefix with \"-v \" to invert match\n\
+  -u, --unique-samples INTEGER percentage of samples checked for uniqueness (0-100, default 10)\n\
+  -m, --printf-format STRING   printf format string for dimension and average value printing\n\
+  -e, --list-separator CHAR    value separator for dimension and average value printing\n\
+  -M, --missing STRING         print category values of forests not used in analysis. Optional format STRING used for printing\n\
+  -D, --delete INTEGER         delete forests not updated within INTEGER seconds (or Y, M, D, m) before saving\n\
+  -N, --new STRING             print values that do not match any known category. Optional format STRING used for printing\n\
+  -A, --aggregate              aggregate new sample values by category rather than storing individual rows\n\
+  -X, --text-dims STRING       comma-separated list of field indices to treat as text (hashed to integers)\n\
+  -G, --score-dims STRING      comma-separated list of dimension attribute indices to score jointly alongside total score\n\
+  -q, --query                  print forest info and exit\n\
+  -y, --sample-density         print ASCII map of forest sample value densities and exit\n\
+  -yy                          print ASCII density map using a common scale for all forests and exit\n\
+  -E, --sample-scores          print sample values with sample scores and exit\n\
+  -k, --remove-outlier         remove sample with largest outlier score (can be specified multiple times)\n\
+  -g, --rc-file FILE           read global settings from FILE (default is ~/.ceifrc)\n\
+  -P, --correlation-coe        print correlation coefficients with regression slopes and y-intercepts for each dimension pair and exit\n\
+  -v, --average STRING         print summary statistics for analyzed data using format STRING\n\
+  -R, --reset-forest STRING    remove all samples for forest matching category STRING\n\
+  -Q, --expression STRING      transform input values using expression STRING (prefix with '-' to remove)\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -498,7 +500,7 @@ main (int argc, char **argv)
                 case 'u':
                     unique_samples = 10;
                     if(optarg != NULL) unique_samples = atol(optarg);
-                    if(unique_samples < 0 || unique_samples > 100) panic("Give unique sample percent bweteen 0 and 100",NULL,NULL);
+                    if(unique_samples < 0 || unique_samples > 100) panic("Give unique sample percent between 0 and 100",NULL,NULL);
                     break;
                 case 'm':
                     printf_format = xstrdup(optarg);

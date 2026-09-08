@@ -1,7 +1,7 @@
-## Build from source
-GNU autotools and gcc are required to build ceif.
+## Building from Source
+GNU Autotools and GCC are required to build `ceif`.
 
-Clone from github and then:
+Clone from GitHub and run:
 
     cd ceif
     autoreconf -is
