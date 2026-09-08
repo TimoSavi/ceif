@@ -1174,11 +1174,9 @@ int take_this_row(int total_rows)
     if(analyze_sampling_count && total_rows > analyze_sampling_count && ri(1,total_rows) > analyze_sampling_count) return 0;
     return 1;
 }
-/* analyze data from file. 
- * All lines are analyzed against loaded forest/tree data
- * and print anomalies (having score > outlier_score) using printing mask
+/* Analyze data lines
  */
-void
+int
 analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
 {
     int value_count;
@@ -1287,6 +1285,14 @@ analyze(FILE *in_stream, FILE *outs,char *not_found_format,char *average_format)
     }
     
     if(dimension != NULL) free(dimension);
+
+    int total_outliers = 0;
+    for(forest_idx = 0; forest_idx < forest_count; forest_idx++)
+    {
+        total_outliers += forest[forest_idx].high_analyzed_rows;
+    }
+
+    return total_outliers;
 }
 
 

@@ -66,58 +66,68 @@ void write_global_data(FILE *w,int f_count)
 
 /* write dimension data to csv string
  */
-static 
+static char *dim_csv_buf = NULL;
+static size_t dim_csv_cap = 0;
+
+void free_dim_csv_buffer(void)
+{
+    if(dim_csv_buf != NULL)
+    {
+        free(dim_csv_buf);
+        dim_csv_buf = NULL;
+        dim_csv_cap = 0;
+    }
+}
+
 char *dim_to_csv(int size,double *dim)
 {
-    static char *csv = NULL;
-    static size_t csv_cap = 0;
     size_t pos = 0;
     int i;
     int n;
 
-    if (csv == NULL)
+    if (dim_csv_buf == NULL)
     {
-        csv_cap = DIM_MAX * 32;
-        csv = xmalloc(csv_cap);
+        dim_csv_cap = DIM_MAX * 32;
+        dim_csv_buf = xmalloc(dim_csv_cap);
     }
 
     if (size <= 0)
     {
-        csv[0] = '\000';
-        return csv;
+        dim_csv_buf[0] = '\000';
+        return dim_csv_buf;
     }
 
     for (i = 0; i < size; i++) 
     {
         /* Ensure there is always room for the next float (at least 128 bytes) */
-        if (pos + 128 > csv_cap)
+        if (pos + 128 > dim_csv_cap)
         {
-            csv_cap = (pos + 128) * 2;
-            csv = xrealloc(csv, csv_cap);
+            dim_csv_cap = (pos + 128) * 2;
+            dim_csv_buf = xrealloc(dim_csv_buf, dim_csv_cap);
         }
 
-        n = snprintf(csv + pos, csv_cap - pos, "%.*f|", decimals, dim[i]);
+        n = snprintf(dim_csv_buf + pos, dim_csv_cap - pos, "%.*f|", decimals, dim[i]);
         if (n > 0)
         {
-            if ((size_t)n >= csv_cap - pos)
+            if ((size_t)n >= dim_csv_cap - pos)
             {
-                csv_cap = pos + n + 128;
-                csv = xrealloc(csv, csv_cap);
-                n = snprintf(csv + pos, csv_cap - pos, "%.*f|", decimals, dim[i]);
+                dim_csv_cap = pos + n + 128;
+                dim_csv_buf = xrealloc(dim_csv_buf, dim_csv_cap);
+                n = snprintf(dim_csv_buf + pos, dim_csv_cap - pos, "%.*f|", decimals, dim[i]);
             }
             pos += n;
         }
     }
 
-    if (pos > 0 && csv[pos - 1] == '|')
+    if (pos > 0 && dim_csv_buf[pos - 1] == '|')
     {
-        csv[pos - 1] = '\000';
+        dim_csv_buf[pos - 1] = '\000';
     } else
     {
-        csv[pos] = '\000';
+        dim_csv_buf[pos] = '\000';
     }
 
-    return csv;
+    return dim_csv_buf;
 }
 
 
@@ -188,7 +198,7 @@ int parse_G(char *l)
 
     value_count = parse_csv_line(v,100,l,';');
 
-    if(value_count == 23) // change this too if parameter count changes
+    if(value_count >= 20 && value_count <= 23) // allow backward compatibility with older 20-23 field formats
     {
         dimensions = atoi(v[1]);
         if(!cli_given.label_dims)
@@ -250,8 +260,8 @@ int parse_G(char *l)
         }
         if(!cli_given.list_separator) list_separator = v[18][0];
         n_vector_adjust = atoi(v[19]);
-        if(!cli_given.aggregate) aggregate = atoi(v[20]);
-        if(!cli_given.text_dims)
+        if(value_count > 20 && !cli_given.aggregate) aggregate = atoi(v[20]);
+        if(value_count > 21 && !cli_given.text_dims)
         {
             if(text_dims != NULL) free(text_dims);
             text_dims = xstrdup(v[21]);

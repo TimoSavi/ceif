@@ -35,53 +35,61 @@
  * Every call adds single item to string
  * string is returned for every call
  */
-char *
-make_separated_string(char *item, char separator)
+static char *separated_string = NULL;
+static size_t separated_string_cap = 0;
+static size_t separated_string_pos = 0;
+
+void free_separated_string_buffer(void)
 {
-    static char *string = NULL;
-    static size_t string_cap = 0;
-    static size_t write_pos = 0;
+    if(separated_string != NULL)
+    {
+        free(separated_string);
+        separated_string = NULL;
+        separated_string_cap = 0;
+        separated_string_pos = 0;
+    }
+}
+
+char *make_separated_string(char *item,char separator)
+{
     size_t len;
 
-    if(string == NULL)
+    if(separated_string == NULL)
     {
-        string_cap = 10240;
-        string = xmalloc(string_cap);
-        string[0] = '\000';
+        separated_string_cap = 10240;
+        separated_string = xmalloc(separated_string_cap);
+        separated_string[0] = '\000';
     }
 
     if(item == NULL)
     {
-        write_pos = 0;
-        string[0] = '\000';
+        separated_string_pos = 0;
+        separated_string[0] = '\000';
     } else
     {
         len = strlen(item);
 
         /* Ensure buffer has enough space for item, separator, and null terminator */
-        if(write_pos + len + 2 > string_cap)
+        if(separated_string_pos + len + 2 > separated_string_cap)
         {
-            while(write_pos + len + 2 > string_cap)
+            while(separated_string_pos + len + 2 > separated_string_cap)
             {
-                string_cap *= 2;
+                separated_string_cap *= 2;
             }
-            string = xrealloc(string, string_cap);
+            separated_string = xrealloc(separated_string, separated_string_cap);
         }
 
-        memcpy(string + write_pos, item, len);
-        write_pos += len;
+        memcpy(separated_string + separated_string_pos, item, len);
+        separated_string_pos += len;
 
         if(separator)
         {
-            string[write_pos++] = separator;
-            string[write_pos] = '\000';
-        } else
-        {
-            string[write_pos] = '\000';
+            separated_string[separated_string_pos++] = separator;
         }
+        separated_string[separated_string_pos] = '\000';
     }
 
-    return string;
+    return separated_string;
 }
 
 

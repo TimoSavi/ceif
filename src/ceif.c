@@ -89,6 +89,59 @@ char *label_dims = NULL;           // list of dimensions to be used as category 
 char *text_dims = NULL;           // list of dimensions to be used as text based input values, user given string
 char *score_dims = NULL;           // list of dimensions which should together have high outlier score among total_score, user given string
 
+static char *learn_file = NULL;
+static char *analyze_file = NULL;
+static char *categorize_file = NULL;
+static char *save_file = NULL;
+static char *load_file = NULL;
+static char *output_file = NULL;
+static char *missing_format = NULL;
+static char *average_format = NULL;
+static char *not_found_format = NULL;
+static char *reset_categories[100];
+static int reset_category_count = 0;
+
+static void free_cli_globals(void)
+{
+    int i;
+    if(ignore_dims != NULL) { free(ignore_dims); ignore_dims = NULL; }
+    if(include_dims != NULL) { free(include_dims); include_dims = NULL; }
+    if(category_dims != NULL) { free(category_dims); category_dims = NULL; }
+    if(label_dims != NULL) { free(label_dims); label_dims = NULL; }
+    if(text_dims != NULL) { free(text_dims); text_dims = NULL; }
+    if(score_dims != NULL) { free(score_dims); score_dims = NULL; }
+    if(printf_format != NULL) { free(printf_format); printf_format = NULL; }
+    if(print_string != NULL) { free(print_string); print_string = NULL; }
+    if(print_dimension != NULL) { free(print_dimension); print_dimension = NULL; }
+
+    if(missing_format != NULL) { free(missing_format); missing_format = NULL; }
+    if(average_format != NULL) { free(average_format); average_format = NULL; }
+    if(not_found_format != NULL) { free(not_found_format); not_found_format = NULL; }
+
+    if(learn_file != NULL) { free(learn_file); learn_file = NULL; }
+    if(analyze_file != NULL) { free(analyze_file); analyze_file = NULL; }
+    if(categorize_file != NULL) { free(categorize_file); categorize_file = NULL; }
+    if(load_file != NULL) { free(load_file); load_file = NULL; }
+    if(save_file != NULL) { free(save_file); save_file = NULL; }
+    if(output_file != NULL) { free(output_file); output_file = NULL; }
+
+    for(i = 0; i < cat_filter_count; i++)
+    {
+        if(cat_filter[i] != NULL) { free(cat_filter[i]); cat_filter[i] = NULL; }
+    }
+    cat_filter_count = 0;
+
+    for(i = 0; i < reset_category_count; i++)
+    {
+        if(reset_categories[i] != NULL) { free(reset_categories[i]); reset_categories[i] = NULL; }
+    }
+    reset_category_count = 0;
+
+    free_separated_string_buffer();
+    free_dim_csv_buffer();
+    free_all_expr();
+}
+
 int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
 struct forest *forest = NULL;    // forest table
@@ -205,6 +258,10 @@ Options:\n\
   -v, --average STRING         print summary statistics for analyzed data using format STRING\n\
   -R, --reset-forest STRING    remove all samples for forest matching category STRING\n\
   -Q, --expression STRING      transform input values using expression STRING (prefix with '-' to remove)\n\
+\nExit status:\n\
+  0  if OK and no anomalies detected,\n\
+  1  if fatal error,\n\
+  2  if anomalies were detected during analysis.\n\
 ");
   printf ("\nSend bug reports to %s\n", PACKAGE_BUGREPORT);
   exit (status);
@@ -349,8 +406,7 @@ main (int argc, char **argv)
     int opt;
     int i;
     int inplace_load = 0;
-    char *reset_categories[100];
-    int reset_category_count = 0;
+    int outliers_detected = 0;
     int set_locale = 0;
     int run_test = 0;
     int make_tree = 0;
@@ -364,17 +420,8 @@ main (int argc, char **argv)
     int test_range_interval = 256;
     int print_missing = 0;
     time_t delete_interval = (time_t) 0;
-    char *missing_format = "%C";
-    char *average_format = NULL;
-    char *not_found_format = NULL;
     double test_extension_factor = 0.0;    // extents the area from where test sample points are selected
     int score_option_given = 0;
-    char *learn_file = NULL;
-    char *analyze_file = NULL;
-    char *categorize_file = NULL;
-    char *save_file = NULL;
-    char *load_file = NULL;
-    char *output_file = NULL;
     FILE *learns = NULL;            // file to read learn data
     FILE *analyzes = NULL;          // file to analyze
     FILE *categorizes = NULL;          // file to categorize
@@ -389,7 +436,9 @@ main (int argc, char **argv)
     score_dims = xstrdup("");
     printf_format = xstrdup("");
     print_string = xstrdup("%s %v");
+    missing_format = xstrdup("%C");
 
+    atexit(free_cli_globals);
     atexit(print_alloc_debug);
     atexit(free_all_forests);
 
@@ -412,7 +461,7 @@ main (int argc, char **argv)
             read_config_file(argv[i + 1]);
         } else if(strncmp(argv[i], "--rc-file=", 10) == 0)
         {
-            read_config_file(argv[i + 10]);
+            read_config_file(argv[i] + 10);
         } else if(strcmp(argv[i], "--rc-file") == 0 && i + 1 < argc)
         {
             read_config_file(argv[i + 1]);
@@ -432,13 +481,13 @@ main (int argc, char **argv)
                     cli_given.decimals = 1;
                     break;
                 case 'I':
-                    if(ignore_dims != NULL && strcmp(ignore_dims, "") != 0) free(ignore_dims);
+                    if(ignore_dims != NULL) free(ignore_dims);
                     ignore_dims = xstrdup(optarg);
                     ignore_idx_count = parse_dims(optarg,ignore_idx);
                     cli_given.ignore_dims = 1;
                     break;
                 case 'U':
-                    if(include_dims != NULL && strcmp(include_dims, "") != 0) free(include_dims);
+                    if(include_dims != NULL) free(include_dims);
                     include_dims = xstrdup(optarg);
                     include_idx_count = parse_dims(optarg,include_idx);
                     cli_given.include_dims = 1;
@@ -489,7 +538,8 @@ main (int argc, char **argv)
                     break;
                 case 'z':
                     inplace_load = 1;
-                    if(save_file == NULL) save_file = xstrdup(optarg);
+                    if(save_file != NULL) free(save_file);
+                    save_file = xstrdup(optarg);
                     if(load_file != NULL) free(load_file);
                     load_file = xstrdup(optarg);
                     break;
@@ -498,13 +548,13 @@ main (int argc, char **argv)
                     load_file = xstrdup(optarg);
                     break;
                 case 'C':
-                    if(category_dims != NULL && strcmp(category_dims, "") != 0) free(category_dims);
+                    if(category_dims != NULL) free(category_dims);
                     category_dims = xstrdup(optarg);
                     category_idx_count = parse_dims(optarg,category_idx);
                     cli_given.category_dims = 1;
                     break;
                 case 'L':
-                    if(label_dims != NULL && strcmp(label_dims, "") != 0) free(label_dims);
+                    if(label_dims != NULL) free(label_dims);
                     label_dims = xstrdup(optarg);
                     label_idx_count = parse_dims(optarg,label_idx);
                     cli_given.label_dims = 1;
@@ -544,7 +594,7 @@ main (int argc, char **argv)
                     cli_given.unique_samples = 1;
                     break;
                 case 'm':
-                    if(printf_format != NULL && strcmp(printf_format, "") != 0) free(printf_format);
+                    if(printf_format != NULL) free(printf_format);
                     printf_format = xstrdup(optarg);
                     cli_given.printf_format = 1;
                     break;
@@ -560,7 +610,7 @@ main (int argc, char **argv)
                     print_missing = 1;
                     if(optarg != NULL)
                     {
-                        if(missing_format != NULL && strcmp(missing_format, "%C") != 0) free(missing_format);
+                        if(missing_format != NULL) free(missing_format);
                         missing_format = xstrdup(optarg);
                     }
                     break;
@@ -568,13 +618,13 @@ main (int argc, char **argv)
                     delete_interval = parse_delete_interval(optarg);
                     break;
                 case 'N':
+                    if(not_found_format != NULL) free(not_found_format);
                     if(optarg != NULL) 
                     {
-                        if(not_found_format != NULL) free(not_found_format);
                         not_found_format = xstrdup(optarg);
                     } else
                     {
-                        not_found_format = "%v";
+                        not_found_format = xstrdup("%v");
                     }
                     break;
                 case 'A':
@@ -582,13 +632,13 @@ main (int argc, char **argv)
                     cli_given.aggregate = 1;
                     break;
                 case 'X':
-                    if(text_dims != NULL && strcmp(text_dims, "") != 0) free(text_dims);
+                    if(text_dims != NULL) free(text_dims);
                     text_dims = xstrdup(optarg);
                     text_idx_count = parse_dims(optarg,text_idx);
                     cli_given.text_dims = 1;
                     break;
                 case 'G':
-                    if(score_dims != NULL && strcmp(score_dims, "") != 0) free(score_dims);
+                    if(score_dims != NULL) free(score_dims);
                     score_dims = xstrdup(optarg);
                     score_idx_count = parse_dims(optarg,score_idx);
                     cli_given.score_dims = 1;
@@ -614,13 +664,13 @@ main (int argc, char **argv)
                     break;
                 case 'v':
                     print_average = 1;
+                    if(average_format != NULL) free(average_format);
                     if(optarg != NULL)
                     {
-                        if(average_format != NULL) free(average_format);
                         average_format = xstrdup(optarg);
                     } else
                     {
-                        average_format = "%C %r %h";
+                        average_format = xstrdup("%C %r %h");
                     }
                     break;
                 case 'R':
@@ -660,6 +710,11 @@ main (int argc, char **argv)
         {
             if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
         }
+        if(load_file != NULL)
+        {
+            free(load_file);
+            load_file = NULL;
+        }
     }
 
     /* Apply deferred sample resets */
@@ -667,7 +722,9 @@ main (int argc, char **argv)
     {
         remove_samples(reset_categories[i]);
         free(reset_categories[i]);
+        reset_categories[i] = NULL;
     }
+    reset_category_count = 0;
 
     if(set_locale) setlocale(LC_ALL,"");
 
@@ -715,7 +772,7 @@ main (int argc, char **argv)
     if(analyze_file !=  NULL)
     {
         analyzes = xfopen(analyze_file,"r",'a');
-        analyze(analyzes,outs,not_found_format,average_format);
+        outliers_detected = analyze(analyzes,outs,not_found_format,average_format);
         xfclose(analyzes);
         if(print_missing) print_missing_categories(outs,missing_format);
     }
@@ -769,7 +826,7 @@ main (int argc, char **argv)
 
     xfclose(outs);
 
-    exit(0) ;
+    exit(outliers_detected > 0 ? 2 : 0);
 }
 
 

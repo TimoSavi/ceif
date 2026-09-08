@@ -261,6 +261,34 @@ int check_float_string(char *string)
  * If field is to be modified then it is evaluated using te_interp
  * If te_interp return NaN an error is raised
  */
+static char *expr_buf = NULL;
+static size_t expr_buf_cap = 0;
+
+void free_all_expr(void)
+{
+    int i;
+    for(i = 0; i < formulas; i++)
+    {
+        if(formula[i].formula != NULL)
+        {
+            free(formula[i].formula);
+            formula[i].formula = NULL;
+        }
+        if(formula[i].expression != NULL)
+        {
+            free(formula[i].expression);
+            formula[i].expression = NULL;
+        }
+    }
+    formulas = 0;
+    if(expr_buf != NULL)
+    {
+        free(expr_buf);
+        expr_buf = NULL;
+        expr_buf_cap = 0;
+    }
+}
+
 char *
 evaluate_data_expression(int data_idx, int value_count,char **values)
 {
@@ -268,8 +296,6 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
     struct data_value_formula *dvf;
     char *s;
     double newval;
-    static char *expr = NULL;
-    static size_t expr_cap = 0;
     static char retval[128];
     size_t pos;
 
@@ -280,10 +306,10 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
     if(data_idx >= value_count) return "";
     if(!check_float_string(values[data_idx])) return values[data_idx];
 
-    if(expr == NULL)
+    if(expr_buf == NULL)
     {
-        expr_cap = 2048;
-        expr = xmalloc(expr_cap);
+        expr_buf_cap = 2048;
+        expr_buf = xmalloc(expr_buf_cap);
     }
 
     for(f = 0;f < formulas;f++)
@@ -294,7 +320,7 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
             s = dvf->expression;
             r = 0;
             pos = 0;
-            expr[0] = '\000';
+            expr_buf[0] = '\000';
 
             // copy expression to expr, replace all $-references with actual data values
             while(*s)
@@ -306,12 +332,12 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
                         {
                             char *val = values[dvf->dref[r].data_idx];
                             size_t vlen = val ? strlen(val) : 0;
-                            if(pos + vlen + 1 > expr_cap)
+                            if(pos + vlen + 1 > expr_buf_cap)
                             {
-                                while(pos + vlen + 1 > expr_cap) expr_cap *= 2;
-                                expr = xrealloc(expr, expr_cap);
+                                while(pos + vlen + 1 > expr_buf_cap) expr_buf_cap *= 2;
+                                expr_buf = xrealloc(expr_buf, expr_buf_cap);
                             }
-                            if(vlen && val) memcpy(expr + pos, val, vlen);
+                            if(vlen && val) memcpy(expr_buf + pos, val, vlen);
                             pos += vlen;
                             s += dvf->dref[r].length;
                         } else
@@ -321,18 +347,18 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
                         r++;
                         break;
                     default:
-                        if(pos + 2 > expr_cap)
+                        if(pos + 2 > expr_buf_cap)
                         {
-                            expr_cap *= 2;
-                            expr = xrealloc(expr, expr_cap);
+                            expr_buf_cap *= 2;
+                            expr_buf = xrealloc(expr_buf, expr_buf_cap);
                         }
-                        expr[pos++] = *s++;
+                        expr_buf[pos++] = *s++;
                         break;
                 }
             }
-            expr[pos] = '\000';
+            expr_buf[pos] = '\000';
            
-            newval = te_interp(expr,0);
+            newval = te_interp(expr_buf,0);
             if(isnormal(newval) || newval == 0.0)
             {
                 snprintf(retval,sizeof(retval),"%.*f",dvf->decimals,newval);
@@ -342,11 +368,11 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
 
                 if(ignore_expression_errors)
                 {
-                    info("Expression with parameters expanded, this will be replaced by zero",expr,NULL);
+                    info("Expression with parameters expanded, this will be replaced by zero",expr_buf,NULL);
                     snprintf(retval,sizeof(retval),"%.*f",dvf->decimals,0.0);
                 } else
                 {
-                    panic("Expression with parameters expanded",expr,NULL);
+                    panic("Expression with parameters expanded",expr_buf,NULL);
                 }
             }
             return retval;

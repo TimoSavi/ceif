@@ -263,6 +263,7 @@ void print_sample_scores(FILE *);
 void print_correlation_coefficent(FILE *);
 void read_config_file(char *);
 char * make_separated_string(char *, char);
+void free_separated_string_buffer(void);
 
 
 /* learn.c prototypes */
@@ -299,7 +300,7 @@ void free_all_forests(void);
 
 
 /* analyze.c prototypes */
-void analyze(FILE *, FILE *,char *,char *);
+int analyze(FILE *, FILE *,char *,char *);
 void categorize(FILE *, int, FILE *);
 void init_dims(int);
 char *make_category_string(int,char **);
@@ -327,6 +328,7 @@ void write_forest_file(char *,time_t);
 int read_forest_file(char *);
 int read_forest_file_csv(char *);
 int read_forest_file_csv_stream(FILE *);
+void free_dim_csv_buffer(void);
 
 /* json.c prototypes */
 int write_forest_file_json(char *,time_t);
@@ -336,6 +338,7 @@ int read_forest_file_json_stream(FILE *, char *);
 /* expr.c prototypes */
 void parse_expression(char *);
 char *evaluate_data_expression(int , int ,char **);
+void free_all_expr(void);
 
 
 

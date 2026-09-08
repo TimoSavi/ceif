@@ -903,13 +903,11 @@ void train_one_forest(int forest_idx)
 {
     int i = 0;
     struct forest *f = &forest[forest_idx];
-    static int *s = NULL; 
     int sample_count,total_samples = 0;
     int n_effective;
+    int *s;
 
     DEBUG(" *Training forest %s\n",f->category);
-    
-    if(s == NULL) s = xmalloc(samples_max * sizeof(int));
 
     if(!tree_count) f->filter = 1;
 
@@ -971,6 +969,8 @@ void train_one_forest(int forest_idx)
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
 
+    s = xmalloc(samples_max * sizeof(int));
+
     for(i = 0;i < tree_count;i++)
     {
          sample_count = populate_sample(s,f);
@@ -983,6 +983,8 @@ void train_one_forest(int forest_idx)
          DEBUG("\n   Populating tree %d with %d samples\n",i,sample_count);
          populate_tree(f,&f->t[i],sample_count,s,f->X,ceil(log2(sample_count)) + 1);
     }
+
+    free(s);
 
     f->heigth_limit = ceil(log2(total_samples / tree_count)) + 2;
     f->c = c(total_samples / tree_count);    

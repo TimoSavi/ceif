@@ -201,22 +201,24 @@ Generating hourly and traffic-direction summaries, where the first two fields se
 Forest file contents below; for each hour and traffic type, byte counts are summed into aggregated samples:
 
     $ cat traffic.ceif
-    G;2;"";"%s %v";100;256;"1-2";",";1;0.750000;10.000000;"";"";8;"";0;0;"";",";1;1
-    F;"12:In";0.000000;0;1;1582453164
+    G;2;"";"%s %v";100;256;"1-2";",";1;0.500000s;"";"";"";9;"";0;0;"";",";0;1;"";""
+    F;"12;In";0.000000;0;1;1788853232;0
     S;123|1444
-    F;"12:Out";0.000000;0;1;1582453164
+    F;"12;Out";0.000000;0;1;1788853232;0
     S;423|1644
-    F;"13:In";0.000000;0;1;1582453164
+    F;"13;In";0.000000;0;1;1788853232;0
     S;946|1488
-    F;"14:In";0.000000;0;1;1582453164
-    S;9259|4301
-    F;"15:Out";0.000000;0;1;1582453164
+    F;"13;Out";0.000000;0;1;1788853232;0
+    S;1423|1644
+    F;"14;In";0.000000;0;1;1788853232;0
+    S;123|1443
+    F;"15;Out";0.000000;0;1;1788853232;0
     S;12423|1644
-    F;"16:Out";0.000000;0;1;1582453164
+    F;"16;Out";0.000000;0;1;1788853232;0
     S;916|1060
-    F;"17:Out";0.000000;0;1;1582453164
+    F;"17;Out";0.000000;0;1;1788853232;0
     S;433|1644
-    F;"18:Out";0.000000;0;1;1582453164
+    F;"18;Out";0.000000;0;1;1788853232;0
     S;493|1644
 
 When this is repeated on subsequent days, a new aggregated sample row is added to each forest.
@@ -253,3 +255,27 @@ Example command line:
 ```bash
 ceif -Q '$4=$4/13:2' -Q '$2=floor($2/60)' -Q '-$4=$4/10' ...
 ```
+
+---
+
+### Exit Status
+
+`ceif` returns the following exit codes:
+
+| Exit Code | Meaning | Typical Usage |
+|:---|:---|:---|
+| `0` | Success / Normal | Execution succeeded and no anomalies were detected during data analysis (`-a`). |
+| `1` | Fatal Error | An error occurred (e.g., bad arguments, file not found, syntax error). |
+| `2` | Anomalies Detected | One or more data rows exceeded the outlier threshold during analysis (`-a`). |
+
+Example automation script:
+```bash
+ceif -r model.json -a daily_batch.csv -p "%r %s %v" -o anomalies.txt
+status=$?
+if [ $status -eq 2 ]; then
+    mail -s "Alert: Anomalies detected in daily batch" ops@example.com < anomalies.txt
+elif [ $status -ne 0 ]; then
+    echo "Error processing batch" >&2
+fi
+```
+
