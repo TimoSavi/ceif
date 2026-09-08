@@ -209,6 +209,30 @@ extern struct forest_hash fhash[];
 extern struct data_value_formula formula[];
 extern int formulas;        // Number of formulas
 
+struct cli_options {
+    unsigned int decimals : 1;
+    unsigned int tree_count : 1;
+    unsigned int samples_max : 1;
+    unsigned int input_separator : 1;
+    unsigned int list_separator : 1;
+    unsigned int header : 1;
+    unsigned int outlier_score : 1;
+    unsigned int category_dims : 1;
+    unsigned int label_dims : 1;
+    unsigned int score_dims : 1;
+    unsigned int ignore_dims : 1;
+    unsigned int include_dims : 1;
+    unsigned int text_dims : 1;
+    unsigned int unique_samples : 1;
+    unsigned int aggregate : 1;
+    unsigned int print_string : 1;
+    unsigned int printf_format : 1;
+    unsigned int category_filter : 1;
+    unsigned int formulas : 1;
+};
+
+extern struct cli_options cli_given;
+
 
 
 /* ceif.c prototypes */

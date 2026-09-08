@@ -68,7 +68,7 @@ int header = 0;                   // input data has a header row to skip
 double outlier_score = 0.5;      // outlier score
 int decimals = 6;                 // Number of decimals when printing and saving dimension data
 int unique_samples = 0;           // accept only unique samples, in some cases this yields better results
-char *printf_format = "";       // User given printf format for dimension and average values
+char *printf_format = NULL;       // User given printf format for dimension and average values
 char list_separator = ',';         // seprator for dimension and average values in output
 int n_vector_adjust = 0;        // should n vector to be adjust among data set
 int aggregate = 0;              // should data values to be aggregated when adding new data to forest
@@ -82,16 +82,18 @@ int dimension_print_width = 25;   // dimension value printing width, used when p
 int ignore_expression_errors = 0; // Ingore data value change expression errors
 
 /* User given strings for dim ranges */
-char *ignore_dims = "";           // which input values are ignored, user given string
-char *include_dims = "";           // which input values are included, user given string
-char *category_dims = "";           // list of dimensions to be used as category label, user given string
-char *label_dims = "";           // list of dimensions to be used as category label, user given string
-char *text_dims = "";           // list of dimensions to be used as text based input values, user given string
-char *score_dims = "";           // list of dimensions which should together have high outlier score among total_score, user given string
+char *ignore_dims = NULL;           // which input values are ignored, user given string
+char *include_dims = NULL;           // which input values are included, user given string
+char *category_dims = NULL;           // list of dimensions to be used as category label, user given string
+char *label_dims = NULL;           // list of dimensions to be used as category label, user given string
+char *text_dims = NULL;           // list of dimensions to be used as text based input values, user given string
+char *score_dims = NULL;           // list of dimensions which should together have high outlier score among total_score, user given string
 
 int forest_count = 0;            // total number of forests
 int forest_cap = 0;              // forest capasity in terms of items in forest table
 struct forest *forest = NULL;    // forest table
+
+struct cli_options cli_given = {0};
 
 struct forest_hash fhash[HASH_MAX];  // hash table for forest data, speeds search when number of forests is high
 
@@ -345,6 +347,10 @@ int
 main (int argc, char **argv)
 {
     int opt;
+    int i;
+    int inplace_load = 0;
+    char *reset_categories[100];
+    int reset_category_count = 0;
     int set_locale = 0;
     int run_test = 0;
     int make_tree = 0;
@@ -375,6 +381,15 @@ main (int argc, char **argv)
     FILE *loads = NULL;           // file to read saved forest data
     FILE *outs = NULL;           // file to print results
 
+    ignore_dims = xstrdup("");
+    include_dims = xstrdup("");
+    category_dims = xstrdup("");
+    label_dims = xstrdup("");
+    text_dims = xstrdup("");
+    score_dims = xstrdup("");
+    printf_format = xstrdup("");
+    print_string = xstrdup("%s %v");
+
     atexit(print_alloc_debug);
     atexit(free_all_forests);
 
@@ -387,6 +402,21 @@ main (int argc, char **argv)
 
     read_config_file(CEIF_CONFIG);          // config file parameters are read before options
 
+    /* pre-scan for custom config file -g or --rc-file before parsing options */
+    for(i = 1; i < argc; i++)
+    {
+        if(strcmp(argv[i], "-g") == 0 && i + 1 < argc)
+        {
+            read_config_file(argv[i + 1]);
+        } else if(strncmp(argv[i], "--rc-file=", 10) == 0)
+        {
+            read_config_file(argv[i + 10]);
+        } else if(strcmp(argv[i], "--rc-file") == 0 && i + 1 < argc)
+        {
+            read_config_file(argv[i + 1]);
+        }
+    }
+
 #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)
 #else
@@ -397,38 +427,50 @@ main (int argc, char **argv)
             {
                 case 'd':
                     decimals = atoi(optarg);
+                    cli_given.decimals = 1;
                     break;
                 case 'I':
+                    if(ignore_dims != NULL && strcmp(ignore_dims, "") != 0) free(ignore_dims);
                     ignore_dims = xstrdup(optarg);
                     ignore_idx_count = parse_dims(optarg,ignore_idx);
+                    cli_given.ignore_dims = 1;
                     break;
                 case 'U':
+                    if(include_dims != NULL && strcmp(include_dims, "") != 0) free(include_dims);
                     include_dims = xstrdup(optarg);
                     include_idx_count = parse_dims(optarg,include_idx);
+                    cli_given.include_dims = 1;
                     break;
                 case 't':
                     tree_count = atoi(optarg);
                     if(tree_count < 2) panic("Tree count less than two makes no sense",NULL,NULL);
+                    cli_given.tree_count = 1;
                     break;
                 case 's':
                     samples_max = atoi(optarg);
                     if(samples_max < SAMPLES_MIN) panic("Low sample count makes no sense",NULL,NULL);
+                    cli_given.samples_max = 1;
                     break;
                 case 'f':
                     input_separator = optarg[0];
+                    cli_given.input_separator = 1;
                     break;
                 case 'l':
+                    if(learn_file != NULL) free(learn_file);
                     learn_file = xstrdup(optarg);
                     break;
                 case 'a':
+                    if(analyze_file != NULL) free(analyze_file);
                     analyze_file = xstrdup(optarg);
                     break;
                 case 'c':
+                    if(categorize_file != NULL) free(categorize_file);
                     categorize_file = xstrdup(optarg);
                     break;
                 case 'p':
                     if(print_string != NULL) free(print_string);
                     print_string = xstrdup(optarg);
+                    cli_given.print_string = 1;
                     break;
                 case 'j':
                     if(print_dimension != NULL) free(print_dimension);
@@ -437,48 +479,43 @@ main (int argc, char **argv)
                 case 'O':
                     parse_user_score(optarg);
                     score_option_given = 1;
+                    cli_given.outlier_score = 1;
                     break;
                 case 'w':
+                    if(save_file != NULL) free(save_file);
                     save_file = xstrdup(optarg);
                     break;
-                case 'z':   /* no break here */
+                case 'z':
+                    inplace_load = 1;
                     if(save_file == NULL) save_file = xstrdup(optarg);
-                case 'r':
+                    if(load_file != NULL) free(load_file);
                     load_file = xstrdup(optarg);
-                    DEBUG("*** Loading forest data from %s\n",load_file);
-
-                    /* load now, parameters after this take higher presence */
-                    if(forest_count == 0)
-                    {
-                        if (opt == 'z')    // test file readbility
-                        {
-                            loads = xfopen_test(load_file,"r",'a');
-                            if(loads != NULL)
-                            {
-                                xfclose(loads);
-                                if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
-                            }
-                        } else
-                        {
-                            if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
-                        }
-                    } 
+                    break;
+                case 'r':
+                    if(load_file != NULL) free(load_file);
+                    load_file = xstrdup(optarg);
                     break;
                 case 'C':
+                    if(category_dims != NULL && strcmp(category_dims, "") != 0) free(category_dims);
                     category_dims = xstrdup(optarg);
                     category_idx_count = parse_dims(optarg,category_idx);
+                    cli_given.category_dims = 1;
                     break;
                 case 'L':
+                    if(label_dims != NULL && strcmp(label_dims, "") != 0) free(label_dims);
                     label_dims = xstrdup(optarg);
                     label_idx_count = parse_dims(optarg,label_idx);
+                    cli_given.label_dims = 1;
                     break;
                 case 'H':
                     header = 1;
+                    cli_given.header = 1;
                     break;
                 case 'S':
                     set_locale = 1;
                     break;
                 case 'o':
+                    if(output_file != NULL) free(output_file);
                     output_file = xstrdup(optarg);
                     break;
                 case '?':
@@ -489,6 +526,7 @@ main (int argc, char **argv)
                     break;
                 case 'F':
                     add_category_filter(optarg);
+                    cli_given.category_filter = 1;
                     break;
                 case 'T':
                     if(optarg != NULL) test_extension_factor = atof(optarg);
@@ -501,12 +539,16 @@ main (int argc, char **argv)
                     unique_samples = 10;
                     if(optarg != NULL) unique_samples = atol(optarg);
                     if(unique_samples < 0 || unique_samples > 100) panic("Give unique sample percent between 0 and 100",NULL,NULL);
+                    cli_given.unique_samples = 1;
                     break;
                 case 'm':
+                    if(printf_format != NULL && strcmp(printf_format, "") != 0) free(printf_format);
                     printf_format = xstrdup(optarg);
+                    cli_given.printf_format = 1;
                     break;
                 case 'e':
                     list_separator = optarg[0];
+                    cli_given.list_separator = 1;
                     break;
                 case 'V':
                     print_version();
@@ -514,7 +556,11 @@ main (int argc, char **argv)
                     break;
                 case 'M':
                     print_missing = 1;
-                    if(optarg != NULL) missing_format = xstrdup(optarg);
+                    if(optarg != NULL)
+                    {
+                        if(missing_format != NULL && strcmp(missing_format, "%C") != 0) free(missing_format);
+                        missing_format = xstrdup(optarg);
+                    }
                     break;
                 case 'D':
                     delete_interval = parse_delete_interval(optarg);
@@ -522,6 +568,7 @@ main (int argc, char **argv)
                 case 'N':
                     if(optarg != NULL) 
                     {
+                        if(not_found_format != NULL) free(not_found_format);
                         not_found_format = xstrdup(optarg);
                     } else
                     {
@@ -530,14 +577,19 @@ main (int argc, char **argv)
                     break;
                 case 'A':
                     aggregate = 1;
+                    cli_given.aggregate = 1;
                     break;
                 case 'X':
+                    if(text_dims != NULL && strcmp(text_dims, "") != 0) free(text_dims);
                     text_dims = xstrdup(optarg);
                     text_idx_count = parse_dims(optarg,text_idx);
+                    cli_given.text_dims = 1;
                     break;
                 case 'G':
+                    if(score_dims != NULL && strcmp(score_dims, "") != 0) free(score_dims);
                     score_dims = xstrdup(optarg);
                     score_idx_count = parse_dims(optarg,score_idx);
+                    cli_given.score_dims = 1;
                     break;
                 case 'q':
                     make_query = 1;
@@ -553,7 +605,7 @@ main (int argc, char **argv)
                     kill_outlier++;
                     break;
                 case 'g':
-                    read_config_file(optarg);
+                    /* already handled in pre-scan before parsing options */
                     break;
                 case 'P':
                     print_correlation = 1;
@@ -562,6 +614,7 @@ main (int argc, char **argv)
                     print_average = 1;
                     if(optarg != NULL)
                     {
+                        if(average_format != NULL) free(average_format);
                         average_format = xstrdup(optarg);
                     } else
                     {
@@ -569,7 +622,10 @@ main (int argc, char **argv)
                     }
                     break;
                 case 'R':
-                    remove_samples(optarg);
+                    if(reset_category_count < 100)
+                    {
+                        reset_categories[reset_category_count++] = xstrdup(optarg);
+                    }
                     break;
                 case '=':
                     printf("sizeof double: %u\n",(unsigned int) sizeof(double));
@@ -578,12 +634,38 @@ main (int argc, char **argv)
                     break;
                 case 'Q':
                     parse_expression(optarg);
+                    cli_given.formulas = 1;
                     break;
                 default:
                     usage(opt);
                     break;
             }
         }
+
+    /* Defer file loading until after all CLI arguments are parsed and validated */
+    if(load_file != NULL)
+    {
+        DEBUG("*** Loading forest data from %s\n",load_file);
+        if(inplace_load)
+        {
+            loads = xfopen_test(load_file,"r",'a');
+            if(loads != NULL)
+            {
+                xfclose(loads);
+                if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
+            }
+        } else
+        {
+            if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
+        }
+    }
+
+    /* Apply deferred sample resets */
+    for(i = 0; i < reset_category_count; i++)
+    {
+        remove_samples(reset_categories[i]);
+        free(reset_categories[i]);
+    }
 
     srand(time(NULL) + getpid());
 
@@ -594,7 +676,7 @@ main (int argc, char **argv)
 
     samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;   // total samples count is trees * samples/tree, this can be limited using config MAX_SAMPLES
 
-    if(print_string == NULL) print_string = "%s %v";
+    if(print_string == NULL) print_string = xstrdup("%s %v");
         
     if(analyze_file !=  NULL || categorize_file !=  NULL || run_test || make_query || print_sample_s || 
        kill_outlier || print_correlation || print_average) make_tree = 1;  // we need tree info

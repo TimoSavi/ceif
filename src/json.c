@@ -306,7 +306,7 @@ void read_globals(json_object *globals)
     if(!json_object_object_get_ex(globals,AGGREGATE,&jaggregate)) panic("Error in globals object","","");
     json_object_object_get_ex(globals,FORMULA,&jformulas);
 
-    if(jformulas != NULL)
+    if(!cli_given.formulas && jformulas != NULL)
     {
         fcount = json_object_array_length(jformulas);
         for(i = 0;i < fcount;i++)
@@ -321,50 +321,94 @@ void read_globals(json_object *globals)
     if(dimensions > DIM_MAX) dimensions = DIM_MAX;
 
     forest_count = json_object_get_int(jforest_count);
-    print_string = xstrdup(json_object_get_string(jprint_string));
-    printf_format = xstrdup(json_object_get_string(jprintf_format));
-    tree_count = json_object_get_int(jtree_count);
-    samples_max = json_object_get_int(jsamples_max);
-    strcpy(str,json_object_get_string(jinput_separator));
-    input_separator = str[0];
-    strcpy(str,json_object_get_string(jlist_separator));
-    list_separator = str[0];
-    header = json_object_get_int(jheader);
+    if(!cli_given.print_string)
+    {
+        if(print_string != NULL) free(print_string);
+        print_string = xstrdup(json_object_get_string(jprint_string));
+    }
+    if(!cli_given.printf_format)
+    {
+        if(printf_format != NULL) free(printf_format);
+        printf_format = xstrdup(json_object_get_string(jprintf_format));
+    }
+    if(!cli_given.tree_count) tree_count = json_object_get_int(jtree_count);
+    if(!cli_given.samples_max) samples_max = json_object_get_int(jsamples_max);
+    if(!cli_given.input_separator)
+    {
+        strcpy(str,json_object_get_string(jinput_separator));
+        input_separator = str[0];
+    }
+    if(!cli_given.list_separator)
+    {
+        strcpy(str,json_object_get_string(jlist_separator));
+        list_separator = str[0];
+    }
+    if(!cli_given.header) header = json_object_get_int(jheader);
 
-    strcpy(str,json_object_get_string(joutlier_score));
-    parse_user_score(str);
+    if(!cli_given.outlier_score)
+    {
+        strcpy(str,json_object_get_string(joutlier_score));
+        parse_user_score(str);
+    }
 
-    strcpy(str,json_object_get_string(jcategory_dims));
-    category_dims = xstrdup(str);
-    category_idx_count = parse_dims(str,category_idx);
+    if(!cli_given.category_dims)
+    {
+        strcpy(str,json_object_get_string(jcategory_dims));
+        if(category_dims != NULL) free(category_dims);
+        category_dims = xstrdup(str);
+        category_idx_count = parse_dims(str,category_idx);
+    }
 
-    strcpy(str,json_object_get_string(jlabel_dims));
-    label_dims = xstrdup(str);
-    label_idx_count = parse_dims(str,label_idx);
+    if(!cli_given.label_dims)
+    {
+        strcpy(str,json_object_get_string(jlabel_dims));
+        if(label_dims != NULL) free(label_dims);
+        label_dims = xstrdup(str);
+        label_idx_count = parse_dims(str,label_idx);
+    }
 
-    strcpy(str,json_object_get_string(jscore_dims));
-    score_dims = xstrdup(str);
-    score_idx_count = parse_dims(str,score_idx);
+    if(!cli_given.score_dims)
+    {
+        strcpy(str,json_object_get_string(jscore_dims));
+        if(score_dims != NULL) free(score_dims);
+        score_dims = xstrdup(str);
+        score_idx_count = parse_dims(str,score_idx);
+    }
 
-    strcpy(str,json_object_get_string(jignore_dims));
-    ignore_dims = xstrdup(str);
-    ignore_idx_count = parse_dims(str,ignore_idx);
+    if(!cli_given.ignore_dims)
+    {
+        strcpy(str,json_object_get_string(jignore_dims));
+        if(ignore_dims != NULL) free(ignore_dims);
+        ignore_dims = xstrdup(str);
+        ignore_idx_count = parse_dims(str,ignore_idx);
+    }
     
-    strcpy(str,json_object_get_string(jinclude_dims));
-    include_dims = xstrdup(str);
-    include_idx_count = parse_dims(str,include_idx);
+    if(!cli_given.include_dims)
+    {
+        strcpy(str,json_object_get_string(jinclude_dims));
+        if(include_dims != NULL) free(include_dims);
+        include_dims = xstrdup(str);
+        include_idx_count = parse_dims(str,include_idx);
+    }
 
-    strcpy(str,json_object_get_string(jtext_dims));
-    text_dims = xstrdup(str);
-    text_idx_count = parse_dims(str,text_idx);
+    if(!cli_given.text_dims)
+    {
+        strcpy(str,json_object_get_string(jtext_dims));
+        if(text_dims != NULL) free(text_dims);
+        text_dims = xstrdup(str);
+        text_idx_count = parse_dims(str,text_idx);
+    }
 
-    strcpy(str,json_object_get_string(jfilter_str));
-    c = parse_csv_line(f,FILTER_MAX,str,';');
-    for(i = 0;i < c;i++) add_category_filter(f[i]);
+    if(!cli_given.category_filter)
+    {
+        strcpy(str,json_object_get_string(jfilter_str));
+        c = parse_csv_line(f,FILTER_MAX,str,';');
+        for(i = 0;i < c;i++) add_category_filter(f[i]);
+    }
 
-    decimals = json_object_get_int(jdecimals);
-    unique_samples = json_object_get_int(junique_samples);
-    aggregate = json_object_get_int(jaggregate);
+    if(!cli_given.decimals) decimals = json_object_get_int(jdecimals);
+    if(!cli_given.unique_samples) unique_samples = json_object_get_int(junique_samples);
+    if(!cli_given.aggregate) aggregate = json_object_get_int(jaggregate);
 
     samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;  
 }

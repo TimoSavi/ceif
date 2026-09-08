@@ -191,37 +191,72 @@ int parse_G(char *l)
     if(value_count == 23) // change this too if parameter count changes
     {
         dimensions = atoi(v[1]);
-        label_dims = xstrdup(v[2]);
-        label_idx_count = parse_dims(v[2],label_idx);
-        print_string = xstrdup(v[3]);
-        tree_count = atoi(v[4]);
-        samples_max = atoi(v[5]);
-        category_dims = xstrdup(v[6]);
-        category_idx_count = parse_dims(v[6],category_idx);
-        input_separator = v[7][0];
-        header = atoi(v[8]);
+        if(!cli_given.label_dims)
+        {
+            if(label_dims != NULL) free(label_dims);
+            label_dims = xstrdup(v[2]);
+            label_idx_count = parse_dims(v[2],label_idx);
+        }
+        if(!cli_given.print_string)
+        {
+            if(print_string != NULL) free(print_string);
+            print_string = xstrdup(v[3]);
+        }
+        if(!cli_given.tree_count) tree_count = atoi(v[4]);
+        if(!cli_given.samples_max) samples_max = atoi(v[5]);
+        if(!cli_given.category_dims)
+        {
+            if(category_dims != NULL) free(category_dims);
+            category_dims = xstrdup(v[6]);
+            category_idx_count = parse_dims(v[6],category_idx);
+        }
+        if(!cli_given.input_separator) input_separator = v[7][0];
+        if(!cli_given.header) header = atoi(v[8]);
 
-        parse_user_score(v[9]);
+        if(!cli_given.outlier_score) parse_user_score(v[9]);
 
-        score_dims = xstrdup(v[10]);
-        score_idx_count =  parse_dims(v[10],score_idx);
-        ignore_dims = xstrdup(v[11]);
-        ignore_idx_count = parse_dims(v[11],ignore_idx);
-        include_dims = xstrdup(v[12]);
-        include_idx_count = parse_dims(v[12],include_idx);
+        if(!cli_given.score_dims)
+        {
+            if(score_dims != NULL) free(score_dims);
+            score_dims = xstrdup(v[10]);
+            score_idx_count = parse_dims(v[10],score_idx);
+        }
+        if(!cli_given.ignore_dims)
+        {
+            if(ignore_dims != NULL) free(ignore_dims);
+            ignore_dims = xstrdup(v[11]);
+            ignore_idx_count = parse_dims(v[11],ignore_idx);
+        }
+        if(!cli_given.include_dims)
+        {
+            if(include_dims != NULL) free(include_dims);
+            include_dims = xstrdup(v[12]);
+            include_idx_count = parse_dims(v[12],include_idx);
+        }
         forest_count = atoi(v[13]);
 
-        c = parse_csv_line(f,FILTER_MAX,v[14],';');
-        for(i = 0;i < c;i++) add_category_filter(f[i]);
+        if(!cli_given.category_filter)
+        {
+            c = parse_csv_line(f,FILTER_MAX,v[14],';');
+            for(i = 0;i < c;i++) add_category_filter(f[i]);
+        }
 
-        decimals = atoi(v[15]);
-        unique_samples = atoi(v[16]);
-        printf_format = xstrdup(v[17]);
-        list_separator = v[18][0];
+        if(!cli_given.decimals) decimals = atoi(v[15]);
+        if(!cli_given.unique_samples) unique_samples = atoi(v[16]);
+        if(!cli_given.printf_format)
+        {
+            if(printf_format != NULL) free(printf_format);
+            printf_format = xstrdup(v[17]);
+        }
+        if(!cli_given.list_separator) list_separator = v[18][0];
         n_vector_adjust = atoi(v[19]);
-        aggregate = atoi(v[20]);
-        text_dims = xstrdup(v[21]);
-        text_idx_count = parse_dims(v[21],text_idx);
+        if(!cli_given.aggregate) aggregate = atoi(v[20]);
+        if(!cli_given.text_dims)
+        {
+            if(text_dims != NULL) free(text_dims);
+            text_dims = xstrdup(v[21]);
+            text_idx_count = parse_dims(v[21],text_idx);
+        }
 
         samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;   // total samples count is trees * samples/tree, this can be limited using config MAX_SAMPLES
         return 1;
