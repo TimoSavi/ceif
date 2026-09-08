@@ -113,7 +113,8 @@ The following variables are supported:
 |DEBUG|Print debug messages: 1 = yes, 0 = no|0|
 |PRINT\_DIMENSION|Printf format string for directive %m. May contain directives %d, %a, %e, and %i|""|
 |DIM\_PRINT\_WIDTH|Attribute metric column width when printing forest info with option -q|25|
-|CLUSTER\_SIZE|ceif identifies data clusters by selecting samples with the lowest scores and counting adjacent samples. Cluster radius is calculated by finding the distance from the lowest-scoring sample to the most distant sample, multiplied by this parameter (range: 0 to 1)|0.125|
+|CLUSTER_SIZE|ceif identifies data clusters by selecting samples with the lowest scores and counting adjacent samples. Cluster radius is calculated by finding the distance from the lowest-scoring sample to the most distant sample, multiplied by this parameter (range: 0 to 1)|0.125|
+|SPLIT_EXTENSION|Widening factor for pairwise split vector from both ends at tree root ($u \in [-\text{margin}, 1+\text{margin}]$, $\text{margin} = h_{\text{ratio}} \times \text{SPLIT\_EXTENSION}$). Creates a smooth, continuous outlier score gradient outside sample clusters. Set to 0 for strict interpolation within local sample pairs; also accepts alias `SPLIT_MARGIN`|1.0|
 |LOW_RGB_COLOR|RGB color code for score 0 (%x directive). Given as hex string (e.g., 0xffff00)|0xffff00 (yellow)|
 |HIGH_RGB_COLOR|RGB color code for score 1 (%x directive)|0xff0000 (red)|
 

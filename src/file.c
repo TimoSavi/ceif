@@ -384,10 +384,14 @@ void read_config_file(char *config_file)
         } else if((value = parse_config_line(input_line,"IGNORE_EXPR_PARSE_ERROR")) != NULL)
         {
             ignore_expression_errors = atoi(value);
+        } else if((value = parse_config_line(input_line,"SPLIT_EXTENSION")) != NULL ||
+                  (value = parse_config_line(input_line,"SPLIT_MARGIN")) != NULL)
+        {
+            set_split_extension(atof(value));
         } else if((value = parse_config_line(input_line,"CENTROID_THRESHOLD")) != NULL ||
                   (value = parse_config_line(input_line,"CENTROID_TRESSHOLD")) != NULL)
         {
-            /* Deprecated: pairwise interpolation is used; parameter preserved for backwards compatibility */
+            /* Deprecated: pairwise interpolation with widened vector is used; preserved for compatibility */
             set_centroid_tresshold(atof(value));
         } else
         {

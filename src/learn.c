@@ -32,6 +32,7 @@ static double fast_c_cache[FAST_C_SAMPLES];
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
 static double centroid_tresshold = CENTROID_TRESSHOLD;
+static double split_extension = DEFAULT_SPLIT_EXTENSION;
 
 /* hash function for hash table
  * calculates hash for string s
@@ -594,12 +595,27 @@ void set_centroid_tresshold(double new)
     centroid_tresshold = new;
 }
 
+void set_split_extension(double new)
+{
+    if(new < 0.0) new = 0.0;
+    split_extension = new;
+}
+
+double get_split_extension(void)
+{
+    return split_extension;
+}
+
 /* generate p from sample data.
  * returns pointer to p array.
  * p is chosen using pairwise interpolation between two random sample points
- * in the node's local sample set: p = x1 + u * (x2 - x1) with u in [0, 1].
- * This guarantees p lies on the segment connecting two local samples, avoiding
- * ghost outlier regions and arbitrary bounding box cutouts at all depths.
+ * in the node's local sample set: p = x1 + u * (x2 - x1).
+ * To provide a smooth outlier score increase outside the sample set, the interpolation
+ * vector is widened from both ends by a margin proportional to tree height ratio:
+ * u in [-margin, 1 + margin], where margin = heigth_ratio * split_extension.
+ * At shallow tree depths (root), the wider cuts create a smooth distance gradient into
+ * the empty space surrounding clusters. At deep levels (leaves), margin approaches 0,
+ * guaranteeing clean sample partitioning between remaining local points.
  * Legacy centroid threshold parameter is preserved for backwards compatibility.
  */
 static
@@ -608,7 +624,6 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     int i;
     static double p[DIM_MAX];
 
-    (void)heigth_ratio;
     (void)centroid_tresshold;
 
     DEBUG("(pairwise)");
@@ -623,7 +638,8 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     {
         s2 = s1;
     }
-    double u = rd(0.0, 1.0);
+    double margin = heigth_ratio * split_extension;
+    double u = (margin > 0.0) ? rd(-margin, 1.0 + margin) : rd(0.0, 1.0);
     double *x1 = X[samples[s1]].dimension;
     double *x2 = X[samples[s2]].dimension;
 

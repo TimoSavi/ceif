@@ -31,6 +31,7 @@
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 #define CENTROID_TRESSHOLD 0.45   // Deprecated: pairwise interpolation is used; kept for backwards compatibility
+#define DEFAULT_SPLIT_EXTENSION 1.0 // Extends pairwise split vector from both ends at tree root
 #define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
 
 
@@ -290,6 +291,8 @@ void parse_values(double *,char **, int, int);
 int ri(int, int);
 double *sample_dimension(struct sample *);
 void set_centroid_tresshold(double);  /* Deprecated: pairwise interpolation used; kept for backwards compatibility */
+void set_split_extension(double);
+double get_split_extension(void);
 void free_tree(struct tree *);
 void free_forest_trees(struct forest *);
 void free_forest_samples(struct forest *);
