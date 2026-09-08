@@ -484,6 +484,7 @@ char *make_label_string(int value_count,char **values)
 {
     int i;
     char *label;
+    char *val;
 
     label = make_separated_string(NULL,0);
 
@@ -493,23 +494,33 @@ char *make_label_string(int value_count,char **values)
         {
             if(label_idx[i] < value_count)
             {
-                make_separated_string(values[label_idx[i]],label_separator);
+                val = values[label_idx[i]];
+                make_separated_string(val ? val : "",label_separator);
             }
         }
-        make_separated_string(values[label_idx[label_idx_count - 1]],0);
+        if(label_idx[label_idx_count - 1] < value_count)
+        {
+            val = values[label_idx[label_idx_count - 1]];
+            label = make_separated_string(val ? val : "",0);
+        }
+        else
+        {
+            label = make_separated_string("",0);
+        }
     }
 
     return label;
 }
 
-/* make category sring using values from file and category_idx
- * values are concatenad with category_separator
+/* make category string using values from file and category_idx
+ * values are concatenated with category_separator
  * return pointer to string
  */
 char *make_category_string(int value_count,char **values)
 {
     int i;
     char *category;
+    char *val;
 
     category = make_separated_string(NULL,0);
 
@@ -519,10 +530,19 @@ char *make_category_string(int value_count,char **values)
         {
             if(category_idx[i] < value_count)
             {
-                make_separated_string(evaluate_data_expression(category_idx[i],value_count,values),category_separator);
+                val = evaluate_data_expression(category_idx[i],value_count,values);
+                make_separated_string(val ? val : "",category_separator);
             }
         }
-        make_separated_string(evaluate_data_expression(category_idx[category_idx_count - 1],value_count,values),0);
+        if(category_idx[category_idx_count - 1] < value_count)
+        {
+            val = evaluate_data_expression(category_idx[category_idx_count - 1],value_count,values);
+            category = make_separated_string(val ? val : "",0);
+        }
+        else
+        {
+            category = make_separated_string("",0);
+        }
     }
 
     return category;

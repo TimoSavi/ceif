@@ -38,9 +38,17 @@
 char *
 make_separated_string(char *item, char separator)
 {
-    static char string[10240];
+    static char *string = NULL;
+    static size_t string_cap = 0;
     static size_t write_pos = 0;
-    char *p;
+    size_t len;
+
+    if(string == NULL)
+    {
+        string_cap = 10240;
+        string = xmalloc(string_cap);
+        string[0] = '\000';
+    }
 
     if(item == NULL)
     {
@@ -48,13 +56,25 @@ make_separated_string(char *item, char separator)
         string[0] = '\000';
     } else
     {
-        p = item;
+        len = strlen(item);
 
-        while(*p) string[write_pos++] = *p++;
+        /* Ensure buffer has enough space for item, separator, and null terminator */
+        if(write_pos + len + 2 > string_cap)
+        {
+            while(write_pos + len + 2 > string_cap)
+            {
+                string_cap *= 2;
+            }
+            string = xrealloc(string, string_cap);
+        }
+
+        memcpy(string + write_pos, item, len);
+        write_pos += len;
 
         if(separator)
         {
             string[write_pos++] = separator;
+            string[write_pos] = '\000';
         } else
         {
             string[write_pos] = '\000';

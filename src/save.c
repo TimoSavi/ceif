@@ -65,22 +65,58 @@ void write_global_data(FILE *w,int f_count)
 }
 
 /* write dimension data to csv string
-   */
+ */
 static 
 char *dim_to_csv(int size,double *dim)
 {
-    static char csv[DIM_MAX*21];
-    char f[200];
+    static char *csv = NULL;
+    static size_t csv_cap = 0;
+    size_t pos = 0;
     int i;
+    int n;
 
-    csv[0] = '\000';
-
-    for(i = 0;i < size;i++) 
+    if (csv == NULL)
     {
-        sprintf(f,"%.*f|",decimals,dim[i]);
-        strcat(csv,f);
+        csv_cap = DIM_MAX * 32;
+        csv = xmalloc(csv_cap);
     }
-    if(size) csv[strlen(csv) - 1] = '\000';
+
+    if (size <= 0)
+    {
+        csv[0] = '\000';
+        return csv;
+    }
+
+    for (i = 0; i < size; i++) 
+    {
+        /* Ensure there is always room for the next float (at least 128 bytes) */
+        if (pos + 128 > csv_cap)
+        {
+            csv_cap = (pos + 128) * 2;
+            csv = xrealloc(csv, csv_cap);
+        }
+
+        n = snprintf(csv + pos, csv_cap - pos, "%.*f|", decimals, dim[i]);
+        if (n > 0)
+        {
+            if ((size_t)n >= csv_cap - pos)
+            {
+                csv_cap = pos + n + 128;
+                csv = xrealloc(csv, csv_cap);
+                n = snprintf(csv + pos, csv_cap - pos, "%.*f|", decimals, dim[i]);
+            }
+            pos += n;
+        }
+    }
+
+    if (pos > 0 && csv[pos - 1] == '|')
+    {
+        csv[pos - 1] = '\000';
+    } else
+    {
+        csv[pos] = '\000';
+    }
+
     return csv;
 }
 
@@ -105,7 +141,7 @@ save_forest(int forest_idx,FILE *w)
 
 
 /*
- * Save forest data to csv file, fields are sperated by semicolon, dimensions are seprated by pipe (|)
+ * Save forest data to csv file, fields are separated by semicolon, dimensions are separated by pipe (|)
  * data file format:
  * ID;data1;data2;...
  * where ID:

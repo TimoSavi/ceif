@@ -153,6 +153,8 @@ int parse_decimals(char *expr)
         *colon_pos = '\000';
         colon_pos++;
         decimals = atoi(colon_pos);
+        if(decimals < 0) decimals = 0;
+        if(decimals > 20) decimals = 20;
     }
     return decimals;
 }
@@ -264,10 +266,12 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
 {
     int f,r;
     struct data_value_formula *dvf;
-    char *s,*t;
+    char *s;
     double newval;
-    static char expr[2048];
-    static char retval[50];
+    static char *expr = NULL;
+    static size_t expr_cap = 0;
+    static char retval[128];
+    size_t pos;
 
     // likely case, check this first
     if(!formulas) return values[data_idx];
@@ -276,6 +280,11 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
     if(data_idx >= value_count) return "";
     if(!check_float_string(values[data_idx])) return values[data_idx];
 
+    if(expr == NULL)
+    {
+        expr_cap = 2048;
+        expr = xmalloc(expr_cap);
+    }
 
     for(f = 0;f < formulas;f++)
     {
@@ -284,7 +293,7 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
             dvf = &formula[f];
             s = dvf->expression;
             r = 0;
-            t = expr;
+            pos = 0;
             expr[0] = '\000';
 
             // copy expression to expr, replace all $-references with actual data values
@@ -293,10 +302,17 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
                 switch(*s)
                 {
                     case DATA_REFERENCE:
-                        if(dvf->dref[r].data_idx > -1 && dvf->dref[r].data_idx < value_count && r < dvf->dref_count)
+                        if(r < dvf->dref_count && dvf->dref[r].data_idx > -1 && dvf->dref[r].data_idx < value_count)
                         {
-                            strcpy(t,values[dvf->dref[r].data_idx]);
-                            while(*t) t++;
+                            char *val = values[dvf->dref[r].data_idx];
+                            size_t vlen = val ? strlen(val) : 0;
+                            if(pos + vlen + 1 > expr_cap)
+                            {
+                                while(pos + vlen + 1 > expr_cap) expr_cap *= 2;
+                                expr = xrealloc(expr, expr_cap);
+                            }
+                            if(vlen && val) memcpy(expr + pos, val, vlen);
+                            pos += vlen;
                             s += dvf->dref[r].length;
                         } else
                         {
@@ -305,27 +321,29 @@ evaluate_data_expression(int data_idx, int value_count,char **values)
                         r++;
                         break;
                     default:
-                        *t = *s;
-                        t++;
-                        s++;
+                        if(pos + 2 > expr_cap)
+                        {
+                            expr_cap *= 2;
+                            expr = xrealloc(expr, expr_cap);
+                        }
+                        expr[pos++] = *s++;
                         break;
                 }
             }
-            *t = '\000';
+            expr[pos] = '\000';
            
             newval = te_interp(expr,0);
             if(isnormal(newval) || newval == 0.0)
             {
-                sprintf(retval,"%.*f",dvf->decimals,newval);
+                snprintf(retval,sizeof(retval),"%.*f",dvf->decimals,newval);
             } else
             {
-
                 info("Expression cannot be interpreted or evaluated ",dvf->expression,NULL);
 
                 if(ignore_expression_errors)
                 {
                     info("Expression with parameters expanded, this will be replaced by zero",expr,NULL);
-                    sprintf(retval,"%.*f",dvf->decimals,0.0);
+                    snprintf(retval,sizeof(retval),"%.*f",dvf->decimals,0.0);
                 } else
                 {
                     panic("Expression with parameters expanded",expr,NULL);
