@@ -264,6 +264,11 @@ void parse_values(double *,char **, int, int);
 int ri(int, int);
 double *sample_dimension(struct sample *);
 void set_centroid_tresshold(double);
+void free_tree(struct tree *);
+void free_forest_trees(struct forest *);
+void free_forest_samples(struct forest *);
+void free_forest(struct forest *);
+void free_all_forests(void);
 
 
 

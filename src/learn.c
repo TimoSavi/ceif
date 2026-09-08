@@ -956,7 +956,8 @@ void train_one_forest(int forest_idx)
 
     if(f->filter) return;
     
-    if(f->t == NULL) f->t = xmalloc(tree_count * sizeof(struct tree));
+    if(f->t != NULL) free_forest_trees(f);
+    f->t = xmalloc(tree_count * sizeof(struct tree));
 
     f->X_current = ri(0,f->X_count - 1);           // start at random point
 
@@ -1196,6 +1197,142 @@ test2(FILE *outs,double test_extension_factor,int test_sample_interval)
     free(prev_dimension);
     free(len);
     free(sidx);
+}
+
+/* Free all nodes, normal vectors, and leaf samples within a single tree */
+void free_tree(struct tree *t)
+{
+    int i;
+    if(t == NULL) return;
+
+    if(t->n != NULL)
+    {
+        for(i = 0; i < t->node_count; i++)
+        {
+            if(t->n[i].n != NULL)
+            {
+                free(t->n[i].n);
+                t->n[i].n = NULL;
+            }
+            if(t->n[i].samples != NULL)
+            {
+                free(t->n[i].samples);
+                t->n[i].samples = NULL;
+            }
+        }
+        free(t->n);
+        t->n = NULL;
+    }
+    t->node_count = 0;
+    t->node_cap = 0;
+}
+
+/* Free all trees in a forest */
+void free_forest_trees(struct forest *f)
+{
+    int i;
+    if(f == NULL || f->t == NULL) return;
+
+    for(i = 0; i < tree_count; i++)
+    {
+        free_tree(&f->t[i]);
+    }
+    free(f->t);
+    f->t = NULL;
+}
+
+/* Free all sample dimensions and sample table in a forest */
+void free_forest_samples(struct forest *f)
+{
+    int i;
+    if(f == NULL || f->X == NULL) return;
+
+    for(i = 0; i < f->X_count; i++)
+    {
+        if(f->X[i].dimension != NULL)
+        {
+            free(f->X[i].dimension);
+            f->X[i].dimension = NULL;
+        }
+        if(f->X[i].scaled_dimension != NULL)
+        {
+            free(f->X[i].scaled_dimension);
+            f->X[i].scaled_dimension = NULL;
+        }
+    }
+    free(f->X);
+    f->X = NULL;
+    f->X_count = 0;
+    f->X_cap = 0;
+}
+
+/* Free an entire forest including trees, samples, category, and metric vectors */
+void free_forest(struct forest *f)
+{
+    if(f == NULL) return;
+
+    free_forest_trees(f);
+    free_forest_samples(f);
+
+    if(f->category != NULL)
+    {
+        free(f->category);
+        f->category = NULL;
+    }
+    if(f->min != NULL)
+    {
+        free(f->min);
+        f->min = NULL;
+    }
+    if(f->max != NULL)
+    {
+        free(f->max);
+        f->max = NULL;
+    }
+    if(f->avg != NULL)
+    {
+        free(f->avg);
+        f->avg = NULL;
+    }
+    if(f->dim_density != NULL)
+    {
+        free(f->dim_density);
+        f->dim_density = NULL;
+    }
+    if(f->summary != NULL)
+    {
+        free(f->summary);
+        f->summary = NULL;
+    }
+}
+
+/* Free all allocated forests and hash table indices */
+void free_all_forests(void)
+{
+    int i;
+
+    for(i = 0; i < forest_count; i++)
+    {
+        free_forest(&forest[i]);
+    }
+    if(forest != NULL)
+    {
+        free(forest);
+        forest = NULL;
+        forest_count = 0;
+        forest_cap = 0;
+    }
+
+    for(i = 0; i < HASH_MAX; i++)
+    {
+        if(fhash[i].idx != NULL)
+        {
+            free(fhash[i].idx);
+            fhash[i].idx = NULL;
+        }
+        fhash[i].idx_count = 0;
+        fhash[i].idx_cap = 0;
+    }
 }
 
 

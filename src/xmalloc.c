@@ -21,6 +21,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__linux__) || defined(__GLIBC__)
+#include <malloc.h>
+#define HAVE_MALLOC_USABLE_SIZE 1
+#elif defined(__APPLE__)
+#include <malloc/malloc.h>
+#define malloc_usable_size(p) malloc_size(p)
+#define HAVE_MALLOC_USABLE_SIZE 1
+#elif defined(_WIN32)
+#include <malloc.h>
+#define malloc_usable_size(p) _msize(p)
+#define HAVE_MALLOC_USABLE_SIZE 1
+#endif
+
 #if STDC_HEADERS
 
 #else  /* !STDC_HEADERS */
@@ -93,15 +106,24 @@ xcalloc (n, s)
 VOID *
 xrealloc (VOID *p, size_t n)
 {
-  size_t old;
+  size_t old = 0;
 
   if (p == 0)
     return xmalloc (n);
-  old = sizeof(p);
+
+#ifdef HAVE_MALLOC_USABLE_SIZE
+  old = malloc_usable_size (p);
+#endif
+
   p = realloc (p, n);
   if (p == 0)
     p = fixup_null_alloc (n);
-  total_allocation += n - old;
+
+  if (n > old)
+    total_allocation += (n - old);
+  else if (total_allocation >= (old - n))
+    total_allocation -= (old - n);
+
   return p;
 }
 
@@ -115,7 +137,6 @@ xstrdup (const char *str)
 
   p = xmalloc (len + 1);
   strcpy (p, str);
-  total_allocation += len;
   return p;
 }
 
@@ -171,5 +192,5 @@ xfopen_test(char *name, char *mode, char bin_asc)
 void
 print_alloc_debug()
 {
-    DEBUG("Total dynamic memory allocation = %u\n",(unsigned int) total_allocation);
+    DEBUG("Total dynamic memory allocation = %zu bytes\n", total_allocation);
 }

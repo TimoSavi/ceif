@@ -1381,7 +1381,8 @@ void remove_samples(char *forest_string)
 
     if(forest_idx >= 0) 
     {
-        forest[forest_idx].X_count = 0;
+        free_forest_trees(&forest[forest_idx]);
+        free_forest_samples(&forest[forest_idx]);
     } else
     {
         info("No forest matching category string",forest_string,NULL);

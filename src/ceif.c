@@ -376,6 +376,7 @@ main (int argc, char **argv)
     FILE *outs = NULL;           // file to print results
 
     atexit(print_alloc_debug);
+    atexit(free_all_forests);
 
     setlocale(LC_ALL,"C");
 
