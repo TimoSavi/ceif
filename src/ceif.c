@@ -453,14 +453,13 @@ main (int argc, char **argv)
                         if (opt == 'z')    // test file readbility
                         {
                             loads = xfopen_test(load_file,"r",'a');
+                            if(loads != NULL)
+                            {
+                                xfclose(loads);
+                                if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
+                            }
                         } else
                         {
-                            loads = xfopen(load_file,"r",'a');
-                        }
-
-                        if(loads != NULL)
-                        {
-                            fclose(loads);
                             if(!read_forest_file(load_file)) panic("Cannot load forest data from file",load_file,NULL);
                         }
                     } 
@@ -619,7 +618,7 @@ main (int argc, char **argv)
             DEBUG("\n***read training data from file %s\n",learn_file);
             learns = xfopen(learn_file,"r",'a');
             train_forest(learns,1,make_tree); 
-            fclose(learns);
+            xfclose(learns);
             free(learn_file);
             learn_file = NULL;
         } 
@@ -630,7 +629,7 @@ main (int argc, char **argv)
     if(print_density)
     {
         print_sample_density(outs,common_scale);
-        fclose(outs);
+        xfclose(outs);
         exit(0);
     }
 
@@ -638,7 +637,7 @@ main (int argc, char **argv)
     {
         analyzes = xfopen(analyze_file,"r",'a');
         analyze(analyzes,outs,not_found_format,average_format);
-        fclose(analyzes);
+        xfclose(analyzes);
         if(print_missing) print_missing_categories(outs,missing_format);
     }
 
@@ -646,34 +645,34 @@ main (int argc, char **argv)
     {
         categorizes = xfopen(categorize_file,"r",'a');
         categorize(categorizes,score_option_given,outs);
-        fclose(categorizes);
+        xfclose(categorizes);
     }
 
     if(learn_file != NULL) 
     {
         learns = xfopen(learn_file,"r",'a');
         train_forest(learns,forest_count ? 0 : 1,0); 
-        fclose(learns);
+        xfclose(learns);
     } 
 
     if(make_query)
     {
         print_forest_info(outs);
-        fclose(outs);
+        xfclose(outs);
         exit(0);
     }
     
     if(print_sample_s)
     {
         print_sample_scores(outs);
-        fclose(outs);
+        xfclose(outs);
         exit(0);
     }
 
     if(print_correlation)
     {
         print_correlation_coefficent(outs);
-        fclose(outs);
+        xfclose(outs);
         exit(0);
     }
 
@@ -689,7 +688,7 @@ main (int argc, char **argv)
         test2(outs,test_extension_factor,test_range_interval);
     }
 
-    fclose(outs);
+    xfclose(outs);
 
     exit(0) ;
 }

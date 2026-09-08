@@ -381,6 +381,7 @@ void read_config_file(char *config_file)
              panic("Unknown option in config file",input_line,NULL);
         }
     }
+    xfclose(f);
 }
 
 

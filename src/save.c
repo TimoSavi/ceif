@@ -165,7 +165,7 @@ write_forest_file_csv(char *file_name,time_t delete_interval)
         if(delete_interval == (time_t) 0 || (delete_interval > (time_t) 0 && forest[i].last_updated >= now - delete_interval)) save_forest(i,fp);
     }
 
-    fclose(fp);
+    xfclose(fp);
 }
 
 /* write forest data to file. If JSON is available use JSON else CSV
@@ -301,16 +301,13 @@ void forest_error(int linenumber)
  * returns 1 in case read was ok, 0 other wise
  */
 int 
-read_forest_file_csv(char *file_name)
+read_forest_file_csv_stream(FILE *fp)
 {
     int f_count,line,value_count;
     int ln = 0;
     int retval = 0;
     static char *values[DIM_MAX];
     static double new[DIM_MAX];
-    FILE *fp;
-
-    fp = xfopen(file_name,"r",'a');
 
     do
     {
@@ -388,61 +385,66 @@ read_forest_file_csv(char *file_name)
 
     end:
 
-    fclose(fp);
+    return retval;
+}
+
+int 
+read_forest_file_csv(char *file_name)
+{
+    FILE *fp;
+    int retval;
+
+    fp = xfopen(file_name,"r",'a');
+    retval = read_forest_file_csv_stream(fp);
+    xfclose(fp);
 
     return retval;
 }
 
-/* Check the forest data file type. Makes a wild guess using the first char in the file
- * */
-static
-int check_forest_file_type(char *file_name)
-{
-    FILE *fp;
-    int first;
-
-    fp = xfopen(file_name,"r",'a');
-
-    first = fgetc(fp);
-
-    fclose(fp);
-
-    switch(first)
-    {
-        case '{':
-            return FILE_JSON;
-            break;
-        case 'G':
-            return FILE_CSV;
-            break;
-    }
-    return FILE_UNKNOWN;
-}
-
-
-
-
 /*
- * read saved forest structure to  memory
+ * read saved forest structure to memory
  * returns 1 in case read was ok, 0 otherwise
  */
 int 
 read_forest_file(char *file_name)
 {
-    int file_type = check_forest_file_type(file_name);
+    FILE *fp;
+    int first;
+    int retval = 0;
 
-    switch(file_type)
+    fp = xfopen(file_name,"r",'a');
+
+    first = fgetc(fp);
+    if(first == EOF)
     {
-        case FILE_JSON:
-            return read_forest_file_json(file_name);
+        xfclose(fp);
+        panic("Empty forest file: ", file_name, "");
+        return 0;
+    }
+
+    if(ungetc(first, fp) == EOF)
+    {
+        xfclose(fp);
+        panic("Failed to buffer stream for: ", file_name, "");
+        return 0;
+    }
+
+    switch(first)
+    {
+        case '{':
+            retval = read_forest_file_json_stream(fp, file_name);
             break;
-        case FILE_CSV:
-            return read_forest_file_csv(file_name);
+        case 'G':
+        case 'F':
+            retval = read_forest_file_csv_stream(fp);
             break;
         default:
-            panic("Unknown file format: ", file_name,"");
+            xfclose(fp);
+            panic("Unknown file format: ", file_name, "");
             break;
     }
-    return 0;
+
+    xfclose(fp);
+    return retval;
 }
  

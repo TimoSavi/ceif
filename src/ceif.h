@@ -226,6 +226,7 @@ VOID *xrealloc (VOID *, size_t);
 char *xstrdup (const char *);
 FILE * xfopen(char *, char *, char);
 FILE * xfopen_test(char *, char *, char);
+int xfclose(FILE *);
 void print_alloc_debug(void);
 
 
@@ -300,10 +301,13 @@ void init_high_rgb(unsigned int);
 /* save.c prototypes */
 void write_forest_file(char *,time_t);
 int read_forest_file(char *);
+int read_forest_file_csv(char *);
+int read_forest_file_csv_stream(FILE *);
 
 /* json.c prototypes */
 int write_forest_file_json(char *,time_t);
 int read_forest_file_json(char *);
+int read_forest_file_json_stream(FILE *, char *);
 
 /* expr.c prototypes */
 void parse_expression(char *);

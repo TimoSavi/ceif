@@ -140,12 +140,13 @@ xstrdup (const char *str)
   return p;
 }
 
+static int stdin_opened = 0;
+static int stdout_opened = 0;
+
 FILE *
 xfopen(char *name, char *mode, char bin_asc)
 {
     register FILE *ret;
-    static int stdin_opened = 0;
-    static int stdout_opened = 0;
 
     if(name[0] == '-' && name[1] == '\000')
     {
@@ -160,33 +161,67 @@ xfopen(char *name, char *mode, char bin_asc)
             stdout_opened = 1;
             return stdout;
         }
+    }
 
-   }
-
-
-   ret = fopen(name,mode);
-   if(ret == NULL) panic("Error in opening file",name,strerror(errno));
+    ret = fopen(name,mode);
+    if(ret == NULL) panic("Error in opening file",name,strerror(errno));
 
 #if defined(HAVE_SETMODE) && defined(WIN32)
-   if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
-   if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
+    if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
+    if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
 #endif
-   return ret;
+    return ret;
 }
 
 FILE *
 xfopen_test(char *name, char *mode, char bin_asc)
 {
-   register FILE *ret;
+    register FILE *ret;
 
-   ret = fopen(name,mode);
-   if(ret == NULL) return ret;
+    if(name[0] == '-' && name[1] == '\000')
+    {
+        if(mode[0] == 'r' && mode[1] == '\000')
+        {
+            if(stdin_opened) return NULL;
+            return stdin;
+        } else
+        {
+            if(stdout_opened) return NULL;
+            return stdout;
+        }
+    }
+
+    ret = fopen(name,mode);
+    if(ret == NULL) return ret;
 
 #if defined(HAVE_SETMODE) && defined(WIN32)
-   if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
-   if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
+    if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
+    if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
 #endif
-   return ret;
+    return ret;
+}
+
+int
+xfclose(FILE *fp)
+{
+    if(fp == NULL) return 0;
+    if(fp == stdin)
+    {
+        stdin_opened = 0;
+        return 0;
+    }
+    if(fp == stdout)
+    {
+        fflush(stdout);
+        stdout_opened = 0;
+        return 0;
+    }
+    if(fp == stderr)
+    {
+        fflush(stderr);
+        return 0;
+    }
+    return fclose(fp);
 }
 
 void

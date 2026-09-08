@@ -235,7 +235,18 @@ int write_forest_file_json(char *file_name,time_t delete_interval)
 
     json_object_object_add(root,FORESTS,jforests);
 
-    if(json_object_to_file(file_name,root) == -1) panic("Cannot write to file",file_name,"");
+    if(file_name[0] == '-' && file_name[1] == '\0')
+    {
+        const char *json_str = json_object_to_json_string_ext(root, JSON_C_TO_STRING_PRETTY);
+        if(!json_str) json_str = json_object_to_json_string(root);
+        fputs(json_str, stdout);
+        fputc('\n', stdout);
+        fflush(stdout);
+    }
+    else
+    {
+        if(json_object_to_file(file_name,root) == -1) panic("Cannot write to file",file_name,"");
+    }
         
     json_object_put(root);
     return 1;
@@ -433,21 +444,35 @@ void init_forest(int forest_idx,json_object *jforest)
 
 /* read json formatted forest data into memory
  */
-int read_forest_file_json(char *file_name)
+int read_forest_file_json_stream(FILE *fp, char *file_name)
 {
     int forest_idx;
-
-    json_object *root = json_object_from_file(file_name);
+    json_object *root = NULL;
     json_object *globals;
     json_object *forests;
+    struct json_tokener *tok;
+    char buffer[4096];
+    size_t bytes_read;
 
-    if(!root) panic("Cannot read file: ",file_name,"");
+    tok = json_tokener_new();
+    if(!tok) panic("Failed to allocate JSON tokener", "", "");
+
+    while((bytes_read = fread(buffer, 1, sizeof(buffer), fp)) > 0)
+    {
+        root = json_tokener_parse_ex(tok, buffer, bytes_read);
+        if(json_tokener_get_error(tok) != json_tokener_continue)
+            break;
+    }
+    json_tokener_free(tok);
+
+    if(!root) panic("Cannot read JSON file: ", file_name ? file_name : "<stream>", "");
 
     if(json_object_object_get_ex(root,GLOBALS,&globals))
     {
         read_globals(globals);
     } else
     {
+        json_object_put(root);
         panic("No globals in JSON file","","");
     }
     
@@ -474,6 +499,18 @@ int read_forest_file_json(char *file_name)
     return 1;
 }
 
+int read_forest_file_json(char *file_name)
+{
+    FILE *fp;
+    int retval;
+
+    fp = xfopen(file_name, "r", 'a');
+    retval = read_forest_file_json_stream(fp, file_name);
+    xfclose(fp);
+
+    return retval;
+}
+
 #else
 
 /* no json-c support cases
@@ -481,6 +518,12 @@ int read_forest_file_json(char *file_name)
 int
 write_forest_file_json(char *file_name,time_t delete_interval)
 {
+    return 0;
+}
+
+int read_forest_file_json_stream(FILE *fp, char *file_name)
+{
+    panic("JSON not implemented","","");
     return 0;
 }
 
