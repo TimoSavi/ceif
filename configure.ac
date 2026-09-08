@@ -1,4 +1,4 @@
-AC_INIT([ceif],[2.5],[tjsa@iki.fi])
+AC_INIT([ceif],[2.6-preview],[tjsa@iki.fi])
 AC_USE_SYSTEM_EXTENSIONS
 AM_INIT_AUTOMAKE([-Wall -Werror foreign tar-pax])
 AC_PROG_CC
