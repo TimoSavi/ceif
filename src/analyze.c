@@ -1318,9 +1318,6 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
     if(!first) dimension =  xmalloc(dimensions * sizeof(double));
     
     DEBUG("*** Starting categorizing\n");
-
-    set_centroid_tresshold(0.75);     // Use higher value for categorizing, yields slightly better results
-
     scale_score = 1;
 
     for(forest_idx = 0;forest_idx < forest_count;forest_idx++)  calculate_sample_score_range(forest_idx); // calculate score range for socre scaling
@@ -1402,7 +1399,6 @@ categorize(FILE *in_stream, int score_limit, FILE *outs)
         }
     }
 
-    set_centroid_tresshold(CENTROID_TRESSHOLD);   // Set to default
     scale_score = save_scale_score;
 
     if(dimension != NULL) free(dimension);

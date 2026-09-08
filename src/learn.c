@@ -31,8 +31,6 @@ static double fast_c_cache[FAST_C_SAMPLES];
 
 static char input_line[INPUT_LEN_MAX];
 static time_t now;
-static double centroid_tresshold = CENTROID_TRESSHOLD;
-static double split_extension = DEFAULT_SPLIT_EXTENSION;
 
 /* hash function for hash table
  * calculates hash for string s
@@ -590,41 +588,22 @@ void v_subt(double *a, double *b)
     for(i = 0;i < dimensions;i++) a[i] -= b[i];
 }
 
-void set_centroid_tresshold(double new)
-{
-    centroid_tresshold = new;
-}
-
-void set_split_extension(double new)
-{
-    if(new < 0.0) new = 0.0;
-    split_extension = new;
-}
-
-double get_split_extension(void)
-{
-    return split_extension;
-}
-
 /* generate p from sample data.
  * returns pointer to p array.
  * p is chosen using pairwise interpolation between two random sample points
  * in the node's local sample set: p = x1 + u * (x2 - x1).
- * To provide a smooth outlier score increase outside the sample set, the interpolation
- * vector is widened from both ends by a margin proportional to tree height ratio:
- * u in [-margin, 1 + margin], where margin = heigth_ratio * split_extension.
- * At shallow tree depths (root), the wider cuts create a smooth distance gradient into
- * the empty space surrounding clusters. At deep levels (leaves), margin approaches 0,
- * guaranteeing clean sample partitioning between remaining local points.
- * Legacy centroid threshold parameter is preserved for backwards compatibility.
+ * The interpolation vector is widened from both ends by a margin proportional to
+ * tree height ratio: u in [-margin, 1 + margin], where margin = heigth_ratio * 0.5.
+ * At shallow tree depths (root, level 0), margin is 0.5 (u in [-0.5, 1.5]), creating
+ * a smooth distance gradient into the empty space outside sample clusters.
+ * At deep levels (leaves), margin contracts to 0.0 (u in [0.0, 1.0]), guaranteeing
+ * clean sample partitioning between remaining local points.
  */
 static
 double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio)
 {
     int i;
     static double p[DIM_MAX];
-
-    (void)centroid_tresshold;
 
     DEBUG("(pairwise)");
     int s1 = ri(0,sample_count - 1);
@@ -638,8 +617,8 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     {
         s2 = s1;
     }
-    double margin = heigth_ratio * split_extension;
-    double u = (margin > 0.0) ? rd(-margin, 1.0 + margin) : rd(0.0, 1.0);
+    double margin = heigth_ratio * 0.5;
+    double u = rd(-margin, 1.0 + margin);
     double *x1 = X[samples[s1]].dimension;
     double *x2 = X[samples[s2]].dimension;
 

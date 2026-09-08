@@ -201,7 +201,6 @@ static struct option long_opts[] =
   {"print-dimension", 1, 0, 'j'},
   {"score-dims", 1, 0, 'G'},
   {"expression", 1, 0, 'Q'},
-  {"split-extension", 1, 0, 1001},
   {NULL, 0, NULL, 0}
 };
 #endif
@@ -259,7 +258,6 @@ Options:\n\
   -v, --average STRING         print summary statistics for analyzed data using format STRING\n\
   -R, --reset-forest STRING    remove all samples for forest matching category STRING\n\
   -Q, --expression STRING      transform input values using expression STRING (prefix with '-' to remove)\n\
-      --split-extension FLOAT  widening factor for pairwise split vector at tree root (default 1.0)\n\
 \nExit status:\n\
   0  if OK and no anomalies detected,\n\
   1  if fatal error,\n\
@@ -689,9 +687,6 @@ main (int argc, char **argv)
                 case 'Q':
                     parse_expression(optarg);
                     cli_given.formulas = 1;
-                    break;
-                case 1001:
-                    set_split_extension(atof(optarg));
                     break;
                 default:
                     usage(opt);
