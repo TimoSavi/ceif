@@ -209,55 +209,67 @@ static void
 help (int status)
 {
   printf ("%s - Categorized extended isolation forest tool\n", PACKAGE_NAME);
-  printf ("Usage: %s [OPTION]... \n", PACKAGE_NAME);
+  printf ("Usage: %s [WORKFLOW] [OPTIONS]...\n\n", PACKAGE_NAME);
   printf ("\
-Options:\n\
-  -d, --decimals INTEGER       number of decimals when printing and saving dimension values\n\
-  -h, --help                   display this help and exit\n\
+Core Workflows:\n\
+  -l, --learn FILE             learn forest model from sample data FILE (use '-' for stdin)\n\
+  -a, --analyze FILE           analyze FILE for anomalies against forest model\n\
+  -r, --read-forest FILE       load pre-trained forest model from FILE (use '-' for stdin)\n\
+  -w, --write-forest FILE      save trained forest model to FILE (use '-' for stdout)\n\
+  -z, --inplace-forest FILE    load forest from FILE, update with new data, and save back\n\
+  -c, --categorize FILE        classify FILE against all categories and assign best match\n\
+\n\
+Anomaly Thresholds & Filtering:\n\
+  -O, --outlier-score FLOAT    anomaly threshold; print rows with score >= FLOAT (0.0 - 1.0)\n\
+  -O, --outlier-score FLOATs   scaled score threshold normalized by forest min/max (0.0s - 1.0s)\n\
+  -O, --outlier-score FLOAT%%   percentile score threshold covering top FLOAT%% (0 - 100)\n\
+  -F, --category-filter REGEXP filter categories by regex (multiple allowed; prefix \"-v \" to invert)\n\
+\n\
+Input & Field Selection:\n\
+  -f, --input-separator CHAR   field separator for input data files (default: comma ',')\n\
+  -H, --header                 skip the first line (header) in input data files\n\
+  -C, --category-dim LIST      comma-separated column indices to group into categories (1-based)\n\
+  -L, --label-dim LIST         comma-separated column indices to treat as row labels (not trained)\n\
+  -I, --ignore-dims LIST       comma-separated column indices/ranges to ignore (e.g. 1,4-6)\n\
+  -U, --use-dims LIST          comma-separated column indices to include (overrides -I)\n\
+  -X, --text-dims LIST         comma-separated column indices to treat as text (hashed to integers)\n\
+  -G, --score-dims LIST        attribute indices to score jointly alongside total score\n\
+\n\
+Output & Formatting:\n\
+  -o, --output FILE            destination file for output (default: stdout)\n\
+  -p, --print FORMAT           outlier output format string (default: \"%%s %%v\")\n\
+  -d, --decimals INTEGER       decimal precision when printing and saving values (default: 6)\n\
+  -e, --list-separator CHAR    separator character for list directives in format string\n\
+  -m, --printf-format FORMAT   printf format string for numeric dimension printing\n\
+  -j, --print-dimension FORMAT format string for joint dimension metrics (directive %%m)\n\
+  -v, --average FORMAT         print summary statistics for analyzed data using FORMAT\n\
+\n\
+Forest Model Tuning:\n\
+  -t, --trees INTEGER          number of isolation trees per forest (default: 100)\n\
+  -s, --samples INTEGER        number of samples per isolation tree (default: 256)\n\
+  -u, --unique-samples INTEGER percentage of samples checked for uniqueness (0-100, default: 10)\n\
+  -A, --aggregate              aggregate new sample values by category rather than storing raw rows\n\
+  -k, --remove-outlier         prune sample with largest outlier score (can be specified multiple times)\n\
+  -D, --delete INTERVAL        prune stale forests not updated within INTERVAL (e.g. 30D, 1Y)\n\
+  -R, --reset-forest CAT       clear all samples for category CAT before learning\n\
+\n\
+Inspection & Diagnostics:\n\
+  -q, --query                  print forest metadata, category counts, and dimensions, then exit\n\
+  -E, --sample-scores          print sample rows with their internal anomaly scores and exit\n\
+  -y, --sample-density         display terminal ASCII heatmap of sample density and exit\n\
+  -yy                          display ASCII density heatmap using common scale and exit\n\
+  -P, --correlation-coe        print Pearson correlation coefficients & regression slopes and exit\n\
+  -T, --test FLOAT             generate synthetic grid test data with margin FLOAT\n\
+  -i, --test-interval INTEGER  grid resolution per dimension for option -T (default: 256)\n\
+  -M, --missing [FORMAT]       report known categories not seen during analysis\n\
+  -N, --new [FORMAT]           report unknown categories seen in input data\n\
+\n\
+General Options:\n\
+  -g, --rc-file FILE           read settings from FILE (default: ~/.ceifrc)\n\
+  -Q, --expression EXPR        transform fields using math expression (prefix '-' to remove)\n\
+  -S, --set-locale             apply environment locale settings for number formatting\n\
   -V, --version                output version information and exit\n\
-  -I, --ignore-dims LIST       comma-separated list of field indices to ignore (1-based). Ranges can be specified with a dash\n\
-  -U, --use-dims LIST          comma-separated list of field indices to include (1-based). Overrides overlapping entries from -I\n\
-  -t, --trees INTEGER          number of trees. Default is 100\n\
-  -s, --samples INTEGER        number of samples per tree. Default is 256\n\
-  -f, --input-separator CHAR   input file field separator. Default is comma\n\
-  -l, --learn FILE             file to use for training\n\
-  -a, --analyze FILE           file to analyze\n\
-  -c, --categorize FILE        file to categorize\n\
-  -p, --print STRING           outlier printing format\n\
-  -j, --print-dimension STRING print format for directive %%m, prints joined dimension metrics\n\
-  -o, --output FILE            outlier data is printed to FILE. Default is stdout\n\
-  -w, --write-forest FILE      write forest data to FILE\n\
-  -O, --outlier-score FLOAT    outlier data is printed if score is greater than or equal to FLOAT (0.0 - 1.0)\n\
-  -O, --outlier-score FLOATs   scaled outlier score (0.0s - 1.0s); raw scores are normalized to 0..1 using forest min/max\n\
-  -O, --outlier-score FLOAT%%   percentile outlier score; threshold covering FLOAT percent of samples (0 - 100)\n\
-  -r, --read-forest FILE       read forest data from FILE\n\
-  -z, --inplace-forest FILE    read forest data from FILE and, after processing, write back to FILE\n\
-  -C, --category-dim LIST      comma-separated list of field indices to form a category string\n\
-  -L, --label-dim LIST         comma-separated list of field indices to form a label string\n\
-  -H, --header                 input data file has a header line to skip\n\
-  -S, --set-locale             read locale information from environment\n\
-  -T, --test FLOAT             generate test data with adjustment factor FLOAT\n\
-  -i, --test-interval INTEGER  number of test points for each dimension, default is 256. Used with option -T\n\
-  -F, --category-filter REGEXP regular expression to filter categories. Multiple options allowed. Prefix with \"-v \" to invert match\n\
-  -u, --unique-samples INTEGER percentage of samples checked for uniqueness (0-100, default 10)\n\
-  -m, --printf-format STRING   printf format string for dimension and average value printing\n\
-  -e, --list-separator CHAR    value separator for dimension and average value printing\n\
-  -M, --missing STRING         print category values of forests not used in analysis. Optional format STRING used for printing\n\
-  -D, --delete INTEGER         delete forests not updated within INTEGER seconds (or Y, M, D, m) before saving\n\
-  -N, --new STRING             print values that do not match any known category. Optional format STRING used for printing\n\
-  -A, --aggregate              aggregate new sample values by category rather than storing individual rows\n\
-  -X, --text-dims STRING       comma-separated list of field indices to treat as text (hashed to integers)\n\
-  -G, --score-dims STRING      comma-separated list of dimension attribute indices to score jointly alongside total score\n\
-  -q, --query                  print forest info and exit\n\
-  -y, --sample-density         print ASCII map of forest sample value densities and exit\n\
-  -yy                          print ASCII density map using a common scale for all forests and exit\n\
-  -E, --sample-scores          print sample values with sample scores and exit\n\
-  -k, --remove-outlier         remove sample with largest outlier score (can be specified multiple times)\n\
-  -g, --rc-file FILE           read global settings from FILE (default is ~/.ceifrc)\n\
-  -P, --correlation-coe        print correlation coefficients with regression slopes and y-intercepts for each dimension pair and exit\n\
-  -v, --average STRING         print summary statistics for analyzed data using format STRING\n\
-  -R, --reset-forest STRING    remove all samples for forest matching category STRING\n\
-  -Q, --expression STRING      transform input values using expression STRING (prefix with '-' to remove)\n\
+  -h, --help                   display this help text and exit\n\
 \nExit status:\n\
   0  if OK and no anomalies detected,\n\
   1  if fatal error,\n\
