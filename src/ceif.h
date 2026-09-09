@@ -228,6 +228,7 @@ struct cli_options {
     unsigned int printf_format : 1;
     unsigned int category_filter : 1;
     unsigned int formulas : 1;
+    unsigned int print_dimension : 1;
 };
 
 extern struct cli_options cli_given;

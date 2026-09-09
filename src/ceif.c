@@ -100,6 +100,8 @@ static char *average_format = NULL;
 static char *not_found_format = NULL;
 static char *reset_categories[100];
 static int reset_category_count = 0;
+static char *custom_rc_files[100];
+static int custom_rc_count = 0;
 
 static void free_cli_globals(void)
 {
@@ -136,6 +138,12 @@ static void free_cli_globals(void)
         if(reset_categories[i] != NULL) { free(reset_categories[i]); reset_categories[i] = NULL; }
     }
     reset_category_count = 0;
+
+    for(i = 0; i < custom_rc_count; i++)
+    {
+        if(custom_rc_files[i] != NULL) { free(custom_rc_files[i]); custom_rc_files[i] = NULL; }
+    }
+    custom_rc_count = 0;
 
     free_separated_string_buffer();
     free_dim_csv_buffer();
@@ -465,21 +473,6 @@ main (int argc, char **argv)
 
     read_config_file(CEIF_CONFIG);          // config file parameters are read before options
 
-    /* pre-scan for custom config file -g or --rc-file before parsing options */
-    for(i = 1; i < argc; i++)
-    {
-        if(strcmp(argv[i], "-g") == 0 && i + 1 < argc)
-        {
-            read_config_file(argv[i + 1]);
-        } else if(strncmp(argv[i], "--rc-file=", 10) == 0)
-        {
-            read_config_file(argv[i] + 10);
-        } else if(strcmp(argv[i], "--rc-file") == 0 && i + 1 < argc)
-        {
-            read_config_file(argv[i + 1]);
-        }
-    }
-
 #ifdef HAVE_GETOPT_LONG
     while ((opt = getopt_long(argc,argv,short_opts,long_opts,NULL)) != -1)
 #else
@@ -538,6 +531,7 @@ main (int argc, char **argv)
                 case 'j':
                     if(print_dimension != NULL) free(print_dimension);
                     print_dimension = xstrdup(optarg);
+                    cli_given.print_dimension = 1;
                     break;
                 case 'O':
                     parse_user_score(optarg);
@@ -669,7 +663,10 @@ main (int argc, char **argv)
                     kill_outlier++;
                     break;
                 case 'g':
-                    /* already handled in pre-scan before parsing options */
+                    if(custom_rc_count < 100)
+                    {
+                        custom_rc_files[custom_rc_count++] = xstrdup(optarg);
+                    }
                     break;
                 case 'P':
                     print_correlation = 1;
@@ -728,6 +725,18 @@ main (int argc, char **argv)
             load_file = NULL;
         }
     }
+
+    /* Apply custom rc-files (-g / --rc-file) after loading forest file so custom settings take precedence */
+    for(i = 0; i < custom_rc_count; i++)
+    {
+        if(custom_rc_files[i] != NULL)
+        {
+            read_config_file(custom_rc_files[i]);
+            free(custom_rc_files[i]);
+            custom_rc_files[i] = NULL;
+        }
+    }
+    custom_rc_count = 0;
 
     /* Apply deferred sample resets */
     for(i = 0; i < reset_category_count; i++)

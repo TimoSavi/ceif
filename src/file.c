@@ -324,13 +324,13 @@ void read_config_file(char *config_file)
 
         if((value = parse_config_line(input_line,"SAMPLES")) != NULL)
         {
-            samples_max = atoi(value);
+            if(!cli_given.samples_max) samples_max = atoi(value);
         } else if((value = parse_config_line(input_line,"TREES")) != NULL)
         {
-            tree_count = atoi(value);
+            if(!cli_given.tree_count) tree_count = atoi(value);
         } else if((value = parse_config_line(input_line,"DECIMALS")) != NULL)
         {
-            decimals = atoi(value);
+            if(!cli_given.decimals) decimals = atoi(value);
         } else if((value = parse_config_line(input_line,"AUTO_WEIGTH")) != NULL)
         {
             auto_weigth = atoi(value);
@@ -350,7 +350,7 @@ void read_config_file(char *config_file)
              max_total_samples = atoi(value);
         } else if((value = parse_config_line(input_line,"OUTLIER_SCORE")) != NULL)
         {
-             parse_user_score(value);
+             if(!cli_given.outlier_score) parse_user_score(value);
         } else if((value = parse_config_line(input_line,"NEAREST")) != NULL)
         {
              if(atoi(value)) nearest = 1;
@@ -369,8 +369,11 @@ void read_config_file(char *config_file)
             if(isnan(cluster_relative_size) || cluster_relative_size < 0.0 || cluster_relative_size > 1.0) cluster_relative_size = 0.125;
         } else if((value = parse_config_line(input_line,"PRINT_DIMENSION")) != NULL)
         {
-            if(print_dimension != NULL) free(print_dimension);
-            print_dimension = xstrdup(value);
+            if(!cli_given.print_dimension)
+            {
+                if(print_dimension != NULL) free(print_dimension);
+                print_dimension = xstrdup(value);
+            }
         } else if((value = parse_config_line(input_line,"DIM_PRINT_WIDTH")) != NULL)
         {
             dimension_print_width = atoi(value);
