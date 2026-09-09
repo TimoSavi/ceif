@@ -25,6 +25,7 @@
 #include <math.h>
 #include <regex.h>
 #include <time.h>
+#include <float.h>
 
 static double fast_n_cache[FAST_N_SAMPLES];
 static double fast_c_cache[FAST_C_SAMPLES];
@@ -600,7 +601,7 @@ void v_subt(double *a, double *b)
  * clean sample partitioning between remaining local points.
  */
 static
-double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio)
+double *generate_p(struct forest *f,int sample_count,int *samples,struct sample *X,double heigth_ratio)
 {
     int i;
     static double p[DIM_MAX];
@@ -617,10 +618,44 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
     {
         s2 = s1;
     }
-    double margin = heigth_ratio * 1.0;
-    double u = rd(-margin, 1.0 + margin);
     double *x1 = X[samples[s1]].dimension;
     double *x2 = X[samples[s2]].dimension;
+
+    /* Adaptive pair-distance margin:
+     * When x1 and x2 are close neighbors (e.g. inside a dense blob), pair distance is small,
+     * so we keep a wider margin to create a smooth, gentle boundary into outer space.
+     * When x1 and x2 are far apart (bridging across an empty void, hole, or between disjoint
+     * clusters/arcs), pair distance is large, so margin contracts to 0.0 (u in [0, 1]).
+     * This guarantees that p falls strictly inside the non-data gap, cleanly bisecting
+     * the void and separating distinct topological structures.
+     */
+    double d2 = 0.0;
+    int valid_dims = 0;
+    for(i = 0; i < dimensions; i++)
+    {
+        double nmin = X[samples[0]].dimension[i];
+        double nmax = nmin;
+        int s;
+        for(s = 1; s < sample_count; s++)
+        {
+            double v = X[samples[s]].dimension[i];
+            if(v < nmin) nmin = v;
+            if(v > nmax) nmax = v;
+        }
+        double range = nmax - nmin;
+        if(range > 0.0)
+        {
+            double diff = (x2[i] - x1[i]) / range;
+            d2 += diff * diff;
+            valid_dims++;
+        }
+    }
+    double d_norm = (valid_dims > 0) ? sqrt(d2 / (double) valid_dims) : 0.0;
+    double pair_factor = 1.0 - d_norm * 2.0;
+    if(pair_factor < 0.0) pair_factor = 0.0;
+
+    double margin = heigth_ratio * pair_factor;
+    double u = rd(-margin, 1.0 + margin);
 
     for(i = 0;i < dimensions;i++) {
         p[i] = x1[i] + u * (x2[i] - x1[i]);
@@ -814,7 +849,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     this->rigth = -1;
 
     DEBUG(" interception point ");
-    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit));
+    p = generate_p(f,sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit));
 
     if(auto_weigth) p = scale_dimension(p,f);
 
@@ -970,26 +1005,30 @@ void train_one_forest(int forest_idx)
     n_effective = (f->X_count < samples_max) ? f->X_count : samples_max;
     if(n_effective < 1) n_effective = 1;
 
-    if(!auto_weigth || f->scale_range_idx == -1)
+    /* Calculate actual average 1-nearest-neighbor sample distance across samples */
+    int nn_count = (f->X_count < samples_max) ? f->X_count : samples_max;
+    if(nn_count > 256) nn_count = 256;
+    if(nn_count > 1)
     {
-        double sum_log_range = 0.0;
-        int valid_dims = 0;
-        for(i = 0; i < dimensions; i++)
+        double sum_nn = 0.0;
+        for(i = 0; i < nn_count; i++)
         {
-            double r = f->max[i] - f->min[i];
-            if(r > 0.0)
+            double min_d = DBL_MAX;
+            double *s1 = sample_dimension(&f->X[i]);
+            int j;
+            for(j = 0; j < nn_count; j++)
             {
-                sum_log_range += log(r);
-                valid_dims++;
+                if(i == j) continue;
+                double d = v_dist_nosqrt(s1, sample_dimension(&f->X[j]));
+                if(d < min_d) min_d = d;
             }
+            if(min_d < DBL_MAX) sum_nn += sqrt(min_d);
         }
-        int d = (valid_dims > 0) ? valid_dims : dimensions;
-        double log_side = (sum_log_range - log((double) n_effective)) / (double) d;
-        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) * exp(log_side);
-    } else // if autoscaling the hypercube side is the same as f->max[f->scale_range_idx] - f->min[f->scale_range_idx]
+        f->avg_sample_dist = sum_nn / (double) nn_count;
+    }
+    else
     {
-        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) *
-            ((f->max[f->scale_range_idx] - f->min[f->scale_range_idx]) / pow((double) n_effective, 1.0 / (double) dimensions));
+        f->avg_sample_dist = 1.0;
     }
 
     if(f->filter) return;
