@@ -27,8 +27,9 @@
 
 1. **Scaled Score (`-O 0.80s`) — Recommended for most cron jobs**
    Raw scores are normalized $0.0 \dots 1.0$ against the min/max scores seen in that specific category's forest. Setting `-O 0.85s` alerts only when an event enters the top 15% severity band of that forest.
-2. **Percentile Cutoff (`-O 99%` or `-O 99.5%`)**
-   Alerts only on samples scoring above the specified percentile rank of training samples.
+2. **Percentile Cutoff (`-O 99%` or `-O 80%`)**
+   - High percentiles (`-O 99%` / `99.5%`): Alerts only on rare, extreme point anomalies.
+   - Moderate percentiles (`-O 80%`): Used for **macro population drift detection**, alerting when the fraction of new samples entering the top quintile significantly exceeds baseline expectation (e.g. $\ge 40\%$).
 3. **Fixed Score (`-O 0.65`)**
    Direct unscaled isolation score. $0.5$ is typical baseline density; $> 0.65$ indicates significant structural isolation.
 
@@ -139,24 +140,85 @@ tail -F /var/log/suricata/eve-network.csv |   ceif -r /var/lib/ceif/network.f -a
 
 ---
 
-## 8. Format Directives Quick Reference (`-p STRING`)
+## 8. Recipe 6: Population Drift & Distribution Shift Detection (`-O 80% -v`)
 
-Customize alert outputs using formatting directives:
+Standard point-anomaly detection searches for rare outlier events ($< 1\%$ of traffic). In contrast, **population drift detection** evaluates whether the macro-level distribution of telemetry has shifted across an entire population, category, or time window.
 
-| Directive | Output Value | Example |
-|:---|:---|:---|
-| **`%s`** | Anomaly score | `0.781204` |
-| **`%S`** | Scaled anomaly score ($0 \dots 1$) | `0.924101` |
-| **`%C`** | Category name (from `-C`) | `web-prod-03` |
-| **`%l`** | Row label (from `-L`) | `request_id_9981` |
-| **`%v`** | Raw input dimension values | `45.2, 120.4, 0.02` |
-| **`%t`** | Current ISO-8601 timestamp | `2026-09-08 14:55:00` |
-| **`%x`** | Hex RGB color code (for dashboards) | `#ff2200` |
-| **`%m`** | Multi-dimension metric summary (with `-j`) | `cpu=98% mem=92%` |
+### Concept
+
+When evaluating a batch of samples against a baseline model with an 80th-percentile threshold (`-O 80%`), in normal steady-state operations exactly **20%** of samples will exceed the threshold by definition.
+
+If a new batch arrives and suddenly **$\ge 40\%$** of samples score as outliers, the underlying statistical distribution has drifted (e.g., due to software rollouts, changed network routing, customer behavioral shifts, or system degradation):
+
+$$\text{Drift Ratio} = \frac{\%h \text{ (outlier count)}}{\%o \text{ (analyzed rows)}} \ge 0.40 \implies \mathbf{Alert: Population Drift}$$
+
+Unlike univariate statistical tests, `ceif` detects multivariate covariance shifts across all dimensions simultaneously in milliseconds with constant memory.
+
+### Implementation
+
+Combine `-p ""` (to suppress individual sample output) with `-v "%C %h %o %S"` to emit concise aggregate statistics per category:
+- `%C`: Category / service name
+- `%h`: Count of rows with score $\ge$ threshold
+- `%o`: Count of analyzed rows
+- `%S`: Mean anomaly score of the batch
+
+```bash
+#!/bin/bash
+# /usr/local/bin/check-population-drift.sh
+set -euo pipefail
+
+MODEL="/var/lib/ceif/baseline.f"
+BATCH="/var/log/traffic/last-hour.csv"
+DRIFT_THRESHOLD=0.40   # Alert if >= 40% of samples fall into top quintile
+
+drift_alerts=$(ceif -r "$MODEL" -a "$BATCH" -O 80% -p "" -v "%C %h %o %S" | \
+awk -v thresh="$DRIFT_THRESHOLD" '
+{
+    category  = ($1 == "" ? "default" : $1);
+    outliers  = $2;
+    total     = $3;
+    avg_score = $4;
+    ratio     = (total > 0 ? (outliers / total) : 0);
+
+    if (ratio >= thresh) {
+        printf("DRIFT ALERT [%s]: %.1f%% outliers exceed 80th-percentile (outliers=%d, total=%d, avg_score=%s)\n",
+               category, ratio * 100, outliers, total, avg_score);
+        drift_found = 1;
+    }
+}
+END {
+    if (drift_found) exit 2;
+}')
+
+if [ $? -eq 2 ]; then
+    echo "$drift_alerts" | mail -s "[CEIF DRIFT] Population Distribution Shift Detected" noc-alerts@example.com
+    exit 2
+fi
+```
 
 ---
 
-## 9. Standard Crontab Best Practices for `ceif`
+## 9. Format Directives Quick Reference (`-p STRING` & `-v STRING`)
+
+Customize individual alert outputs (`-p`) or aggregate summary statistics (`-v`):
+
+| Directive | Available In | Output Value | Example |
+|:---|:---|:---|:---|
+| **`%s`** | `-p`, `-v` | Anomaly score | `0.781204` |
+| **`%S`** | `-p`, `-v` | Average anomaly score for analyzed data | `0.654120` |
+| **`%C`** | `-p`, `-v` | Category name (from `-C`) | `web-prod-03` |
+| **`%h`** | `-p`, `-v` | Count of rows exceeding outlier threshold | `400` |
+| **`%o`** | `-p`, `-v` | Count of analyzed rows for forest | `1000` |
+| **`%n`** | `-p`, `-v` | Total rows in forest | `1000` |
+| **`%l`** | `-p` | Row label (from `-L`) | `request_id_9981` |
+| **`%v`** | `-p` | Raw input dimension values | `45.2, 120.4, 0.02` |
+| **`%t`** | `-p`, `-v` | Current timestamp (formatted via locale) | `2026-09-08 14:55:00` |
+| **`%x`** | `-p`, `-v` | Hex RGB color code (for dashboards) | `#ff2200` |
+| **`%m`** | `-p` | Multi-dimension metric summary (with `-j`) | `cpu=98% mem=92%` |
+
+---
+
+## 10. Standard Crontab Best Practices for `ceif`
 
 1. **Always Set `PATH`:** Ensure cron's minimal environment finds your binaries (`PATH=/usr/local/bin:/usr/bin:/bin`).
 2. **Use File Locks (`flock`):** When combining `-z` (rolling updates) with `-a` (scoring), use `flock` to prevent concurrent writes to the `.f` model file.
@@ -164,7 +226,7 @@ Customize alert outputs using formatting directives:
 
 ---
 
-## 10. Centralized Threshold & Configuration Hierarchy (`-g`)
+## 11. Centralized Threshold & Configuration Hierarchy (`-g`)
 
 In complex production environments running multiple cron jobs across different datasets or microservices, avoid hardcoding thresholds across multiple crontabs or scripts. Use a centralized custom config file (`-g`):
 
@@ -181,4 +243,5 @@ Settings are resolved in the following priority order:
 2. **Forest Model (`-r` / `-z`):** Settings saved at training time in the model file.
 3. **Custom Config (`-g` / `--rc-file`):** Overrides model-stored settings for centralized management.
 4. **Direct CLI Options (`-O`, `-t`, `-s`, etc.):** Highest priority; overrides all configuration files.
+
 
