@@ -49,7 +49,7 @@ Input data is assumed to be comma-separated values. A different separator can be
 | -yy | Print an ASCII density map of forest information using a common sample scale for all forests and exit|
 | -E | Print samples with their sample scores and exit|
 | -k | Remove the sample having the maximum sample score for each non-filtered forest. If specified multiple times, multiple outliers are removed. The updated sample set can be saved with option -w|
-| -g&nbsp;FILE | Use FILE as the rc-file instead of ~/.ceifrc. Note that options in FILE override options specified before -g|
+| -g&nbsp;FILE | Use FILE as custom rc-file instead of ~/.ceifrc. Overrides settings stored in forest model files (-r / -z). Can be specified multiple times|
 | -P | Print a list of correlation coefficients with regression line slopes and y-intercepts for every dimension attribute pair and exit. The correlation coefficient ranges from -1.0 to 1.0|
 | -R&nbsp;STRING | Remove all samples for the forest whose category string matches STRING|
 | -v&nbsp;STRING | Print average score and other summary statistics calculated from analyzed data using format STRING|
@@ -94,7 +94,27 @@ The category value separator is a semicolon and the label value separator is a d
 
 ### User rc-file
 Default settings can be loaded from the user-specific rc-file `~/.ceifrc`. The file contains variable-value pairs separated by whitespace. Comments start with `#`. 
-These values can be overridden by command options and loaded forest data (read via option -r). Note that a file specified with option -g overrides options specified prior to -g.
+
+#### Configuration Hierarchy and Precedence
+
+When running `ceif`, configuration values are resolved using an explicit precedence hierarchy:
+
+$$\text{Built-in Defaults} \;\;<\;\; \mathtt{\sim/.ceifrc} \;\;<\;\; \text{Forest Model } (\mathtt{-r} / \mathtt{-z}) \;\;<\;\; \text{Custom Config } (\mathtt{-g}) \;\;<\;\; \text{CLI Flags } (\mathtt{-O}, \mathtt{-t}, \dots)$$
+
+1. **Built-in Defaults:** Initial hardcoded values compiled into `ceif`.
+2. **User Default RC-file (`~/.ceifrc`):** Read automatically at startup if present.
+3. **Loaded Forest Model (`-r` or `-z`):** Model files store the parameters (`OUTLIER_SCORE`, `TREES`, `SAMPLES`, `CATEGORY_SEPARATOR`, etc.) calibrated when the forest was trained. Loading a model file applies those stored values, overriding `~/.ceifrc`.
+4. **Custom RC-file (`-g` or `--rc-file`):** Settings specified in custom config files are parsed **after** the forest model is loaded. This allows you to centralize control of operational settings (such as `OUTLIER_SCORE`, `NEAREST`, `ANALYZE_SAMPLING`, `PRINT_DIMENSION`) across multiple different forest models from a single config file. Multiple `-g` flags can be specified and are evaluated in command-line order.
+5. **Command-Line Options (`-O`, `-t`, `-s`, `-d`, `-p`, `-j`, etc.):** Direct command-line options take ultimate priority and will never be overridden by any configuration file or model file.
+
+> [!TIP]
+> **Centralized Threshold Management Across Multiple Models:**
+> When managing automated pipelines or cron jobs evaluating different services or datasets with separate forest models, you can standardize scoring thresholds and operational parameters using a shared configuration file:
+> ```bash
+> # Both jobs evaluate distinct models but apply the centralized threshold defined in alert-rules.rc:
+> ceif -r /var/lib/ceif/auth_service.f  -g /etc/ceif/alert-rules.rc -a /var/log/auth.csv
+> ceif -r /var/lib/ceif/db_service.f    -g /etc/ceif/alert-rules.rc -a /var/log/db.csv
+> ```
 
 The following variables are supported:
 

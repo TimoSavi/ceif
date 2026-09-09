@@ -161,3 +161,24 @@ Customize alert outputs using formatting directives:
 1. **Always Set `PATH`:** Ensure cron's minimal environment finds your binaries (`PATH=/usr/local/bin:/usr/bin:/bin`).
 2. **Use File Locks (`flock`):** When combining `-z` (rolling updates) with `-a` (scoring), use `flock` to prevent concurrent writes to the `.f` model file.
 3. **Capture Exit Code `2`:** In monitoring scripts, `exit 2` means anomalies were detected, whereas `exit 1` means syntax or file I/O error. Check `$?` to distinguish between real security/metric alerts and misconfiguration.
+
+---
+
+## 10. Centralized Threshold & Configuration Hierarchy (`-g`)
+
+In complex production environments running multiple cron jobs across different datasets or microservices, avoid hardcoding thresholds across multiple crontabs or scripts. Use a centralized custom config file (`-g`):
+
+```bash
+# Both cron jobs evaluate distinct models but apply the centralized threshold defined in cron-rules.rc:
+ceif -r /var/lib/ceif/auth.f -g /etc/ceif/cron-rules.rc -a /var/log/auth.csv
+ceif -r /var/lib/ceif/db.f   -g /etc/ceif/cron-rules.rc -a /var/log/db.csv
+```
+
+### Precedence Hierarchy
+
+Settings are resolved in the following priority order:
+1. **`~/.ceifrc`:** User baseline defaults.
+2. **Forest Model (`-r` / `-z`):** Settings saved at training time in the model file.
+3. **Custom Config (`-g` / `--rc-file`):** Overrides model-stored settings for centralized management.
+4. **Direct CLI Options (`-O`, `-t`, `-s`, etc.):** Highest priority; overrides all configuration files.
+
