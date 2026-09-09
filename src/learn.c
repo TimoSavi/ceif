@@ -658,9 +658,42 @@ scale_double(double value, double range, double scale_min, double min, double ma
 }
 
 
-/* calculate average tree height for given sample size n
- * using Euler-Maclaurin expansion for H_{n-1}
+/* =========================================================================
+ * Calculation of Average Tree Height c(n) (Isolation Forest Normalizer)
+ * =========================================================================
+ * In Isolation Forest theory (Liu, Ting, Zhou, 2008), an isolation tree has
+ * the exact mathematical structure of a random Binary Search Tree (BST).
+ * The average path length of an unsuccessful search in a BST constructed
+ * from n samples is given theoretically by:
+ *
+ *     c(n) = 2 * H(n - 1) - (2 * (n - 1) / n)
+ *
+ * where H(k) is the k-th Harmonic Number:
+ *     H(k) = 1 + 1/2 + 1/3 + ... + 1/k
+ *
+ * Traditional Approximation vs. Exact Calculation:
+ * ------------------------------------------------
+ * In literature, H(k) is often approximated using Euler's constant (gamma ~ 0.5772156649):
+ *     H(k) ~ ln(k) + 0.5772156649
+ * which yields the well-known 1-line formula:
+ *     c(n) ~ 2 * (ln(n - 1) + 0.5772156649) - (2 * (n - 1) / n)
+ *
+ * However, the simple ln(k) + gamma formula has significant approximation error
+ * for small k (e.g. at small leaf nodes where n = 3, exact H(2) = 1.5, whereas
+ * ln(2) + 0.5772 = 1.270, an error of ~15%).
+ *
+ * Implementation in ceif:
+ * -----------------------
+ * 1. init_fast_c_cache(): At startup, precomputes c(n) for n = 0 .. FAST_C_SAMPLES - 1
+ *    using an exact iterative accumulator for H(n-1) in O(N) total time. This gives
+ *    100% exact theoretical values with zero approximation error and O(1) runtime lookups.
+ * 2. _c(n): Fallback for unusually large sample sizes (n >= FAST_C_SAMPLES). It uses
+ *    the higher-order Euler-Maclaurin expansion for H_{n-1} (including +1/(2m) - 1/(12m^2))
+ *    which matches the exact harmonic sum to high precision.
+ * =========================================================================
  */
+
+/* Fallback c(n) calculation for n >= FAST_C_SAMPLES using Euler-Maclaurin expansion */
 static
 double _c(int n)
 {
@@ -680,7 +713,9 @@ double c(int n)
     return _c(n);
 }
 
-/* Init the fast_c_cache table with exact harmonic numbers */
+/* Init the fast_c_cache table with exact harmonic numbers:
+ * Calculates H(n-1) = 1 + 1/2 + 1/3 + ... + 1/(n-1) iteratively in O(N) time.
+ */
 void init_fast_c_cache(void)
 {
     int n;
