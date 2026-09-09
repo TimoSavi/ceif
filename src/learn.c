@@ -629,30 +629,93 @@ double *generate_p(struct forest *f,int sample_count,int *samples,struct sample 
      * This guarantees that p falls strictly inside the non-data gap, cleanly bisecting
      * the void and separating distinct topological structures.
      */
-    double d2 = 0.0;
-    int valid_dims = 0;
+    /* Scan all samples in this node:
+     * 1. Determine local bounding box (nmin, nmax)
+     * 2. Calculate average distance between consecutive points in the randomly sorted samples array.
+     *    Because samples are randomly ordered, consecutive pairs give an unbiased estimate of
+     *    the average point distance across the node, with far less variance than a single random pair.
+     */
+    double nmin[DIM_MAX];
+    double nmax[DIM_MAX];
+    int s;
+
     for(i = 0; i < dimensions; i++)
     {
-        double nmin = X[samples[0]].dimension[i];
-        double nmax = nmin;
-        int s;
+        nmin[i] = X[samples[0]].dimension[i];
+        nmax[i] = nmin[i];
+    }
+    for(s = 1; s < sample_count; s++)
+    {
+        double *v = X[samples[s]].dimension;
+        for(i = 0; i < dimensions; i++)
+        {
+            if(v[i] < nmin[i]) nmin[i] = v[i];
+            if(v[i] > nmax[i]) nmax[i] = v[i];
+        }
+    }
+
+    double avg_consec_dist = 0.0;
+    if(sample_count > 1)
+    {
+        double sum_dist = 0.0;
+        int pair_count = 0;
         for(s = 1; s < sample_count; s++)
         {
-            double v = X[samples[s]].dimension[i];
-            if(v < nmin) nmin = v;
-            if(v > nmax) nmax = v;
+            double *p1 = X[samples[s - 1]].dimension;
+            double *p2 = X[samples[s]].dimension;
+            double d2 = 0.0;
+            int valid = 0;
+            for(i = 0; i < dimensions; i++)
+            {
+                double range = nmax[i] - nmin[i];
+                if(range > 0.0)
+                {
+                    double diff = (p2[i] - p1[i]) / range;
+                    d2 += diff * diff;
+                    valid++;
+                }
+            }
+            if(valid > 0)
+            {
+                sum_dist += sqrt(d2 / (double) valid);
+                pair_count++;
+            }
         }
-        double range = nmax - nmin;
+        if(pair_count > 0) avg_consec_dist = sum_dist / (double) pair_count;
+    }
+
+    /* Distance of the chosen split pair x1, x2 normalized by node bounds */
+    double pair_d2 = 0.0;
+    int pair_valid = 0;
+    for(i = 0; i < dimensions; i++)
+    {
+        double range = nmax[i] - nmin[i];
         if(range > 0.0)
         {
             double diff = (x2[i] - x1[i]) / range;
-            d2 += diff * diff;
-            valid_dims++;
+            pair_d2 += diff * diff;
+            pair_valid++;
         }
     }
-    double d_norm = (valid_dims > 0) ? sqrt(d2 / (double) valid_dims) : 0.0;
-    double pair_factor = 1.0 - d_norm * 2.0;
-    if(pair_factor < 0.0) pair_factor = 0.0;
+    double pair_dist = (pair_valid > 0) ? sqrt(pair_d2 / (double) pair_valid) : 0.0;
+
+    /* Calculate margin factor using pair distance relative to the node's average consecutive distance.
+     * avg_consec_dist provides an unbiased, low-variance baseline of the node's density.
+     * When x1 and x2 are normal neighbors within a cluster (pair_dist <= avg_consec_dist),
+     * pair_factor remains large (> 0.5), allowing a smooth margin.
+     * When x1 and x2 span across an empty void or between disjoint clusters (pair_dist >= 2 * avg_consec_dist),
+     * pair_factor drops to 0.0, strictly constraining u in [0, 1] to cut cleanly inside the gap.
+     */
+    double pair_factor = 0.0;
+    if(avg_consec_dist > 0.0)
+    {
+        pair_factor = 1.0 - (pair_dist / (2.0 * avg_consec_dist));
+        if(pair_factor < 0.0) pair_factor = 0.0;
+    }
+    else
+    {
+        pair_factor = 0.0;
+    }
 
     double margin = heigth_ratio * pair_factor;
     double u = rd(-margin, 1.0 + margin);
