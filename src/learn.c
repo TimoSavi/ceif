@@ -1013,30 +1013,26 @@ void train_one_forest(int forest_idx)
     n_effective = (f->X_count < samples_max) ? f->X_count : samples_max;
     if(n_effective < 1) n_effective = 1;
 
-    /* Calculate actual average 1-nearest-neighbor sample distance across samples */
-    int nn_count = (f->X_count < samples_max) ? f->X_count : samples_max;
-    if(nn_count > 256) nn_count = 256;
-    if(nn_count > 1)
+    if(!auto_weigth || f->scale_range_idx == -1)
     {
-        double sum_nn = 0.0;
-        for(i = 0; i < nn_count; i++)
+        double sum_log_range = 0.0;
+        int valid_dims = 0;
+        for(i = 0; i < dimensions; i++)
         {
-            double min_d = DBL_MAX;
-            double *s1 = sample_dimension(&f->X[i]);
-            int j;
-            for(j = 0; j < nn_count; j++)
+            double r = f->max[i] - f->min[i];
+            if(r > 0.0)
             {
-                if(i == j) continue;
-                double d = v_dist_nosqrt(s1, sample_dimension(&f->X[j]));
-                if(d < min_d) min_d = d;
+                sum_log_range += log(r);
+                valid_dims++;
             }
-            if(min_d < DBL_MAX) sum_nn += sqrt(min_d);
         }
-        f->avg_sample_dist = sum_nn / (double) nn_count;
-    }
-    else
+        int d = (valid_dims > 0) ? valid_dims : dimensions;
+        double log_side = (sum_log_range - log((double) n_effective)) / (double) d;
+        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) * exp(log_side);
+    } else // if autoscaling the hypercube side is the same as f->max[f->scale_range_idx] - f->min[f->scale_range_idx]
     {
-        f->avg_sample_dist = 1.0;
+        f->avg_sample_dist = sqrt(DIST_AVG((double) dimensions)) *
+            ((f->max[f->scale_range_idx] - f->min[f->scale_range_idx]) / pow((double) n_effective, 1.0 / (double) dimensions));
     }
 
     if(f->filter) return;
