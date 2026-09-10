@@ -258,6 +258,35 @@ int write_forest_file_json(char *file_name,time_t delete_interval)
     return 1;
 }
 
+/* Helper to read string value from globals */
+static inline const char *
+get_global_str(json_object *globals, const char *key)
+{
+    json_object *val = NULL;
+    json_object_object_get_ex(globals, key, &val);
+    return json_object_get_string(val);
+}
+
+/* Helper to read integer value from globals */
+static inline int
+get_global_int(json_object *globals, const char *key)
+{
+    json_object *val = NULL;
+    json_object_object_get_ex(globals, key, &val);
+    return json_object_get_int(val);
+}
+
+/* Helper to parse dimension index specifications */
+static void
+read_dim_spec(const char *raw_str, char **dim_str, int *idx_arr, int *idx_count)
+{
+    char tmp[10240];
+    strcpy(tmp, raw_str);
+    if(*dim_str != NULL) free(*dim_str);
+    *dim_str = xstrdup(tmp);
+    *idx_count = parse_dims(tmp, idx_arr);
+}
+
 /* read global variables
 */
 static
@@ -265,158 +294,95 @@ void read_globals(json_object *globals)
 {
     char str[10240];
     char *f[FILTER_MAX];
-    int i,c,fcount;
-
-    json_object *jdims  ;
-    json_object *jforest_count  ;
-    json_object *jprint_string  ;
-    json_object *jprintf_format  ;
-    json_object *jtree_count  ;
-    json_object *jsamples_max  ;
-    json_object *jinput_separator  ;
-    json_object *jlist_separator  ;
-    json_object *jheader  ;
-    json_object *joutlier_score  ;
-    json_object *jcategory_dims  ;
-    json_object *jlabel_dims  ;
-    json_object *jscore_dims  ;
-    json_object *jignore_dims  ;
-    json_object *jinclude_dims  ;
-    json_object *jtext_dims  ;
-    json_object *jfilter_str  ;
-    json_object *jdecimals  ;
-    json_object *junique_samples  ;
-    json_object *jaggregate  ;
+    int i, c, fcount;
+    json_object *val;
     json_object *jformulas = NULL;
     json_object *jformula;
 
-    if(!json_object_object_get_ex(globals,DIMENSIONS,&jdims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,FOREST_COUNT,&jforest_count)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,PRINT_STRING,&jprint_string)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,PRINTF_FORMAT,&jprintf_format)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,TREE_COUNT,&jtree_count)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,SAMPLES_MAX,&jsamples_max)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,INPUT_SEPARATOR,&jinput_separator)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,LIST_SEPARATOR,&jlist_separator)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,HEADER,&jheader)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,OUTLIER_SCORE,&joutlier_score)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,CATEGORY_DIMS,&jcategory_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,LABEL_DIMS,&jlabel_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,SCORE_DIMS,&jscore_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,IGNORE_DIMS,&jignore_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,INCLUDE_DIMS,&jinclude_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,TEXT_DIMS,&jtext_dims)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,FILTER_STR,&jfilter_str)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,DECIMALS,&jdecimals)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,UNIQUE_SAMPLES,&junique_samples)) panic("Error in globals object","","");
-    if(!json_object_object_get_ex(globals,AGGREGATE,&jaggregate)) panic("Error in globals object","","");
-    json_object_object_get_ex(globals,FORMULA,&jformulas);
+    static const char *required_global_keys[] = {
+        DIMENSIONS, FOREST_COUNT, PRINT_STRING, PRINTF_FORMAT,
+        TREE_COUNT, SAMPLES_MAX, INPUT_SEPARATOR, LIST_SEPARATOR,
+        HEADER, OUTLIER_SCORE, CATEGORY_DIMS, LABEL_DIMS,
+        SCORE_DIMS, IGNORE_DIMS, INCLUDE_DIMS, TEXT_DIMS,
+        FILTER_STR, DECIMALS, UNIQUE_SAMPLES, AGGREGATE, NULL
+    };
 
+    for(i = 0; required_global_keys[i] != NULL; i++)
+    {
+        if(!json_object_object_get_ex(globals, required_global_keys[i], &val))
+            panic("Error in globals object: missing field", (char *)required_global_keys[i], NULL);
+    }
+
+    json_object_object_get_ex(globals, FORMULA, &jformulas);
     if(!cli_given.formulas && jformulas != NULL)
     {
         fcount = json_object_array_length(jformulas);
-        for(i = 0;i < fcount;i++)
+        for(i = 0; i < fcount; i++)
         {
-           jformula = json_object_array_get_idx(jformulas,i);
-           strcpy(str,json_object_get_string(jformula));
-           parse_expression(str);
+            jformula = json_object_array_get_idx(jformulas, i);
+            strcpy(str, json_object_get_string(jformula));
+            parse_expression(str);
         }
     }
 
-    dimensions = json_object_get_int(jdims);
+    dimensions = get_global_int(globals, DIMENSIONS);
     if(dimensions > DIM_MAX) dimensions = DIM_MAX;
 
-    forest_count = json_object_get_int(jforest_count);
+    forest_count = get_global_int(globals, FOREST_COUNT);
     if(!cli_given.print_string)
     {
         if(print_string != NULL) free(print_string);
-        print_string = xstrdup(json_object_get_string(jprint_string));
+        print_string = xstrdup(get_global_str(globals, PRINT_STRING));
     }
     if(!cli_given.printf_format)
     {
         if(printf_format != NULL) free(printf_format);
-        printf_format = xstrdup(json_object_get_string(jprintf_format));
+        printf_format = xstrdup(get_global_str(globals, PRINTF_FORMAT));
     }
-    if(!cli_given.tree_count) tree_count = json_object_get_int(jtree_count);
-    if(!cli_given.samples_max) samples_max = json_object_get_int(jsamples_max);
+    if(!cli_given.tree_count) tree_count = get_global_int(globals, TREE_COUNT);
+    if(!cli_given.samples_max) samples_max = get_global_int(globals, SAMPLES_MAX);
     if(!cli_given.input_separator)
-    {
-        strcpy(str,json_object_get_string(jinput_separator));
-        input_separator = str[0];
-    }
+        input_separator = get_global_str(globals, INPUT_SEPARATOR)[0];
     if(!cli_given.list_separator)
-    {
-        strcpy(str,json_object_get_string(jlist_separator));
-        list_separator = str[0];
-    }
-    if(!cli_given.header) header = json_object_get_int(jheader);
+        list_separator = get_global_str(globals, LIST_SEPARATOR)[0];
+    if(!cli_given.header) header = get_global_int(globals, HEADER);
 
     if(!cli_given.outlier_score)
     {
-        strcpy(str,json_object_get_string(joutlier_score));
+        strcpy(str, get_global_str(globals, OUTLIER_SCORE));
         parse_user_score(str);
     }
 
     if(!cli_given.category_dims)
-    {
-        strcpy(str,json_object_get_string(jcategory_dims));
-        if(category_dims != NULL) free(category_dims);
-        category_dims = xstrdup(str);
-        category_idx_count = parse_dims(str,category_idx);
-    }
+        read_dim_spec(get_global_str(globals, CATEGORY_DIMS), &category_dims, category_idx, &category_idx_count);
 
     if(!cli_given.label_dims)
-    {
-        strcpy(str,json_object_get_string(jlabel_dims));
-        if(label_dims != NULL) free(label_dims);
-        label_dims = xstrdup(str);
-        label_idx_count = parse_dims(str,label_idx);
-    }
+        read_dim_spec(get_global_str(globals, LABEL_DIMS), &label_dims, label_idx, &label_idx_count);
 
     if(!cli_given.score_dims)
-    {
-        strcpy(str,json_object_get_string(jscore_dims));
-        if(score_dims != NULL) free(score_dims);
-        score_dims = xstrdup(str);
-        score_idx_count = parse_dims(str,score_idx);
-    }
+        read_dim_spec(get_global_str(globals, SCORE_DIMS), &score_dims, score_idx, &score_idx_count);
 
     if(!cli_given.ignore_dims)
-    {
-        strcpy(str,json_object_get_string(jignore_dims));
-        if(ignore_dims != NULL) free(ignore_dims);
-        ignore_dims = xstrdup(str);
-        ignore_idx_count = parse_dims(str,ignore_idx);
-    }
-    
+        read_dim_spec(get_global_str(globals, IGNORE_DIMS), &ignore_dims, ignore_idx, &ignore_idx_count);
+
     if(!cli_given.include_dims)
-    {
-        strcpy(str,json_object_get_string(jinclude_dims));
-        if(include_dims != NULL) free(include_dims);
-        include_dims = xstrdup(str);
-        include_idx_count = parse_dims(str,include_idx);
-    }
+        read_dim_spec(get_global_str(globals, INCLUDE_DIMS), &include_dims, include_idx, &include_idx_count);
 
     if(!cli_given.text_dims)
-    {
-        strcpy(str,json_object_get_string(jtext_dims));
-        if(text_dims != NULL) free(text_dims);
-        text_dims = xstrdup(str);
-        text_idx_count = parse_dims(str,text_idx);
-    }
+        read_dim_spec(get_global_str(globals, TEXT_DIMS), &text_dims, text_idx, &text_idx_count);
 
     if(!cli_given.category_filter)
     {
-        strcpy(str,json_object_get_string(jfilter_str));
-        c = parse_csv_line(f,FILTER_MAX,str,';');
-        for(i = 0;i < c;i++) add_category_filter(f[i]);
+        strcpy(str, get_global_str(globals, FILTER_STR));
+        c = parse_csv_line(f, FILTER_MAX, str, ';');
+        for(i = 0; i < c; i++) add_category_filter(f[i]);
     }
 
-    if(!cli_given.decimals) decimals = json_object_get_int(jdecimals);
-    if(!cli_given.unique_samples) unique_samples = json_object_get_int(junique_samples);
-    if(!cli_given.aggregate) aggregate = json_object_get_int(jaggregate);
+    if(!cli_given.decimals) decimals = get_global_int(globals, DECIMALS);
+    if(!cli_given.unique_samples) unique_samples = get_global_int(globals, UNIQUE_SAMPLES);
+    if(!cli_given.aggregate) aggregate = get_global_int(globals, AGGREGATE);
 
-    samples_total = max_total_samples ?  max_total_samples : tree_count * samples_max;  
+    samples_total = max_total_samples ? max_total_samples : tree_count * samples_max;
 }
 
 /* read forest data including samples
