@@ -60,6 +60,14 @@ For example, a 50% score corresponds to the median sample score, while 100% repr
 Percentage scores can help identify distribution shift or bias: if the threshold is set to $x\%$, standard test data should exhibit approximately $x\%$ inliers.
 If inlier counts deviate significantly, the test dataset may have distribution drift. The `-v` option prints these summary statistics.
 
+#### Novelty Detection and Pure-Inlier Modeling
+While CEIF typically operates as an unsupervised outlier detector on potentially contaminated data, it can also be configured for **novelty detection** (one-class classification) when the training dataset is assumed to consist exclusively of clean, valid inliers:
+
+- **Deterministic Boundary with `-O 100%`**: By specifying `-O 100%`, CEIF sets the anomaly threshold to the maximum score observed among all training samples ($s_{\max}^{\text{train}}$). Because samples are flagged only when $\text{score} > s_{\max}^{\text{train}}$, exactly 0% of the clean training samples are marked as anomalies (guaranteed zero false alarms on known normal behavior), while any unseen observation outside this envelope is rejected. On very large datasets, a slightly softer boundary such as `-O 99.9%` or `-O 99.5%` can be used to accommodate edge-case variance.
+- **Omit Outlier Pruning (`-k`)**: In unsupervised mode, `-k` prunes extreme samples under the suspicion that they are noise. When training on pure inliers, omit `-k`; the outer training points represent legitimate boundary extents of normal behavior and are essential for defining the true envelope.
+- **Smooth the Envelope with Higher Tree Counts (`-t 200`)**: Increasing tree count (e.g., `-t 200`) reduces the variance of path lengths, producing smoother, more continuous decision boundaries around the inlier manifold.
+- **Multi-Mode Inlier Envelopes (`-C` and `-c`)**: If normal behavior spans multiple operating regimes (e.g., distinct machine states or operational modes), grouping them with `-C` trains an independent clean envelope per category. During inference, `-c -O 100%` flags any point that fails to fit within *at least one* of the known valid envelopes.
+
 #### Complex Topologies
 Nested non-convex shapes, such as concentric circles and complex synthetic topologies, present challenges because random hyperplanes can easily bridge across separated inlier and outlier bands. 
 Here, the nearest training point distance adjustment (`NEAREST 1`, default) is critical to resolve voids, narrow channels, and fine boundaries:
