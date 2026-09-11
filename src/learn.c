@@ -601,7 +601,7 @@ void v_subt(double *a, double *b)
  * clean sample partitioning between remaining local points.
  */
 static
-double *generate_p(struct forest *f,int sample_count,int *samples,struct sample *X,double heigth_ratio)
+double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_ratio)
 {
     int i;
     static double p[DIM_MAX];
@@ -857,7 +857,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     this->rigth = -1;
 
     DEBUG(" interception point ");
-    p = generate_p(f,sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit));
+    p = generate_p(sample_count,samples,X,1.0 - ((double) heigth / (double) heigth_limit));
 
     if(auto_weigth) p = scale_dimension(p,f);
 

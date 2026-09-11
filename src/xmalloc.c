@@ -169,6 +169,8 @@ xfopen(char *name, char *mode, char bin_asc)
 #if defined(HAVE_SETMODE) && defined(WIN32)
     if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
     if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
+#else
+    (void)bin_asc;
 #endif
     return ret;
 }
@@ -197,6 +199,8 @@ xfopen_test(char *name, char *mode, char bin_asc)
 #if defined(HAVE_SETMODE) && defined(WIN32)
     if(bin_asc == 'a') setmode(fileno(ret),O_TEXT);
     if(bin_asc == 'b') setmode(fileno(ret),O_BINARY);
+#else
+    (void)bin_asc;
 #endif
     return ret;
 }

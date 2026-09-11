@@ -541,17 +541,22 @@ int read_forest_file_json(char *file_name)
 int
 write_forest_file_json(char *file_name,time_t delete_interval)
 {
+    (void)file_name;
+    (void)delete_interval;
     return 0;
 }
 
 int read_forest_file_json_stream(FILE *fp, char *file_name)
 {
+    (void)fp;
+    (void)file_name;
     panic("JSON not implemented","","");
     return 0;
 }
 
 int read_forest_file_json(char *file_name)
 {
+    (void)file_name;
     panic("JSON not implemented","","");
     return 0;
 }
