@@ -492,6 +492,14 @@ print_forest_info(FILE *outs)
         _2P("\nForest category string: \'%s\'\n",f->category);
         _3P("Filter is %s\n",_O(f->filter));
         _3P("Number of samples: %d\n",f->X_count);
+        if(f->extra_rows > 0)
+        {
+            double accept_pct = (f->X_count > 0) ? ((double)f->X_count / (double)(f->X_count + f->extra_rows)) * 100.0 : 0.0;
+            double one_in = (f->X_count > 0) ? (double)(f->X_count + f->extra_rows) / (double)f->X_count : 0.0;
+            _3P("Extra rows evaluated: %d%s\n",f->extra_rows,
+                (f->extra_rows >= f->X_count * EXTRA_ROWS_FACTOR) ? " (automatic ceiling reached)" : "");
+            _3P("New sample acceptance chance: %.1f%% (approx. 1 in %.1f rows)\n",accept_pct,one_in);
+        }
 
         if(!f->filter)
         {

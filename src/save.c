@@ -490,6 +490,17 @@ read_forest_file(char *file_name)
     }
 
     xfclose(fp);
+
+    if(retval)
+    {
+        int fi;
+        for(fi = 0; fi < forest_count; fi++)
+        {
+            if(forest[fi].extra_rows > forest[fi].X_count * EXTRA_ROWS_FACTOR)
+                forest[fi].extra_rows = forest[fi].X_count * EXTRA_ROWS_FACTOR;
+        }
+    }
+
     return retval;
 }
  

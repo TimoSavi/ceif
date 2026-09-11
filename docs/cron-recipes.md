@@ -92,6 +92,9 @@ flock -x "$MODEL.lock" ceif -z "$MODEL" -l "$HOURLY_DATA" -H -s 256 -t 100
 0 * * * * root /usr/local/bin/update-ceif-model.sh
 ```
 
+> [!TIP]
+> **Automatic Reservoir Ceiling (`EXTRA_ROWS_FACTOR 3`):** To prevent models running continuously for months or years from freezing (where ancient history permanently locks out new samples), CEIF automatically caps historical `extra_rows` at $3 \times \text{samples}$. This guarantees that the acceptance chance for new incoming data never drops below 25%, allowing the model to adapt continuously to long-term drift without manual housekeeping. Run `ceif -r model.ceif -q` to view current extra row counts and acceptance probability.
+
 ---
 
 ## 5. Recipe 3: Multi-Tenant / Per-Device Tracking (`-C`)

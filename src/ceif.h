@@ -31,6 +31,7 @@
 #define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 #define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
+#define EXTRA_ROWS_FACTOR 3       // Maximum extra rows ratio to sample count (f->X_count * EXTRA_ROWS_FACTOR)
 
 
 /* Normal distributed values written to cache for faster execution */
