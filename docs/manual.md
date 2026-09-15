@@ -25,7 +25,7 @@ Input data is assumed to be comma-separated values. A different separator can be
 | -o&nbsp;FILE | Print output to FILE. Default is stdout|
 | -r&nbsp;FILE | Read forest data from file. The file should have been written earlier with option -w|
 | -w&nbsp;FILE | Write forest data to FILE. Typically the result of analyzing data from a file with option -l. Data can later be read with option -r|
-| -z&nbsp;FILE | Read and write forest data from/to the same file. Forest data is read from FILE and, after processing, written back to FILE|
+| -z&nbsp;FILE | In-place update: reads forest data from FILE, adds new training samples via reservoir sampling, retrains trees, and writes back. Automatically caps historical extra rows at $3 \times \text{samples}$ to maintain continuous model adaptivity|
 | -O&nbsp;FLOAT| Outlier score threshold for anomaly detection. Data with a higher or equal score is considered an anomaly and printed using the format given by option -p. Values range from 0.0 to 1.0|
 | -O&nbsp;FLOATs| Scaled outlier score for anomaly detection. The analyzed score is scaled to the range 0.0–1.0 using the forest min/max scores. This ensures the best inlier receives a score near 0.0 and the farthest outlier receives a score near 1.0. When given with the categorize option (-c), results are filtered by this threshold: only category results with scores lower than this value are accepted. Values range from 0.0s to 1.0s|
 | -O&nbsp;FLOAT%| Outlier score threshold calculated from the sample score distribution, selecting the score value under which FLOAT percent of samples have a lower score. Values range from 0% to 100%|
@@ -44,7 +44,7 @@ Input data is assumed to be comma-separated values. A different separator can be
 | -D&nbsp;INTEGER | Before saving forest data to a file, delete forests that have not been updated within the last INTEGER seconds. If INTEGER is followed by a letter from {Y, M, D, m}, INTEGER is interpreted as years, months, days, or minutes|
 | -N&nbsp;STRING | Print input values that are not associated with any category. This can be used for identifying "new" category values. Optional printf format STRING is used for printing|
 | -A | Instead of taking samples as individual rows, aggregate new sample values for each forest. Only one new aggregated sample per forest is added for each invocation of option -l|
-| -q | Print forest information in human-readable form and exit|
+| -q | Print forest information in human-readable form and exit. When models contain updated reservoirs, displays extra rows evaluated, ceiling status, and new-sample acceptance probability|
 | -y | Print an ASCII density map of forest information and exit|
 | -yy | Print an ASCII density map of forest information using a common sample scale for all forests and exit|
 | -E | Print samples with their sample scores and exit|
@@ -58,8 +58,7 @@ Input data is assumed to be comma-separated values. A different separator can be
 
 If FILE is "-" then standard input or output is read or written.
 
-Default file format for options -r,-w and -z is JSON. If JSON is not available then CSV format is used. Ceif tries to obey the number of decimals (option -d) when saving data.
-If no double formatting support is available, the number of decimals saved is the json library default.
+The default file format for options `-r`, `-w`, and `-z` is **JSON**. If the JSON development library (`json-c` or `libfastjson`) was not present when `ceif` was compiled, `ceif` falls back to CSV format (see [Building from Source](building.md) to install `json-c-devel`). `ceif` adheres to the number of decimals (`-d`) when saving data. If double formatting support is unavailable in the system's JSON library, the number of decimals saved defaults to the library setting.
 
 #### Printing directives
 
@@ -136,6 +135,7 @@ The following variables are supported:
 |CLUSTER_SIZE|ceif identifies data clusters by selecting samples with the lowest scores and counting adjacent samples. Cluster radius is calculated by finding the distance from the lowest-scoring sample to the most distant sample, multiplied by this parameter (range: 0 to 1)|0.125|
 |LOW_RGB_COLOR|RGB color code for score 0 (%x directive). Given as hex string (e.g., 0xffff00)|0xffff00 (yellow)|
 |HIGH_RGB_COLOR|RGB color code for score 1 (%x directive)|0xff0000 (red)|
+|IGNORE_EXPR_PARSE_ERROR|Ignore parse errors when evaluating input data expressions (-Q): 1 = yes, 0 = no|0|
 
 Example rc-file:
 

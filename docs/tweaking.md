@@ -112,6 +112,35 @@ Resulting map in pic.png, inlier area is white:
 
 ![](pics/square_sblob.png)
 
+#### Continuous Rolling Updates and Automatic Reservoir Ceiling
+When updating an existing forest with new batches of telemetry (via `-r ... -w ...` or in-place `-z`), `ceif` maintains sample diversity using reservoir sampling:
+- Once the forest has accumulated its target sample capacity ($S = \text{samples}$), each new incoming row is accepted into the reservoir with probability $P = \frac{S}{S + \text{extra\_rows}}$.
+- When an incoming point is accepted, it replaces a uniformly chosen random existing sample in the reservoir, and the trees are rebuilt.
+
+**The Long-Running Model Dilemma & Automatic Ceiling:**  
+In continuous monitoring deployments running for months or years without manual housekeeping, `extra_rows` would grow into the millions. Under standard reservoir sampling, this causes the acceptance probability to decay asymptotically toward zero ($P \to 0$), permanently locking in ancient baseline history and blinding the model to legitimate environmental evolution.
+
+To resolve this without requiring manual intervention, `ceif` enforces an **automatic reservoir ceiling**:
+$$\text{extra\_rows} \le \text{samples} \times 3 \quad (\mathtt{EXTRA\_ROWS\_FACTOR\;3})$$
+
+This bounds the denominator so that:
+$$P_{\min} = \frac{S}{S + 3S} = \frac{1}{4} = 25\%$$
+
+The acceptance chance for new incoming data never drops below 25% (approximately 1 in 4 rows). As new observations arrive, the reservoir continually rolls forward, adapting to gradual long-term trends while remaining resilient to transient noise spikes.
+
+You can inspect the state of a model's reservoir using `-q`:
+```text
+$ ceif -r traffic.ceif -q
+...
+Forest data:
+  Forest category string: 'default'
+    Number of samples: 256
+    Extra rows evaluated: 768 (automatic ceiling reached)
+    New sample acceptance chance: 25.0% (approx. 1 in 4.0 rows)
+```
+
+Legacy model files loaded with larger accumulated `extra_rows` counts are automatically clamped to this ceiling upon load.
+
 ### Performance
 Here are benchmark runs using `covtype.data` from the [UC Irvine Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/covertype). The file contains 55 columns and 581,012 rows.
 Tests were run on an Intel i5-650 Processor (3.20 GHz, 8 GB RAM).
