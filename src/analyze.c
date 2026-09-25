@@ -206,6 +206,39 @@ double _score(int forest_idx,double *dimension)
 
     path_length = path_length / tree_count;  // turn to average 
 
+    if(f->min != NULL && f->max != NULL)
+    {
+        double d_out_sq = 0.0;
+        int j;
+        for(j = 0; j < dimensions; j++)
+        {
+            double min_v = (f->scale_range_idx != -1) ? f->min[f->scale_range_idx] : f->min[j];
+            double max_v = (f->scale_range_idx != -1) ? f->max[f->scale_range_idx] : f->max[j];
+            if(dimension[j] < min_v)
+            {
+                double diff = min_v - dimension[j];
+                d_out_sq += diff * diff;
+            }
+            else if(dimension[j] > max_v)
+            {
+                double diff = dimension[j] - max_v;
+                d_out_sq += diff * diff;
+            }
+        }
+        if(d_out_sq > 0.0)
+        {
+            double d_out = sqrt(d_out_sq);
+            double span = (f->scale_range_idx != -1) ? 
+                          (f->max[f->scale_range_idx] - f->min[f->scale_range_idx]) : 
+                          (f->max[0] - f->min[0]);
+            if(span > 0.0)
+            {
+                double rel_out = d_out / span;
+                path_length = path_length * exp(-rel_out);
+            }
+        }
+    }
+
     return (1.0/pow(2,path_length/f->c));
 }
 

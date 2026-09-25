@@ -53,6 +53,34 @@ The minimum score is the lowest sample score, and the maximum score is determine
 
 This provides consistent scoring scales across distinct forests, ensuring true outliers score at least 0.5. Scaling is always enabled during categorization (option -c).
 
+##### Interpretation of Scaled Score Thresholds (-O)
+
+Different scaled score thresholds represent distinct operational regimes, from dense cluster centers out to deep empty space:
+
+| Outlier Score (`-O`) | Spatial Zone | Interpretation & Behavior | Typical Use Case |
+|---|---|---|---|
+| `< 0.3s` | Deep Core Inliers | Points located in dense clusters and sample centroids. | Highly typical, nominal operating baseline. |
+| `0.5s` | Cluster Boundary | Standard default boundary separating inlier clusters from the immediate periphery. | Default outlier threshold across standard distributions. |
+| `0.9s` | Clear Outliers | Points clearly outside the main clusters, but within the broader spatial neighborhood. | High-confidence anomaly alerting while suppressing minor edge noise. |
+| `0.95s – 0.99s` | Extreme Outliers | Distant observations well separated from any sample cluster or manifold feature. | Critical alerting where false positives must be strictly avoided. |
+| `0.999s` | Deep Outer Space | Points located far into empty space away from the training data bounding envelope. | Domain perimeter. With exterior distance decay, forms a completely solid, gap-free convex boundary. |
+
+##### Example: Inspecting Anomalies at 0.9s and Beyond
+
+In wide-area evaluations (such as spatial test generation with `-T`), varying the scaled threshold illustrates the progression from local cluster hulls to the outer universe:
+
+```bash
+# General outlier detection around the sample neighborhood:
+ceif -l complex2d.csv -T3.0 -i 256 -O 0.9s -p "%d,0x%x,%s" -o plot_data.csv
+
+# Deep-space domain perimeter (completely solid convex envelope):
+ceif -l complex2d.csv -T20.0 -i 256 -O 0.999s -t 200 -p "%d,0x%x,%s" -o plot_data.csv
+```
+
+* **At `0.5s`**: The threshold hugs the core sample clusters.
+* **At `0.9s`**: The threshold identifies clear outliers located in the outer periphery, filtering out normal variance.
+* **At `0.999s`**: As points move further into open space, path lengths decay toward zero and anomaly scores saturate to 1.0, producing a smooth, gap-free bounding envelope without starburst rays or random wedges.
+
 #### Percentage-Based Outlier Score
 A percentage-based score sorts all sample scores and selects the value covering $x$ percent of the distribution. 
 For example, a 50% score corresponds to the median sample score, while 100% represents the maximum sample score.
