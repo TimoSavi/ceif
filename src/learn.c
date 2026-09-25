@@ -598,11 +598,11 @@ void v_subt(double *a, double *b)
  * returns pointer to p array.
  * p is chosen using pairwise interpolation between two random sample points
  * in the node's local sample set: p = x1 + u * (x2 - x1).
- * The interpolation vector is widened from both ends by a margin proportional to
- * tree height ratio: u in [-margin, 1 + margin], where margin = heigth_ratio * 0.5.
- * At shallow tree depths (root, level 0), margin is 0.5 (u in [-0.5, 1.5]), creating
- * a smooth distance gradient into the empty space outside sample clusters.
- * At deep levels (leaves), margin contracts to 0.0 (u in [0.0, 1.0]), guaranteeing
+ * The interpolation vector is widened from both ends by an adaptive margin:
+ * u in [-margin, 1 + margin], where margin = 2.5 * (heigth_ratio^2) * pair_factor.
+ * At shallow tree depths (root, level 0), margin reaches up to 2.5 (u in [-2.5, 3.5]), creating
+ * an extended distance gradient into the outer space and preventing saturation of outlier scores.
+ * At deep levels (leaves), margin contracts quadratically to 0.0 (u in [0.0, 1.0]), guaranteeing
  * clean sample partitioning between remaining local points.
  */
 static
@@ -667,7 +667,7 @@ double *generate_p(int sample_count,int *samples,struct sample *X,double heigth_
         if(pair_factor < 0.0) pair_factor = 0.0;
     }
 
-    double margin = heigth_ratio * pair_factor;
+    double margin = 2.5 * (heigth_ratio * heigth_ratio) * pair_factor;
     double u = rd(-margin, 1.0 + margin);
 
     for(i = 0;i < dimensions;i++) {
