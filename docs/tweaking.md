@@ -85,7 +85,7 @@ ceif -l complex2d.csv -T20.0 -i 256 -O 0.999s -t 200 -p "%d,0x%x,%s" -o plot_dat
 A percentage-based score sorts all sample scores and selects the value covering $x$ percent of the distribution. 
 For example, a 50% score corresponds to the median sample score, while 100% represents the maximum sample score.
 
-Percentage scores can help identify distribution shift or bias: if the threshold is set to $x\%$, standard test data should exhibit approximately $x\%$ inliers.
+Percentage scores can help identify distribution shift or bias: if the threshold is set to x%, standard test data should exhibit approximately x% inliers.
 If inlier counts deviate significantly, the test dataset may have distribution drift. The `-v` option prints these summary statistics.
 
 #### Novelty Detection and Pure-Inlier Modeling
@@ -263,7 +263,7 @@ Example using `2blob.csv`:
 The training dataset is saved to `2blob.ceif` with a 90th-percentile threshold. The file is then analyzed against the trained model. Summary statistics are printed with option -v, while per-row output is suppressed with `-p ""`. Output breakdown:
 
 - 2000: Total number of input lines
-- 200: Number of lines having scores higher than 90% of training data (expected: $2000 \times 10\% = 200$)
+- 200: Number of lines having scores higher than 90% of training data (expected: $2000 \times 0.10 = 200$)
 - 0.373435: Percentile-based anomaly score threshold
 - 0.319595: Average test dataset score
 

@@ -29,7 +29,7 @@
    Raw scores are normalized $0.0 \dots 1.0$ against the min/max scores seen in that specific category's forest. Setting `-O 0.85s` alerts only when an event enters the top 15% severity band of that forest.
 2. **Percentile Cutoff (`-O 99%` or `-O 80%`)**
    - High percentiles (`-O 99%` / `99.5%`): Alerts only on rare, extreme point anomalies.
-   - Moderate percentiles (`-O 80%`): Used for **macro population drift detection**, alerting when the fraction of new samples entering the top quintile significantly exceeds baseline expectation (e.g. $\ge 40\%$).
+   - Moderate percentiles (`-O 80%`): Used for **macro population drift detection**, alerting when the fraction of new samples entering the top quintile significantly exceeds baseline expectation (e.g. $\ge$ 40%).
 3. **Fixed Score (`-O 0.65`)**
    Direct unscaled isolation score. $0.5$ is typical baseline density; $> 0.65$ indicates significant structural isolation.
 
@@ -145,7 +145,7 @@ tail -F /var/log/suricata/eve-network.csv |   ceif -r /var/lib/ceif/network.f -a
 
 ## 8. Recipe 6: Population Drift & Distribution Shift Detection (`-O 80% -v`)
 
-Standard point-anomaly detection searches for rare outlier events ($< 1\%$ of traffic). In contrast, **population drift detection** evaluates whether the macro-level distribution of telemetry has shifted across an entire population, category, or time window.
+Standard point-anomaly detection searches for rare outlier events (< 1% of traffic). In contrast, **population drift detection** evaluates whether the macro-level distribution of telemetry has shifted across an entire population, category, or time window.
 
 ### Concept
 
