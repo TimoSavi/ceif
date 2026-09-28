@@ -74,7 +74,7 @@ Classic EIF Model:
 ### Evolution 3: Continuous / Metric Path Length (Solving the Density Bias)
 **The Concept:** In classic iForest, every split edge adds exactly $+1$ to path length, regardless of physical scale. In a continuous geometric forest, edge traversal accumulates a **metric distance weight**:
 
-$$\Delta h = \frac{\text{dist}(x, \text{boundary})}{\text{node\_scale}}$$
+$$\Delta h = \frac{\text{dist}(x, \text{boundary})}{\text{scale}_{\text{node}}}$$
 or
 $$\Delta h = \frac{\text{Volume}(C_{\text{child}})}{\text{Volume}(C_{\text{parent}})}$$
 

@@ -151,9 +151,9 @@ Standard point-anomaly detection searches for rare outlier events ($< 1\%$ of tr
 
 When evaluating a batch of samples against a baseline model with an 80th-percentile threshold (`-O 80%`), in normal steady-state operations exactly **20%** of samples will exceed the threshold by definition.
 
-If a new batch arrives and suddenly **$\ge 40\%$** of samples score as outliers, the underlying statistical distribution has drifted (e.g., due to software rollouts, changed network routing, customer behavioral shifts, or system degradation):
+If a new batch arrives and suddenly **$\ge$ 40%** of samples score as outliers, the underlying statistical distribution has drifted (e.g., due to software rollouts, changed network routing, customer behavioral shifts, or system degradation):
 
-$$\text{Drift Ratio} = \frac{\%h \text{ (outlier count)}}{\%o \text{ (analyzed rows)}} \ge 0.40 \implies \mathbf{Alert: Population Drift}$$
+$$\text{Drift Ratio} = \frac{N_{\text{outliers}}}{N_{\text{analyzed}}} \ge 0.40 \implies \mathbf{Alert: Population Drift}$$
 
 Unlike univariate statistical tests, `ceif` detects multivariate covariance shifts across all dimensions simultaneously in milliseconds with constant memory.
 
