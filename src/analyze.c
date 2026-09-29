@@ -887,28 +887,86 @@ void remove_outlier()
     }
 }
 
+/* Traverse tree nodes to find theoretical maximum height under Zero Kelvin principle
+ */
+static void tree_find_max_height(struct forest *f, struct tree *t, int node_idx, double depth, double *max_h)
+{
+    if(node_idx < 0 || node_idx >= t->node_count) return;
+    struct node *this = &t->n[node_idx];
+
+    // Leaf node: both children are -1
+    if(this->left == -1 && this->rigth == -1)
+    {
+        double leaf_c = 0.0;
+        if(nearest && f->avg_sample_dist > 0.0 && this->sample_count > 0)
+        {
+            // Under Zero Kelvin (deepest density point), distance to nearest sample is minimal (rel_dist = MIN_REL_DIST)
+            double rel_dist = MIN_REL_DIST;
+            double adjusted_n = (double) this->sample_count / rel_dist;
+            leaf_c = c((int) adjusted_n);
+        }
+        else if(this->sample_count > 1)
+        {
+            leaf_c = c(this->sample_count);
+        }
+        double h = depth + leaf_c;
+        if(h > *max_h)
+        {
+            *max_h = h;
+        }
+        return;
+    }
+
+    if(this->left != -1)
+    {
+        tree_find_max_height(f, t, this->left, depth + 1.0, max_h);
+    }
+    else
+    {
+        if(depth > *max_h) *max_h = depth;
+    }
+
+    if(this->rigth != -1)
+    {
+        tree_find_max_height(f, t, this->rigth, depth + 1.0, max_h);
+    }
+    else
+    {
+        if(depth > *max_h) *max_h = depth;
+    }
+}
+
 /* calculate the range of scores for a forest this is used to scale scores to 0..1 range in analysis
- * Min score is considered to be the smallest score among samples
+ * Min score is calculated using the Zero Kelvin principle (theoretical maximum depth across all trees)
  * Max score is 1.0 (outer space attenuation guarantees asymptotic convergence to 1.0)
  */
 void calculate_sample_score_range(int forest_idx)
 {
     int i;
     struct forest *f;
-    double score;
 
     f = &forest[forest_idx];
 
     if(f->filter || f->min_score < 1.0) return;   // Range is calculated if f->min_score < 1.0
-     
-    f->min_score = 1.0;
 
-    for(i = 0;i < f->X_count;i++)
+    double sum_max_h = 0.0;
+    if(f->t != NULL)
     {
-        score = sample_score(forest_idx,&f->X[i]);
-
-        if(score < f->min_score) f->min_score = score;
+        for(i = 0; i < tree_count; i++)
+        {
+            double max_h = 0.0;
+            tree_find_max_height(f, &f->t[i], f->t[i].first, 0.0, &max_h);
+            sum_max_h += max_h;
+        }
     }
+
+    double avg_max_h = (tree_count > 0) ? (sum_max_h / (double)tree_count) : 0.0;
+    if(avg_max_h < 1.0) avg_max_h = 1.0;
+
+    double c_val = (f->c > 0.0) ? f->c : 1.0;
+    f->min_score = 1.0 / pow(2.0, avg_max_h / c_val);
+    if(f->min_score < 0.0) f->min_score = 0.0;
+    if(f->min_score > 1.0) f->min_score = 1.0;
 
     f->max_score = 1.0;
 }
