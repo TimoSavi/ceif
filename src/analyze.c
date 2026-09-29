@@ -243,118 +243,6 @@ double _score(int forest_idx,double *dimension)
 }
 
 
-/* Calculates max score for a forest
- * Tests extreme outlier directions:
- * 1. Positive and negative coordinate axes (+/- e_k)
- * 2. All-positive and all-negative diagonal extremes (+/- 1)
- * 3. Primary split normal vectors of all trees (+/- n_{t, 0})
- * 4. 1-pass coordinate refinement around the best candidate direction
- * Total evaluations: O(D + T), avoiding the exponential 3^D complexity.
- */
-#define MAX_DIM_VALUE (1e+100)
-
-double calculate_max_score(int forest_idx)
-{
-    int i, k, l, tv;
-    struct forest *f = &forest[forest_idx];
-    double *dim;
-    double *best_v;
-    double score, max_score = 0.0;
-    double best_norm_score = 0.0;
-
-    dim = xmalloc(dimensions * sizeof(double));
-    best_v = xmalloc(dimensions * sizeof(double));
-    for(l = 0; l < dimensions; l++) best_v[l] = 1.0;
-
-    reset_nearest();         // nearest analysis is not needed here
-
-    // 1. Positive and negative coordinate axes
-    for(k = 0; k < dimensions; k++)
-    {
-        for(l = 0; l < dimensions; l++) dim[l] = 0.0;
-        dim[k] = MAX_DIM_VALUE;
-        score = _score(forest_idx, dim);
-        if(score > max_score) max_score = score;
-
-        dim[k] = -MAX_DIM_VALUE;
-        score = _score(forest_idx, dim);
-        if(score > max_score) max_score = score;
-    }
-
-    // 2. All positive / all negative diagonal corners
-    for(l = 0; l < dimensions; l++) dim[l] = MAX_DIM_VALUE;
-    score = _score(forest_idx, dim);
-    if(score > max_score) max_score = score;
-
-    for(l = 0; l < dimensions; l++) dim[l] = -MAX_DIM_VALUE;
-    score = _score(forest_idx, dim);
-    if(score > max_score) max_score = score;
-
-    // 3. Tree root split normal directions (+/- n_{t, 0})
-    if(f->t != NULL)
-    {
-        for(i = 0; i < tree_count; i++)
-        {
-            struct tree *t = &f->t[i];
-            if(t->n != NULL && t->first >= 0)
-            {
-                struct node *root_node = &t->n[t->first];
-                if(root_node->n != NULL)
-                {
-                    for(l = 0; l < dimensions; l++) dim[l] = MAX_DIM_VALUE * root_node->n[l];
-                    score = _score(forest_idx, dim);
-                    if(score > max_score) max_score = score;
-                    if(score > best_norm_score)
-                    {
-                        best_norm_score = score;
-                        for(l = 0; l < dimensions; l++) best_v[l] = root_node->n[l];
-                    }
-
-                    for(l = 0; l < dimensions; l++) dim[l] = -MAX_DIM_VALUE * root_node->n[l];
-                    score = _score(forest_idx, dim);
-                    if(score > max_score) max_score = score;
-                    if(score > best_norm_score)
-                    {
-                        best_norm_score = score;
-                        for(l = 0; l < dimensions; l++) best_v[l] = -root_node->n[l];
-                    }
-                }
-            }
-        }
-    }
-
-    // 4. Coordinate refinement from best directional candidate
-    for(l = 0; l < dimensions; l++) dim[l] = (best_v[l] >= 0.0) ? MAX_DIM_VALUE : -MAX_DIM_VALUE;
-    score = _score(forest_idx, dim);
-    if(score > max_score) max_score = score;
-
-    for(k = 0; k < dimensions; k++)
-    {
-        double orig = dim[k];
-        double test_vals[3] = { MAX_DIM_VALUE, -MAX_DIM_VALUE, 0.0 };
-        double best_val = orig;
-        for(tv = 0; tv < 3; tv++)
-        {
-            if(test_vals[tv] == orig) continue;
-            dim[k] = test_vals[tv];
-            score = _score(forest_idx, dim);
-            if(score > max_score)
-            {
-                max_score = score;
-                best_val = test_vals[tv];
-            }
-        }
-        dim[k] = best_val;
-    }
-
-    free(best_v);
-    free(dim);
-
-    set_nearest();  
-
-    return max_score;
-}
-
 
 /* calculate scaled score. Forest min (from sample having lowest score) and max range (found using a dim with "big" values) 
  * is used to scale score to range 0...1
@@ -1000,11 +888,8 @@ void remove_outlier()
 
 /* calculate the range of scores for a forest this is used to scale scores to 0..1 range in analysis
  * Min score is considered to be the smallest score among samples
- * Max score is tested using huge values for each dimension attributes (calculate_max_score)
- * and in order to make sure that max score is really max adjust it by MAX_SCORE_ADJUST
- *
+ * Max score is 1.0 (outer space attenuation guarantees asymptotic convergence to 1.0)
  */
-#define MAX_SCORE_ADJUST 1.01
 void calculate_sample_score_range(int forest_idx)
 {
     int i;
@@ -1024,9 +909,7 @@ void calculate_sample_score_range(int forest_idx)
         if(score < f->min_score) f->min_score = score;
     }
 
-    f->max_score = calculate_max_score(forest_idx) * MAX_SCORE_ADJUST;   
-
-    if(f->max_score > 1.0) f->max_score = 1.0;
+    f->max_score = 1.0;
 }
 
 /* Return score for a forest, special scores are handled here too
