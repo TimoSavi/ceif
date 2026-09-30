@@ -173,11 +173,11 @@ Here, the nearest training point distance adjustment (`NEAREST 1`, default) is c
 |-O 0s and NEAREST 1|![](pics/2circle_O0n1.png)|![](pics/complex2d_O0n1.png)|
 |-O 0.45s and NEAREST 0|![](pics/2circle_O45sn0.png)|![](pics/complex2d_O45sn0.png)|
 |-O 0.45s and NEAREST 1|![](pics/2circle_O45sn1.png)|![](pics/complex2d_O45sn1.png)|
-|-O 97% and NEAREST 1|![](pics/2circle_O97p.png)|![](pics/complex2d_O97p.png)|
+|-O 95% and NEAREST 1|![](pics/2circle_O95p.png)|![](pics/complex2d_O95p.png)|
 
 Without nearest-point distance weighting (`NEAREST 0`), isolating internal voids and gaps between separate structures is difficult—hyperplanes span across empty space, incorrectly grouping distinct components into a single connected inlier mass. With `NEAREST 1`, the spaces between concentric rings and the canals of complex shapes are cleanly identified as outlier zones, while the white inlier envelope crisply traces the actual sample points.
 
-For complex geometries, combining `NEAREST 1` with a percentile score such as `-O 97%` (optionally with higher tree counts like `-t 200`) produces exceptionally sharp, tight inlier envelopes that hug fine geometric features while preserving internal voids. The trade-off is a slight increase in evaluation time.
+For complex geometries, combining `NEAREST 1` with a percentile score such as `-O 95%` (optionally with higher tree counts like `-t 200`) produces exceptionally sharp, tight inlier envelopes that hug fine geometric features while preserving internal voids. The trade-off is a slight increase in evaluation time.
 
 ### Saving and Updating Forest Data
 The result of the training phase can be saved to a file for later inference, and iteratively updated with new training batches. 
