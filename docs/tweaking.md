@@ -69,8 +69,13 @@ $$
 
 where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
 
+It averages the maximum theoretical heights across all trees:
 
-It averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score directly:
+$$
+\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)
+$$
+
+The baseline minimum score is calibrated directly:
 
 $$
 s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}

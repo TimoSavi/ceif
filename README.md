@@ -54,10 +54,10 @@ $$
 At leaf nodes, `ceif` evaluates the relative distance between the analyzed point and the nearest training data point in the node (`NEAREST 1`, default). The distance is normalized against the average sample distance within the tree:
 
 $$
-\text{rel-dist} = \frac{d_{\min}}{\text{avg-sample-dist}} + d_0
+\text{rel-dist} = \frac{d_{\min}}{\text{avg-sample-dist}} + d_0, \quad d_{\min} = \min_{s \in \text{leaf}} \Vert x - s \Vert
 $$
 
-where $d_{\min} = \min_{s \in \text{leaf}} \Vert x - s \Vert$ and $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
+where $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
 
 
 #### 3. Asymptotic Exponential Outer Limit & Monotonic Outer Space
@@ -90,8 +90,13 @@ $$
 
 where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density (a query point landing directly on a leaf sample).
 
+The forest averages the maximum theoretical heights across all trees:
 
-The forest averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score analytically:
+$$
+\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)
+$$
+
+The baseline minimum score is calibrated analytically:
 
 $$
 s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}
