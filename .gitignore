@@ -4,6 +4,7 @@
 /test/plot_data.csv
 /test/contour*.csv
 /test/data.csv
+/untrack/
 README
 Makefile
 Makefile.in
