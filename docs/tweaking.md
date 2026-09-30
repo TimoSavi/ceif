@@ -106,31 +106,46 @@ Scaled scores $s_{\text{scaled}}$ are likewise bounded to $[0.0, 1.0 - 10^{-6}]$
 
 ##### Interpretation of Scaled Score Thresholds (-O)
 
-Different scaled score thresholds represent distinct operational regimes, from dense cluster centers out to deep empty space:
+Scaled outlier scores normalize raw forest anomaly scores into the range $[0.0, 1.0)$ using theoretical Zero Kelvin deepest-leaf calibration ($s_{\min}$) and direct maximum bound ($s_{\max} = 1.0$). This maps queries onto a clear, scale-invariant spectrum from dense cluster centroids to deep exterior space.
+
+When selecting an outlier threshold (`-O FLOATs`), observations with scores equal to or exceeding the threshold are flagged as anomalies. The operational behavior across key score thresholds is summarized below:
 
 | Outlier Score (`-O`) | Spatial Zone | Interpretation & Behavior | Typical Use Case |
 |---|---|---|---|
-| `< 0.3s` | Deep Core Inliers | Points located in dense clusters and sample centroids. | Highly typical, nominal operating baseline. |
-| `0.5s` | Cluster Boundary | Standard default boundary separating inlier clusters from the immediate periphery. | Default outlier threshold across standard distributions. |
-| `0.9s` | Clear Outliers | Points clearly outside the main clusters, but within the broader spatial neighborhood. | High-confidence anomaly alerting while suppressing minor edge noise. |
-| `0.95s – 0.99s` | Extreme Outliers | Distant observations well separated from any sample cluster or manifold feature. | Critical alerting where false positives must be strictly avoided. |
-| `0.999s` | Deep Outer Space | Points located far into empty space away from the training data bounding envelope. | Domain perimeter. With exterior distance decay, forms a completely solid, gap-free convex boundary. |
+| `< 0.3s` | Deep Core Inliers | Points located in the densest regions of sample clusters and centroid neighborhoods. | High-confidence normal baseline; ideal for identifying pristine reference patterns. |
+| `< 0.5s` | Nominal Inliers | Points falling within the standard operating envelope and main cluster volume. | General baseline traffic and legitimate nominal system operation. |
+| `> 0.5s` | Sensitive Outlier Detection | Captures early departures, subtle edge deviations, and points along the periphery of clusters. | Early warning screening, exploratory anomaly triage, or sensitive monitoring where catching potential issues is prioritized over minimizing false alerts. |
+| `> 0.65s` | Definitive Outliers | Points decisively separated from cluster bodies and manifold surfaces; clearly anomalous. | Standard default operational alerting threshold (matches built-in `OUTLIER_SCORE = 0.65`). Provides robust anomaly detection with high precision. |
+| `> 0.9s` | Really No False Positives | Distant observations situated far outside any normal cluster or local manifold feature. | High-stakes operational alerting, automated remediation, or emergency paging where false alarms cannot be tolerated. |
+| `> 0.95s – 0.99s` | Extreme Outliers | Severe spatial anomalies residing deep in the outer margins between local clusters and empty space. | Automated traffic dropping, critical sensor failure detection, and tamper detection. |
+| `> 0.999s` | Deep Outer Space | Points far beyond the empirical training bounding envelope ($[\min_j, \max_j]$). | Domain perimeter enforcement. Driven by asymptotic exponential decay ($\beta = 0.10$), creating a solid, gap-free convex boundary. |
 
-##### Example: Inspecting Anomalies at 0.9s and Beyond
+##### Operational Guidance
 
-In wide-area evaluations (such as spatial test generation with `-T`), varying the scaled threshold illustrates the progression from local cluster hulls to the outer universe:
+* **`< 0.3s` (Deep Core Inliers):** Identifies points that represent the truest central tendency of the training distribution.
+* **`< 0.5s` (Nominal Inliers):** Represents the default volume of typical cluster points.
+* **`> 0.5s` (Sensitive Outlier Detection):** Useful when false negatives are expensive. Flags subtle departures, transitional states, and cluster edge bleed before they become severe anomalies.
+* **`> 0.65s` (Definitive Outliers):** The recommended production baseline. Outliers at this level are unambiguous and distinct from nominal noise, matching the tool's default configuration.
+* **`> 0.9s` (Really No False Positives):** Reserved for actions requiring near-certainty. Guarantees that only extreme, unquestionable anomalies trigger intervention.
+
+##### Example: Inspecting Anomalies Across Threshold Regimes
+
+In wide-area evaluations (such as spatial test generation with `-T`), varying the scaled threshold illustrates the progression from sensitive cluster hulls to the outer universe:
 
 ```bash
-# General outlier detection around the sample neighborhood:
-ceif -l complex2d.csv -T3.0 -i 256 -O 0.9s -p "%d,0x%x,%s" -o plot_data.csv
+# Sensitive boundary detection around sample clusters:
+ceif -l complex2d.csv -T3.0 -i 256 -O 0.5s -p "%d,0x%x,%s" -o plot_05s.csv
+
+# Standard definitive outlier detection (production default):
+ceif -l complex2d.csv -T3.0 -i 256 -O 0.65s -p "%d,0x%x,%s" -o plot_65s.csv
+
+# High-confidence alerting (really no false positives):
+ceif -l complex2d.csv -T3.0 -i 256 -O 0.9s -p "%d,0x%x,%s" -o plot_09s.csv
 
 # Deep-space domain perimeter (completely solid convex envelope):
-ceif -l complex2d.csv -T20.0 -i 256 -O 0.999s -t 200 -p "%d,0x%x,%s" -o plot_data.csv
+ceif -l complex2d.csv -T20.0 -i 256 -O 0.999s -t 200 -p "%d,0x%x,%s" -o plot_999s.csv
 ```
 
-* **At `0.5s`**: The threshold hugs the core sample clusters.
-* **At `0.9s`**: The threshold identifies clear outliers located in the outer periphery, filtering out normal variance.
-* **At `0.999s`**: As points move further into open space, scores asymptotically approach 1.0 via normalized exterior distance decay, producing a smooth, gap-free convex bounding envelope without starburst rays or random wedges.
 
 #### Percentage-Based Outlier Score
 A percentage-based score sorts all sample scores and selects the value covering $x$ percent of the distribution. 
