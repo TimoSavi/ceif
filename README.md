@@ -52,11 +52,12 @@ $$
 
 #### 2. Nearest Training Point Distance in Leaf Nodes
 At leaf nodes, `ceif` evaluates the relative distance between the analyzed point and the nearest training data point in the node (`NEAREST 1`, default). The distance is normalized against the average sample distance within the tree:
+
 $$
-\text{rel-dist} = \frac{\sqrt{\min \|x - s\|^2}}{\text{avg-sample-dist}} + d_0
+\text{rel-dist} = \frac{d_{\min}}{\text{avg-sample-dist}} + d_0
 $$
 
-where $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
+where $d_{\min} = \min_{s \in \text{leaf}} \Vert x - s \Vert$ and $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
 
 
 #### 3. Asymptotic Exponential Outer Limit & Monotonic Outer Space
