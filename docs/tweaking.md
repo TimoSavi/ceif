@@ -64,10 +64,11 @@ Rather than relying on an empirical loop over training samples (which is subject
 `ceif` traverses all trees in memory via `tree_find_max_height()`, locating the theoretical deepest leaf:
 
 $$
-H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{d_0}\right)
 $$
 
-where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
+where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
+
 
 It averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score directly:
 
@@ -199,10 +200,17 @@ When updating an existing forest with new batches of telemetry (via `-r ... -w .
 In continuous monitoring deployments running for months or years without manual housekeeping, `extra_rows` would grow into the millions. Under standard reservoir sampling, this causes the acceptance probability to decay asymptotically toward zero ($P \to 0$), permanently locking in ancient baseline history and blinding the model to legitimate environmental evolution.
 
 To resolve this without requiring manual intervention, `ceif` enforces an **automatic reservoir ceiling**:
-$$N_{\text{extra}} \le \text{samples} \times 3 \quad (\text{EXTRA-ROWS-FACTOR} = 3)$$
 
-This bounds the denominator so that:
-$$P_{\min} = \frac{S}{S + 3S} = \frac{1}{4} = 0.25$$
+$$
+N_{\text{extra}} \le \text{samples} \times 3
+$$
+
+where `EXTRA_ROWS_FACTOR = 3`. This bounds the denominator so that:
+
+$$
+P_{\min} = \frac{S}{S + 3S} = \frac{1}{4} = 0.25
+$$
+
 
 The acceptance chance for new incoming data never drops below **25%** (approximately 1 in 4 rows). As new observations arrive, the reservoir continually rolls forward, adapting to gradual long-term trends while remaining resilient to transient noise spikes.
 

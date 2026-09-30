@@ -52,8 +52,12 @@ $$
 
 #### 2. Nearest Training Point Distance in Leaf Nodes
 At leaf nodes, `ceif` evaluates the relative distance between the analyzed point and the nearest training data point in the node (`NEAREST 1`, default). The distance is normalized against the average sample distance within the tree:
-$$\text{rel-dist} = \frac{\sqrt{\min \|x - s\|^2}}{\text{avg-sample-dist}} + \text{MIN-REL-DIST}$$
-where $\text{MIN-REL-DIST} = 0.05$. If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
+$$
+\text{rel-dist} = \frac{\sqrt{\min \|x - s\|^2}}{\text{avg-sample-dist}} + d_0
+$$
+
+where $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
+
 
 #### 3. Asymptotic Exponential Outer Limit & Monotonic Outer Space
 Classic EIF hyperplanes extend infinitely, causing severe starburst rays where points millions of units away can randomly receive inlier scores. `ceif` bounds outer space monotonically:
@@ -80,10 +84,11 @@ To establish a universal, robust lower bound for scaled scoring (`-O 0.5s`), `ce
 Instead of empirically scoring the training pool, `ceif` traverses all trees in memory to find the theoretical deepest leaf:
 
 $$
-H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{d_0}\right)
 $$
 
-where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density (a query point landing directly on a leaf sample).
+where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density (a query point landing directly on a leaf sample).
+
 
 The forest averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score analytically:
 
