@@ -32,7 +32,7 @@
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 #define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
 #define EXTRA_ROWS_FACTOR 3       // Maximum extra rows ratio to sample count (f->X_count * EXTRA_ROWS_FACTOR)
-#define OUTER_DECAY_RATE 0.20     // Exponential approach rate to 1.0 in outer space
+#define OUTER_DECAY_RATE 0.10     // Exponential approach rate to 1.0 in outer space
 
 
 /* Normal distributed values written to cache for faster execution */
