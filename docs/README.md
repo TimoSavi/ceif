@@ -18,5 +18,3 @@ Welcome to the `ceif` documentation suite. Whether you are building from source,
 - **[Server Automation & Cron Recipes](cron-recipes.md)**  
   Production-tested recipes for server automation, scheduled scans, rolling self-updating models (`-z`), automatic reservoir ceiling (`EXTRA_ROWS_FACTOR 3`), multi-tenant category isolation (`-C`), real-time stream piping (`tail -F`), and population distribution shift / drift detection (`-O 80% -v`).
 
-- **[Beyond EIF: Algorithmic Evolution](eif-algorithmic-evolution.md)**  
-  Theoretical foundations, deconstruction of classic EIF flaws, empirical Voronoi bisector findings, and next-generation geometric forest architectures.

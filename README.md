@@ -29,7 +29,6 @@ Comprehensive documentation is available in the [`docs/`](docs/README.md) direct
 * **[Building from Source](docs/building.md)**: Prerequisites, build dependencies (`json-c`), package manager installation across distributions, and compilation.
 * **[Tweaking & Testing Guide](docs/tweaking.md)**: Calibration guide, heatmaps, score scaling (`-O 0.5s`), percentile thresholds, novelty detection (`-O 100%`), handling complex topologies (`NEAREST 1`), and attribute contribution analysis (`%e`).
 * **[Server Automation & Cron Recipes](docs/cron-recipes.md)**: Production cron scripts, scheduled scans, rolling self-updating models (`-z`), multi-tenant tracking (`-C`), stream piping, and population drift detection (`-O 80% -v`).
-* **[Beyond EIF: Algorithmic Evolution](docs/eif-algorithmic-evolution.md)**: Theoretical foundations, deconstruction of classic EIF flaws, empirical Voronoi findings, and next-generation geometric forest architectures.
 
 ---
 
