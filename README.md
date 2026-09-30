@@ -42,7 +42,11 @@ The canonical EIF selects intercept points $p$ uniformly from a rectangular boun
 To resolve this, `ceif` uses **Pairwise Split Point Selection**:
 1. At each node, two sample points $x_1$ and $x_2$ are randomly selected from the node's sample subset.
 2. The split intercept point $p$ is chosen along the line segment between them:
-   $$p = x_1 + u \cdot (x_2 - x_1), \quad u \sim \mathcal{U}(-\text{margin}, 1 + \text{margin})$$
+
+$$
+p = x_1 + u \cdot (x_2 - x_1), \quad u \sim \mathcal{U}(-\text{margin}, 1 + \text{margin})
+$$
+
 3. **Quadratic Depth Margin Decay**: At shallow tree depths (root, level 0), the margin expands up to $2.5 \times (\text{height-ratio})^2 \times \text{pair-factor}$ ($u \in [-2.5, 3.5]$), creating an extended distance gradient into outer space and preventing premature saturation of outlier scores. As tree depth increases toward the leaves, the margin contracts quadratically to 0.0 ($u \in [0.0, 1.0]$), guaranteeing clean sample partitioning between remaining local points.
 4. **Adaptive Density Calibration**: The margin dynamically scales based on the distance between $x_1$ and $x_2$ relative to the average consecutive sample distance in the node. When $x_1$ and $x_2$ span across an empty void or separate clusters, the margin strictly contracts to $[0, 1]$, ensuring the split cleanly bisects the void without bridging artifacts.
 
@@ -53,23 +57,42 @@ where $\text{MIN-REL-DIST} = 0.05$. If the distance is larger than average, the 
 
 #### 3. Asymptotic Exponential Outer Limit & Monotonic Outer Space
 Classic EIF hyperplanes extend infinitely, causing severe starburst rays where points millions of units away can randomly receive inlier scores. `ceif` bounds outer space monotonically:
-- For any query point outside the empirical data bounding envelope ($[\min_j, \max_j]$), `ceif` measures its normalized Euclidean exterior distance:
-  $$d_{\text{norm}} = \sqrt{\sum_{j=1}^D \left(\frac{\max(0, \min_j - x_j) + \max(0, x_j - \max_j)}{\text{span}_j}\right)^2}$$
-- The tree anomaly score is asymptotically decayed toward 1.0 using an exponential limit:
-  $$\text{score} = 1.0 - (1.0 - \text{score}_{\text{tree}}) \cdot e^{-\text{OUTER-DECAY-RATE} \cdot d_{\text{norm}}}$$
-  where $\text{OUTER-DECAY-RATE} = 0.10$.
-- Scores are strictly bounded below 1.0 ($\text{score} \le 1.0 - 10^{-6}$) to preserve dynamic range and prevent numerical saturation.
-- The forest maximum score is defined directly as $s_{\max} = 1.0$, completely removing empirical diagonal ray projections.
+
+For any query point outside the empirical data bounding envelope ($[\min_j, \max_j]$), `ceif` measures its normalized Euclidean exterior distance:
+
+$$
+d = \sqrt{\sum_{j=1}^D \left(\frac{\max(0, \min_j - x_j) + \max(0, x_j - \max_j)}{\text{span}_j}\right)^2}
+$$
+
+The tree anomaly score is asymptotically decayed toward 1.0 using an exponential limit:
+
+$$
+s = 1.0 - (1.0 - s_0) \cdot e^{-\beta \cdot d}
+$$
+
+where $s_0$ is the baseline tree anomaly score and $\beta = 0.10$ (`OUTER_DECAY_RATE`).
+
+Scores are strictly bounded below 1.0 ($s \le 1.0 - 10^{-6}$) to preserve dynamic range and prevent numerical saturation. The forest maximum score is defined directly as $s_{\max} = 1.0$, completely removing empirical diagonal ray projections.
 
 #### 4. Structural "Zero Kelvin" Lower Bound Calibration ($s_{\min}$)
 To establish a universal, robust lower bound for scaled scoring (`-O 0.5s`), `ceif` employs the **Zero Kelvin principle**:
-- Instead of empirically scoring the training pool, `ceif` traverses all trees in memory to find the theoretical deepest leaf:
-  $$H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)$$
-  where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density (a query point landing directly on a leaf sample).
-- The forest averages the maximum theoretical heights across all trees: $\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$.
-- The baseline minimum score is calibrated analytically:
-  $$s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}$$
-- This provides an ultra-fast (sub-millisecond), deterministic inlier baseline that is completely independent of training sample ordering.
+
+Instead of empirically scoring the training pool, `ceif` traverses all trees in memory to find the theoretical deepest leaf:
+
+$$
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)
+$$
+
+where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density (a query point landing directly on a leaf sample).
+
+The forest averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score analytically:
+
+$$
+s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}
+$$
+
+This provides an ultra-fast (sub-millisecond), deterministic inlier baseline that is completely independent of training sample ordering.
+
 
 ---
 

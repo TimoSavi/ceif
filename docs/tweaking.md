@@ -50,29 +50,58 @@ Typically, the scaled score threshold `0.5s` provides a reliable default boundar
 
 #### Scaled Outlier Score
 When suffix 's' is appended to the outlier score, analyzed scores are scaled to the range $0.0 \dots 1.0$:
-$$s_{\text{scaled}} = \frac{s - s_{\min}}{s_{\max} - s_{\min}}$$
+
+$$
+s_{\text{scaled}} = \frac{s - s_{\min}}{s_{\max} - s_{\min}}
+$$
+
 This normalization anchors the best inliers near 0.0 and distant anomalies near 1.0, ensuring consistent operational thresholds across disparate forests. Scaling is always enabled during categorization (option -c).
+
 
 ##### Structural "Zero Kelvin" Calibration ($s_{\min}$)
 Rather than relying on an empirical loop over training samples (which is subject to sample order variance and reservoir outliers), `ceif` calibrates $s_{\min}$ analytically using the **Zero Kelvin principle**:
-- `ceif` traverses all trees in memory via `tree_find_max_height()`, locating the theoretical deepest leaf:
-  $$H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)$$
-  where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
-- It averages the maximum theoretical heights across all trees: $\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$.
-- The baseline minimum score is calibrated directly:
-  $$s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}$$
+
+`ceif` traverses all trees in memory via `tree_find_max_height()`, locating the theoretical deepest leaf:
+
+$$
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{\text{MIN-REL-DIST}}\right)
+$$
+
+where $\text{MIN-REL-DIST} = 0.05$ represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
+
+It averages the maximum theoretical heights across all trees ($\bar{H}_{\text{zero-kelvin}} = \frac{1}{T}\sum_{t=0}^{T-1} H_{\max}(t)$) and calibrates the baseline minimum score directly:
+
+$$
+s_{\min} = \frac{1}{2^{\bar{H}_{\text{zero-kelvin}} / c}}
+$$
+
 This structural lower bound is computed in microseconds and guarantees consistent inlier headroom across all categories.
 
 ##### Asymptotic Exponential Outer Limit ($s_{\max}$)
 Classic EIF hyperplanes extend infinitely, causing severe starburst rays where points far outside the distribution receive low anomaly scores. `ceif` eliminates this behavior and sets the maximum score directly to $s_{\max} = 1.0$:
-- When a point falls outside the training data bounding envelope ($[\min_j, \max_j]$), its normalized Euclidean exterior distance is evaluated:
-  $$d_{\text{norm}} = \sqrt{\sum_{j=1}^D \left(\frac{\max(0, \min_j - x_j) + \max(0, x_j - \max_j)}{\text{span}_j}\right)^2}$$
-- An asymptotic exponential decay pulls the score toward 1.0:
-  $$\text{score} = 1.0 - (1.0 - \text{score}_{\text{tree}}) \cdot e^{-\text{OUTER-DECAY-RATE} \cdot d_{\text{norm}}}$$
-  where $\text{OUTER-DECAY-RATE} = 0.10$.
-- To prevent premature numerical saturation and preserve dynamic range across deep space, scores are strictly bounded below 1.0:
-  $$\text{if } (\text{score} \ge 1.0) \quad \text{score} = 1.0 - 10^{-6}$$
+
+When a point falls outside the training data bounding envelope ($[\min_j, \max_j]$), its normalized Euclidean exterior distance is evaluated:
+
+$$
+d = \sqrt{\sum_{j=1}^D \left(\frac{\max(0, \min_j - x_j) + \max(0, x_j - \max_j)}{\text{span}_j}\right)^2}
+$$
+
+An asymptotic exponential decay pulls the score toward 1.0:
+
+$$
+s = 1.0 - (1.0 - s_0) \cdot e^{-\beta \cdot d}
+$$
+
+where $s_0$ is the baseline tree anomaly score and $\beta = 0.10$ (`OUTER_DECAY_RATE`).
+
+To prevent premature numerical saturation and preserve dynamic range across deep space, scores are strictly bounded below 1.0:
+
+$$
+\text{if } (s \ge 1.0) \quad s = 1.0 - 10^{-6}
+$$
+
 Scaled scores $s_{\text{scaled}}$ are likewise bounded to $[0.0, 1.0 - 10^{-6}]$.
+
 
 ##### Interpretation of Scaled Score Thresholds (-O)
 
