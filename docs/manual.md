@@ -1,4 +1,7 @@
 ## Running ceif
+
+**Author / Maintainer:** Timo Savinen (AI-assisted)
+
 ceif is a command-line program controlled by arguments. The basic syntax is:
 
     ceif [OPTION]...
@@ -27,7 +30,7 @@ Input data is assumed to be comma-separated values. A different separator can be
 | -w&nbsp;FILE | Write forest data to FILE. Typically the result of analyzing data from a file with option -l. Data can later be read with option -r|
 | -z&nbsp;FILE | In-place update: reads forest data from FILE, adds new training samples via reservoir sampling, retrains trees, and writes back. Automatically caps historical extra rows at $3 \times \text{samples}$ to maintain continuous model adaptivity|
 | -O&nbsp;FLOAT| Outlier score threshold for anomaly detection. Data with a higher or equal score is considered an anomaly and printed using the format given by option -p. Values range from 0.0 to 1.0|
-| -O&nbsp;FLOATs| Scaled outlier score for anomaly detection. The analyzed score is scaled to the range 0.0–1.0 using the forest min/max scores. This ensures the best inlier receives a score near 0.0 and the farthest outlier receives a score near 1.0. When given with the categorize option (-c), results are filtered by this threshold: only category results with scores lower than this value are accepted. Values range from 0.0s to 1.0s|
+| -O&nbsp;FLOATs| Scaled outlier score for anomaly detection. The analyzed score is scaled to the range 0.0–1.0 using the forest min/max scores (calibrated via theoretical Zero Kelvin deepest-leaf traversal for $s_{\min}$ and direct 1.0 for $s_{\max}$). This ensures the best inlier receives a score near 0.0 and the farthest outlier receives a score near 1.0. When given with the categorize option (-c), results are filtered by this threshold: only category results with scores lower than this value are accepted. Values range from 0.0s to 1.0s|
 | -O&nbsp;FLOAT%| Outlier score threshold calculated from the sample score distribution, selecting the score value under which FLOAT percent of samples have a lower score. Values range from 0% to 100%|
 | -C&nbsp;LIST | List of field numbers to be used as category fields. Default is not to use category fields. Field values are concatenated with colons to form a category string|
 | -L&nbsp;LIST | List of field numbers to be used as label fields. Default is not to use label fields. Field values are concatenated with colons to form a label string|
@@ -98,7 +101,7 @@ Default settings can be loaded from the user-specific rc-file `~/.ceifrc`. The f
 
 When running `ceif`, configuration values are resolved using an explicit precedence hierarchy:
 
-$$\text{Built-in Defaults} \;\;<\;\; \mathtt{\sim/.ceifrc} \;\;<\;\; \text{Forest Model } (\mathtt{-r} / \mathtt{-z}) \;\;<\;\; \text{Custom Config } (\mathtt{-g}) \;\;<\;\; \text{CLI Flags } (\mathtt{-O}, \mathtt{-t}, \dots)$$
+$$\text{Built-in Defaults} \;\;<\;\; \text{User Default } (\sim\text{/.ceifrc}) \;\;<\;\; \text{Forest Model } (\text{-r} / \text{-z}) \;\;<\;\; \text{Custom Config } (\text{-g}) \;\;<\;\; \text{CLI Flags } (\text{-O}, \text{-t}, \dots)$$
 
 1. **Built-in Defaults:** Initial hardcoded values compiled into `ceif`.
 2. **User Default RC-file (`~/.ceifrc`):** Read automatically at startup if present.
@@ -125,7 +128,7 @@ The following variables are supported:
 |AUTO\_SCALE|Scale sample values before analyzing the forest: 1 = yes, 0 = no|1|
 |CATEGORY\_SEPARATOR|Character used as a separator when concatenating category fields|;|
 |LABEL\_SEPARATOR|Character used as a separator when concatenating label fields|-|
-|OUTLIER\_SCORE|Outlier score threshold for analysis; accepts the same formats as option -O ("max", "average", float 0..1, or scaled float 0s..1s)|0.65|
+|OUTLIER\_SCORE|Outlier score threshold for analysis; accepts the same formats as option -O (float 0.0..1.0, scaled float 0.0s..1.0s, or percentile 0%..100%)|0.65|
 |MAX\_SAMPLES|Maximum number of samples for each forest|Calculated as number\_of\_trees * number\_of\_samples\_per\_tree|
 |NEAREST|Score is adjusted by distance to nearest sample point in leaf nodes: 1 = yes, 0 = no|1|
 |ANALYZE\_SAMPLING|If analyzed data is impractically large, stream sampling can be enabled. When the analyzed row count reaches this threshold, sampling begins using reservoir sampling. The number of analyzed rows is estimated as k * (ln(x/k) + 1), where k is this parameter and x is total rows|0 (disabled)|

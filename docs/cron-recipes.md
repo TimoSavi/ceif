@@ -1,5 +1,7 @@
 # ceif Server Automation & Cron Recipes
 
+**Author / Maintainer:** Timo Savinen (AI-assisted)
+
 `ceif` is designed specifically for automated server environments, cron jobs, and Unix shell pipelines. Unlike Python or JVM-based anomaly detection engines, `ceif`:
 - Has **zero runtime dependencies** (pure C binary).
 - Runs with **constant, bounded memory** via reservoir sampling (will not trigger OOM kills on multi-gigabyte log spikes).

@@ -1,5 +1,7 @@
 ## Building from Source
 
+**Author / Maintainer:** Timo Savinen (AI-assisted)
+
 GNU Autotools, GCC (or Clang), and Make are required to build `ceif`. 
 
 ### Dependencies & Prerequisites
