@@ -236,7 +236,7 @@ Creating the anomaly map with commands:
     gnuplot plot.gp
 
 
-Resulting map in pic.png, inlier area is white:
+Resulting map in pic.png, inlier area is green:
 
 ![](pics/square_sblob.png)
 
