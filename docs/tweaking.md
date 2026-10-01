@@ -40,13 +40,14 @@ Training samples are shown in black. Outlier regions are displayed in color (yel
 |---|---|---|---|
 |training data|![](pics/2blob.png)|![](pics/square.png)|![](pics/circle.png)|
 |0|![](pics/2blob_O0.png)|![](pics/square_O0.png)|![](pics/circle_O0.png)|
-|0.5|![](pics/2blob_O05.png)|![](pics/square_O05.png)|![](pics/circle_O05.png)|
+|0.35s|![](pics/2blob_O035s.png)|![](pics/square_O035s.png)|![](pics/circle_O035s.png)|
 |0.5s|![](pics/2blob_O05s.png)|![](pics/square_O05s.png)|![](pics/circle_O05s.png)|
+|0.6s|![](pics/2blob_O06s.png)|![](pics/square_O06s.png)|![](pics/circle_O06s.png)|
 
-A raw outlier score of 0.5 behaves differently across topologies. For 2blobs and square, it marks some valid training points as outliers, while for circle it is too permissive.
-A 100% percentile score preserves all training data points within the inlier region.
+Outlier score of `0.35s` gives sensitive outlier detection.
 
-Typically, the scaled score threshold `0.5s` provides a reliable default boundary across most distributions.
+The scaled score threshold `0.5s` provides a reliable default boundary across most distributions. It gives good basic outlier detection.
+The scaled score threshold `0.6s` tries to catch definitive outliers.
 
 #### Scaled Outlier Score
 When suffix 's' is appended to the outlier score, analyzed scores are scaled to the range $0.0 \dots 1.0$:
