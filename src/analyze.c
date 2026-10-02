@@ -101,31 +101,87 @@ int find_forest(int value_count,char **values, int filter_on)
 
 /* Search the nearest training sample for a analyzed point a
    returns the shortest relative distance
-
+ 
+   Calculates the average distance from a data sample to its max_nearest_nodes nearest nodes 
+   in an n-dimensional space (where max_nearest_nodes = 2^dimensions).
+  
+   Note: Taking max_nearest_nodes = 2^dimensions (the cell bounding vertices) ensures that the
+   average distance remains constant as the particle moves through the grid.
+  
    relative distance is 1 if the actual distance is the same as forest average sample distance
    relative distance < 1 if the actual distance is smaller than forest average sample distance but never smaller than MIN_REL_DIST
    relative distance > 1 if the actual distance is larger than forest average sample distance
 
-   a is assumed be scaled in case auto scaling (auto_weigth)
+   it is assumed be scaled in case auto scaling (auto_weigth)
  */
+#define MAX_NEAREST_NODES 32   /* matches exactly for dimensions 1-5 */
 #define MIN_REL_DIST 0.05
+
+/* Sift down in binary max-heap of size n
+ */
+static inline void max_heap_sift_down(double *heap, int i, int n)
+{
+    double val = heap[i];
+    while (1) {
+        int left = 2 * i + 1;
+        if (left >= n) break;
+        int right = left + 1;
+        int largest = (right < n && heap[right] > heap[left]) ? right : left;
+        if (heap[largest] <= val) break;
+        heap[i] = heap[largest];
+        i = largest;
+    }
+    heap[i] = val;
+}
+
 double nearest_rel_distance(double *a, int sample_count,int *samples,struct forest *f)
 {
     int i;
-    double distance,d; 
+    int max_nearest_nodes = (dimensions < 5) ? (1 << dimensions) : MAX_NEAREST_NODES;
+    double distance = 0.0;
 
-    distance = v_dist_nosqrt(a,sample_dimension(&f->X[samples[0]]));
+    if (sample_count <= 0) return 1.0;
 
-    for(i = 1;i < sample_count;i++)
+    /* Fast path: if the leaf has <= max_nearest_nodes samples, all samples belong
+       to the nearest bounding set. No heap, buffer tracking, or eviction needed. */
+    if (sample_count <= max_nearest_nodes)
     {
-        d = v_dist_nosqrt(a,sample_dimension(&f->X[samples[i]]));
-
-        if(d < distance) distance = d;
+        for (i = 0; i < sample_count; i++)
+        {
+            distance += v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
+        }
+        distance = distance / sample_count;
+        return sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
     }
 
-    distance = sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
+    /* Heap path: maintain K smallest distances using a stack-allocated max-heap */
+    double heap[MAX_NEAREST_NODES];
+    for (i = 0; i < max_nearest_nodes; i++)
+    {
+        heap[i] = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
+    }
+    for (i = (max_nearest_nodes >> 1) - 1; i >= 0; i--)
+    {
+        max_heap_sift_down(heap, i, max_nearest_nodes);
+    }
 
-    return distance;
+    for (i = max_nearest_nodes; i < sample_count; i++)
+    {
+        double d = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
+        if (d < heap[0])
+        {
+            heap[0] = d;
+            max_heap_sift_down(heap, 0, max_nearest_nodes);
+        }
+    }
+
+    for (i = 0; i < max_nearest_nodes; i++)
+    {
+        distance += heap[i];
+    }
+    distance = distance / max_nearest_nodes;
+
+    return sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
 }
 
 
