@@ -835,7 +835,7 @@ int add_node(struct forest *f,struct tree *t,int sample_count,int *samples,struc
     int *left_samples;
     int *rigth_samples;
 
-    if(heigth >= heigth_limit || sample_count < NODE_MIN_SAMPLE) return -1;
+    if(heigth >= heigth_limit || sample_count < min_leaf_sample_count) return -1;
     
     DEBUG("    Adding a node with %d samples at heigth %d,",sample_count,heigth);
     

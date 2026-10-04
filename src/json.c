@@ -328,6 +328,8 @@ void read_globals(json_object *globals)
     dimensions = get_global_int(globals, DIMENSIONS);
     if(dimensions > DIM_MAX) dimensions = DIM_MAX;
 
+    min_leaf_sample_count = NODE_MIN_SAMPLE(dimensions);
+
     forest_count = get_global_int(globals, FOREST_COUNT);
     if(!cli_given.print_string)
     {

@@ -31,6 +31,7 @@
 /* Global data */
 int dim_idx[DIM_MAX];          // final table of dimension indices to be used. Index refers to input line field index
 int dimensions = 0;            // dimensions in current setup
+int min_leaf_sample_count = 4; // Adjusted dynamically based on dimension count
 
 int text_idx[DIM_MAX];         // table of dimension indices having text based input values. Texts are mapped to hash values using hash().
 int text_idx_count = 0;        // number of text based input values

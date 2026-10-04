@@ -28,11 +28,20 @@
 #define FILTER_MAX 100            // maximum number of category filters
 #define HASH_MAX 32771            // max hash value
 #define TEST_SAMPLES 10240        // number of samples when making analysis test
-#define NODE_MIN_SAMPLE 3         // Minimum number of samples in a node 
 #define CLUSTER_MAX 256           // Maximum number of cluster centers for a forest
 #define EXPRESSION_DATA_REFERENCE_MAX 20 // Maximum number of data references in one expression 
 #define EXTRA_ROWS_FACTOR 3       // Maximum extra rows ratio to sample count (f->X_count * EXTRA_ROWS_FACTOR)
 #define OUTER_DECAY_RATE 0.10     // Exponential approach rate to 1.0 in outer space
+
+
+/**
+ * Calculate leaf node minimum sample count using dimensionality:
+ * For low dimensions (D < 4), requires 2^D samples to surround query points.
+ * For higher dimensions (D >= 4), caps at 8 samples to avoid tree under-splitting.
+ */
+#define MAX_LEAF_NEAREST_DIM_CAP 4
+#define MIN_LEAF_NEAREST_SAMPLES 8
+#define NODE_MIN_SAMPLE(d) (((d) < MAX_LEAF_NEAREST_DIM_CAP) ? (1 << (d)) : MIN_LEAF_NEAREST_SAMPLES)
 
 
 /* Normal distributed values written to cache for faster execution */
@@ -152,6 +161,7 @@ extern int text_idx[];
 extern int score_idx[];
 
 extern int dimensions;            // dimensions in current setup
+extern int min_leaf_sample_count; // Minimum number of samples in a tree leaf
 extern int ignore_idx_count;
 extern int include_idx_count;
 extern int category_idx_count;

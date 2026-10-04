@@ -840,7 +840,10 @@ init_dims(int value_count)
         }
     }
 
-    if(!dimensions) dimensions = d;   // If number of dims allready read from saved file, dont mess that
+    if(!dimensions) dimensions = d;   // If number of dims already read from saved file, don't change that
+
+    min_leaf_sample_count = NODE_MIN_SAMPLE(dimensions);
+
 }
 
 /* aggregate values to forest summary

@@ -201,6 +201,8 @@ int parse_G(char *l)
     if(value_count >= 20 && value_count <= 23) // allow backward compatibility with older 20-23 field formats
     {
         dimensions = atoi(v[1]);
+        min_leaf_sample_count = NODE_MIN_SAMPLE(dimensions);
+
         if(!cli_given.label_dims)
         {
             if(label_dims != NULL) free(label_dims);
