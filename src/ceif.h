@@ -36,12 +36,13 @@
 
 /**
  * Calculate leaf node minimum sample count using dimensionality:
- * For low dimensions (D < 4), requires 2^D samples to surround query points.
+ * For low dimensions (D < 4), requires 2^D samples with a floor of 4 to surround query points.
  * For higher dimensions (D >= 4), caps at 8 samples to avoid tree under-splitting.
  */
 #define MAX_LEAF_NEAREST_DIM_CAP 4
+#define MIN_LEAF_FLOOR_SAMPLES 4
 #define MIN_LEAF_NEAREST_SAMPLES 8
-#define NODE_MIN_SAMPLE(d) (((d) < MAX_LEAF_NEAREST_DIM_CAP) ? (1 << (d)) : MIN_LEAF_NEAREST_SAMPLES)
+#define NODE_MIN_SAMPLE(d) (((1 << (d)) < MIN_LEAF_FLOOR_SAMPLES) ? MIN_LEAF_FLOOR_SAMPLES : (((d) < MAX_LEAF_NEAREST_DIM_CAP) ? (1 << (d)) : MIN_LEAF_NEAREST_SAMPLES))
 
 
 /* Normal distributed values written to cache for faster execution */

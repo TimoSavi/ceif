@@ -103,9 +103,9 @@ int find_forest(int value_count,char **values, int filter_on)
    returns the shortest relative distance
  
    Calculates the average distance from a data sample to its max_nearest_nodes nearest nodes 
-   in an n-dimensional space (where max_nearest_nodes = 2^dimensions).
+   in an n-dimensional space (where max_nearest_nodes = 2^dimensions with floor MIN_LEAF_FLOOR_SAMPLES).
   
-   Note: Taking max_nearest_nodes = 2^dimensions (the cell bounding vertices) ensures that the
+   Note: Taking max_nearest_nodes = 2^dimensions (floor 4, cell bounding vertices) ensures that the
    average distance remains constant as the particle moves through the grid.
   
    relative distance is 1 if the actual distance is the same as forest average sample distance
@@ -137,7 +137,7 @@ static inline void max_heap_sift_down(double *heap, int i, int n)
 double nearest_rel_distance(double *a, int sample_count,int *samples,struct forest *f)
 {
     int i;
-    int max_nearest_nodes = (dimensions < 5) ? (1 << dimensions) : MAX_NEAREST_NODES;
+    int max_nearest_nodes = ((1 << dimensions) < MIN_LEAF_FLOOR_SAMPLES) ? MIN_LEAF_FLOOR_SAMPLES : ((dimensions < 5) ? (1 << dimensions) : MAX_NEAREST_NODES);
     double distance = 0.0;
 
     if (sample_count <= 0) return 1.0;
