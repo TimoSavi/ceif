@@ -117,6 +117,13 @@ int find_forest(int value_count,char **values, int filter_on)
 #define MAX_NEAREST_NODES 32   /* matches exactly for dimensions 1-5 */
 #define MIN_REL_DIST 0.033333
 
+/* Boundary half-space geometric calibration multiplier.
+ * Doubling relative distance smooths the steep hyperbolic gradient (d/dr c(n/r) = -2/r)
+ * near sample boundaries, eliminating border spikes/valleys and covering peripheral
+ * non-significant regions under thresholding (e.g. -O 80%).
+ */
+#define REL_DIST_MULTIPLIER 2.0
+
 /* Sift down in binary max-heap of size n
  */
 static inline void max_heap_sift_down(double *heap, int i, int n)
@@ -184,7 +191,7 @@ double nearest_rel_distance(double *a, int sample_count,int *samples,struct fore
     double rel_dist = sqrt(distance) / f->avg_sample_dist;
     rel_dist = rel_dist < MIN_REL_DIST ? MIN_REL_DIST : rel_dist;
 
-    return 2.0*rel_dist;
+    return REL_DIST_MULTIPLIER * rel_dist;
 }
 
 
@@ -962,8 +969,8 @@ static void tree_find_max_height(struct forest *f, struct tree *t, int node_idx,
         double leaf_c = 0.0;
         if(nearest && f->avg_sample_dist > 0.0 && this->sample_count > 0)
         {
-            // Under Zero Kelvin (deepest density point), distance to nearest sample is minimal (rel_dist = 2.0 * MIN_REL_DIST)
-            double rel_dist = 2.0 * MIN_REL_DIST;
+            // Under Zero Kelvin (deepest density point), distance to nearest sample is minimal (rel_dist = REL_DIST_MULTIPLIER * MIN_REL_DIST)
+            double rel_dist = REL_DIST_MULTIPLIER * MIN_REL_DIST;
             double adjusted_n = (double) this->sample_count / rel_dist;
             leaf_c = c((int) adjusted_n);
         }
