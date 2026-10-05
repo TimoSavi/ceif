@@ -54,10 +54,10 @@ $$
 At leaf nodes, `ceif` evaluates the relative distance between the analyzed point and the nearest training data point in the node (`NEAREST 1`, default). The distance is normalized against the average sample distance within the tree:
 
 $$
-\text{rel-dist} = \frac{d_{\min}}{\text{avg-sample-dist}} + d_0, \quad d_{\min} = \min_{s \in \text{leaf}} \Vert x - s \Vert
+\text{rel-dist} = 2.0 \cdot \max\left(\frac{d_{\min}}{\text{avg-sample-dist}}, d_0\right), \quad d_{\min} = \min_{s \in \text{leaf}} \Vert x - s \Vert
 $$
 
-where $d_0 = 0.05$ (`MIN_REL_DIST`). If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
+where $d_0 = 0.033333$ (`MIN_REL_DIST`), and the multiplier $2.0$ represents the half-space boundary geometric calibration factor. If the distance is larger than average, the effective sample count is reduced ($n_{\text{adjusted}} = \text{count} / \text{rel-dist}$), increasing the anomaly score; if smaller, it is increased. This allows `ceif` to cleanly isolate interior voids, rings, and complex manifold shapes.
 
 
 #### 3. Asymptotic Exponential Outer Limit & Monotonic Outer Space
@@ -85,10 +85,10 @@ To establish a universal, robust lower bound for scaled scoring (`-O 0.5s`), `ce
 Instead of empirically scoring the training pool, `ceif` traverses all trees in memory to find the theoretical deepest leaf:
 
 $$
-H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{d_0}\right)
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{2.0 \cdot d_0}\right)
 $$
 
-where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density (a query point landing directly on a leaf sample).
+where $d_0 = 0.033333$ (`MIN_REL_DIST`) represents the theoretical maximum density (a query point landing directly on a leaf sample, giving minimal relative distance $2.0 \cdot d_0$).
 
 The forest averages the maximum theoretical heights across all trees:
 

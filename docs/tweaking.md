@@ -67,10 +67,10 @@ Rather than relying on an empirical loop over training samples (which is subject
 `ceif` traverses all trees in memory via `tree_find_max_height()`, locating the theoretical deepest leaf:
 
 $$
-H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{d_0}\right)
+H_{\text{leaf}} = \text{depth} + c\left(\frac{\text{sample-count}}{2.0 \cdot d_0}\right)
 $$
 
-where $d_0 = 0.05$ (`MIN_REL_DIST`) represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf.
+where $d_0 = 0.033333$ (`MIN_REL_DIST`) represents the theoretical maximum density when a query point lands directly on top of a sample point in that leaf (minimal relative distance $2.0 \cdot d_0$).
 
 It averages the maximum theoretical heights across all trees:
 

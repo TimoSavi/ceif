@@ -115,7 +115,7 @@ int find_forest(int value_count,char **values, int filter_on)
    it is assumed be scaled in case auto scaling (auto_weigth)
  */
 #define MAX_NEAREST_NODES 32   /* matches exactly for dimensions 1-5 */
-#define MIN_REL_DIST 0.05
+#define MIN_REL_DIST 0.033333
 
 /* Sift down in binary max-heap of size n
  */
@@ -151,37 +151,40 @@ double nearest_rel_distance(double *a, int sample_count,int *samples,struct fore
             distance += v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
         }
         distance = distance / sample_count;
-        return sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
-    }
+    } else
+    {
 
-    /* Heap path: maintain K smallest distances using a stack-allocated max-heap */
-    double heap[MAX_NEAREST_NODES];
-    for (i = 0; i < max_nearest_nodes; i++)
-    {
-        heap[i] = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
-    }
-    for (i = (max_nearest_nodes >> 1) - 1; i >= 0; i--)
-    {
-        max_heap_sift_down(heap, i, max_nearest_nodes);
-    }
-
-    for (i = max_nearest_nodes; i < sample_count; i++)
-    {
-        double d = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
-        if (d < heap[0])
+        /* Heap path: maintain K smallest distances using a stack-allocated max-heap */
+        double heap[MAX_NEAREST_NODES];
+        for (i = 0; i < max_nearest_nodes; i++)
         {
-            heap[0] = d;
-            max_heap_sift_down(heap, 0, max_nearest_nodes);
+            heap[i] = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
         }
-    }
+        for (i = (max_nearest_nodes >> 1) - 1; i >= 0; i--)
+        {
+            max_heap_sift_down(heap, i, max_nearest_nodes);
+        }
 
-    for (i = 0; i < max_nearest_nodes; i++)
-    {
-        distance += heap[i];
-    }
-    distance = distance / max_nearest_nodes;
+        for (i = max_nearest_nodes; i < sample_count; i++)
+        {
+            double d = v_dist_nosqrt(a, sample_dimension(&f->X[samples[i]]));
+            if (d < heap[0])
+            {
+                heap[0] = d;
+                max_heap_sift_down(heap, 0, max_nearest_nodes);
+            }
+        }
 
-    return sqrt(distance) / f->avg_sample_dist + MIN_REL_DIST;
+        for (i = 0; i < max_nearest_nodes; i++)
+        {
+            distance += heap[i];
+        }
+        distance = distance / max_nearest_nodes;
+    }
+    double rel_dist = sqrt(distance) / f->avg_sample_dist;
+    rel_dist = rel_dist < MIN_REL_DIST ? MIN_REL_DIST : rel_dist;
+
+    return 2.0*rel_dist;
 }
 
 
@@ -959,8 +962,8 @@ static void tree_find_max_height(struct forest *f, struct tree *t, int node_idx,
         double leaf_c = 0.0;
         if(nearest && f->avg_sample_dist > 0.0 && this->sample_count > 0)
         {
-            // Under Zero Kelvin (deepest density point), distance to nearest sample is minimal (rel_dist = MIN_REL_DIST)
-            double rel_dist = MIN_REL_DIST;
+            // Under Zero Kelvin (deepest density point), distance to nearest sample is minimal (rel_dist = 2.0 * MIN_REL_DIST)
+            double rel_dist = 2.0 * MIN_REL_DIST;
             double adjusted_n = (double) this->sample_count / rel_dist;
             leaf_c = c((int) adjusted_n);
         }
